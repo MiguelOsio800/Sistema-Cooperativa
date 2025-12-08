@@ -55,7 +55,7 @@ const AppContent: React.FC = () => {
     } = useConfig();
     const {
         invoices, clients, suppliers, vehicles, expenses, inventory, assets, assetCategories,
-        asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, asientosManuales, isLoading: isLoadingData,
+        asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, dispatches, asientosManuales, isLoading: isLoadingData,
         handleSaveClient, handleDeleteClient, handleSaveSupplier, handleDeleteSupplier,
         handleSaveInvoice, handleUpdateInvoice, handleUpdateInvoiceStatuses, handleDeleteInvoice,
         handleSaveVehicle, handleDeleteVehicle, handleSaveExpense,
@@ -86,7 +86,14 @@ const AppContent: React.FC = () => {
         if (currentUser.roleId === 'role-admin' || currentUser.roleId === 'role-tech' || !currentUser.officeId) {
             return invoices;
         }
-        return invoices.filter(invoice => invoice.guide.originOfficeId === currentUser.officeId);
+        
+        // CRITICAL UPDATE:
+        // Users must see invoices created by their office (Origin)
+        // AND invoices sent TO their office (Destination) to allow reception/verification.
+        return invoices.filter(invoice => 
+            invoice.guide.originOfficeId === currentUser.officeId || 
+            invoice.guide.destinationOfficeId === currentUser.officeId
+        );
     }, [invoices, currentUser]);
 
     // Filter expenses based on user's office for data segregation
@@ -192,7 +199,7 @@ const AppContent: React.FC = () => {
                 companyInfo={companyInfo}
             />;
             case 'despachos': return <DespachosView
-                invoices={filteredInvoices} // Only see invoices from user's office
+                invoices={filteredInvoices} // IMPORTANT: filteredInvoices now includes inbound invoices
                 asociados={asociados}
                 vehicles={vehicles}
                 offices={offices}
@@ -202,6 +209,7 @@ const AppContent: React.FC = () => {
                 onDispatchVehicle={handleDispatchVehicle}
                 companyInfo={companyInfo}
                 currentUser={currentUser}
+                permissions={userPermissions}
             />;
             case 'flota': return <FlotaView 
                 asociados={asociados} 

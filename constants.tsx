@@ -16,7 +16,7 @@ export const NAV_ITEMS: NavItem[] = [
     { id: 'dashboard', label: 'Inicio', icon: HomeIcon, permissionKey: 'dashboard.view' },
     { id: 'shipping-guide', label: 'Crear Factura', icon: FilePlusIcon, permissionKey: 'shipping-guide.view' },
     { id: 'invoices', label: 'Facturas', icon: ReceiptIcon, permissionKey: 'invoices.view' },
-    { id: 'despachos', label: 'Despachos', icon: SendIcon, permissionKey: 'flota.dispatch' }, // Reusing dispatch permission
+    { id: 'despachos', label: 'Despachos', icon: SendIcon, permissionKey: 'despachos.view' }, 
     { id: 'flota', label: 'Flota', icon: TruckIcon, permissionKey: 'flota.view' },
     { id: 'remesas', label: 'Remesas', icon: ClipboardDocumentListIcon, permissionKey: 'remesas.view' },
     { id: 'asociados', label: 'Asociados', icon: UsersIcon, permissionKey: 'asociados.view' },
@@ -90,6 +90,8 @@ export const ALL_PERMISSION_KEYS: string[] = [
     'shipping-guide.view',
     // Invoices
     'invoices.view', 'invoices.create', 'invoices.edit', 'invoices.delete', 'invoices.void', 'invoices.changeStatus',
+    // Despachos
+    'despachos.view', 'despachos.create', 'despachos.receive',
     // Flota
     'flota.view', 'flota.create', 'flota.edit', 'flota.delete', 'flota.dispatch',
     // Remesas
@@ -136,6 +138,10 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'invoices.delete': 'Eliminar Facturas (Permanente)',
     'invoices.void': 'Anular Facturas',
     'invoices.changeStatus': 'Cambiar Estado de Facturas',
+    // Despachos
+    'despachos.view': 'Ver Módulo de Despachos',
+    'despachos.create': 'Procesar Despachos (Salidas)',
+    'despachos.receive': 'Verificar y Recibir Carga',
     // Flota
     'flota.view': 'Ver Módulo de Flota',
     'flota.create': 'Añadir Vehículos a Flota',
@@ -217,10 +223,11 @@ const operatorPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'shipping-guide.view': true,
     'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true,
+    'despachos.view': true, 'despachos.create': true, 'despachos.receive': true,
     'flota.view': true,
-    'flota.dispatch': true, // Needed for Despachos module
+    'flota.dispatch': true, 
     'remesas.view': true,
-    'asociados.view': true, // Enabled to allow data fetching for Fleet module, hidden via Sidebar logic
+    'asociados.view': true, // Enabled for data fetching, UI hidden via Sidebar
     'clientes.view': true, 'clientes.create': true, 'clientes.edit': true,
     'proveedores.view': false, 
     'inventario.view': true,

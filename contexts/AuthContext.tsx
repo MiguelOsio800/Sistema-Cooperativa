@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, ReactNode, useState, useEffect, useRef, useCallback } from 'react';
 import { User } from '../types';
 import { apiFetch } from '../utils/api';
@@ -80,7 +81,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleExtendSession = useCallback(async () => {
         try {
             // Make a lightweight API call to keep the session alive on the backend
-            await apiFetch('/auth/profile');
+            // Try profile as it is a safe read operation
+            try {
+                await apiFetch('/auth/validate-token', { method: 'POST' });
+            } catch (e: any) {
+                if (e.message && e.message.includes('404')) {
+                     await apiFetch('/auth/profile', { method: 'GET' });
+                } else {
+                    throw e;
+                }
+            }
             
             // If successful, reset everything
             if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
@@ -100,7 +110,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const token = localStorage.getItem('accessToken');
             if (token) {
                 try {
-                    const userProfile = await apiFetch<User>('/auth/profile');
+                    let userProfile;
+                    // Changed from /auth/profile to /auth/validate-token to match backend docs
+                    // Added fallback to /auth/profile in case of 404
+                    try {
+                        userProfile = await apiFetch<User>('/auth/validate-token', {
+                            method: 'POST'
+                        });
+                    } catch (error: any) {
+                        if (error.message && error.message.includes('404')) {
+                            console.warn("Endpoint /auth/validate-token not found (404), trying fallback /auth/profile...");
+                            userProfile = await apiFetch<User>('/auth/profile', {
+                                method: 'GET'
+                            });
+                        } else {
+                            throw error;
+                        }
+                    }
+                    
                     if (userProfile && userProfile.id) {
                         setCurrentUser(userProfile);
                         setIsAuthenticated(true);

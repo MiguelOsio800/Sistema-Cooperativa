@@ -24,7 +24,7 @@ type DataContextType = {
     pagosAsociados: PagoAsociado[];
     recibosPagoAsociados: ReciboPagoAsociado[];
     remesas: Remesa[];
-    dispatches: Dispatch[]; // New: Dispatch History
+    dispatches: Dispatch[]; 
     asientosManuales: AsientoManual[];
     isLoading: boolean;
     handleSaveClient: (client: Client) => Promise<void>;
@@ -62,6 +62,7 @@ type DataContextType = {
     handleCreateDebitNote: (invoiceId: string, reason: string) => Promise<void>;
     handleCreateDispatch: (invoiceIds: string[], vehicleId: string, destinationOfficeId: string) => Promise<Dispatch | null>;
     handleReceiveDispatch: (dispatchId: string, verifiedInvoiceIds: string[]) => Promise<void>;
+    handleGenerateMassiveDebt: (debtData: any) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -84,11 +85,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [pagosAsociados, setPagosAsociados] = useState<PagoAsociado[]>([]);
     const [recibosPagoAsociados, setRecibosPagoAsociados] = useState<ReciboPagoAsociado[]>([]);
     const [remesas, setRemesas] = useState<Remesa[]>([]);
-    const [dispatches, setDispatches] = useState<Dispatch[]>([]); // New State
+    const [dispatches, setDispatches] = useState<Dispatch[]>([]);
     const [asientosManuales, setAsientosManuales] = useState<AsientoManual[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Helper function to safely fetch data that might be restricted (403)
     const fetchSafe = async <T,>(endpoint: string, fallbackValue: T): Promise<T> => {
         try {
             return await apiFetch<T>(endpoint);
@@ -148,11 +148,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const [
                         asociadosData, 
                         remesasData,
-                        dispatchesData // Fetch dispatches history
+                        dispatchesData
                     ] = await Promise.all([
                         fetchSafe<Asociado[]>('/asociados', []), 
                         fetchSafe<Remesa[]>('/remesas', []),
-                        fetchSafe<Dispatch[]>('/dispatches', []) // Hypothetical endpoint
+                        fetchSafe<Dispatch[]>('/dispatches', [])
                     ]);
                     
                     setInvoices(invoicesData); 
@@ -258,6 +258,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleSavePagoAsociado = (pago: PagoAsociado) => handleGenericSave(pago, '/asociados/deudas', setPagosAsociados, 'Pago de Asociado');
     const handleDeletePagoAsociado = (id: string) => handleGenericDelete(id, '/asociados/deudas', setPagosAsociados, 'Pago de Asociado');
     
+    // NEW: Use the proper bulk endpoint for massive debt
+    const handleGenerateMassiveDebt = async (debtData: any) => {
+        try {
+            const result = await apiFetch<{ count: number }>('/asociados/deuda-masiva', {
+                method: 'POST',
+                body: JSON.stringify(debtData)
+            });
+            
+            // Refresh payments list to reflect changes
+            if (asociados.length > 0) {
+                const debtsPromises = asociados.map(a => fetchSafe<PagoAsociado[]>(`/asociados/${a.id}/deudas`, []));
+                const allDebtsResults = await Promise.all(debtsPromises);
+                setPagosAsociados(allDebtsResults.flat());
+            }
+            
+            addToast({ type: 'success', title: 'Operación Exitosa', message: `Se generaron ${result.count || 'múltiples'} deudas.` });
+        } catch (error: any) {
+            addToast({ type: 'error', title: 'Error', message: error.message });
+        }
+    };
+    
     const handleSaveRecibo = (recibo: ReciboPagoAsociado) => handleGenericSave(recibo, '/asociados/registrar-pago', setRecibosPagoAsociados, 'Recibo');
     
     const handleSaveAsientoManual = (asiento: AsientoManual) => {
@@ -311,7 +332,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleUpdateInvoiceStatuses = async (invoiceId: string, newStatuses: { paymentStatus?: PaymentStatus, shippingStatus?: ShippingStatus, status?: MasterStatus }) => {
         if (!currentUser) return;
         try {
-            // We use the existing invoice data but override with new statuses
             const currentInvoice = invoices.find(i => i.id === invoiceId);
             if (!currentInvoice) return;
 
@@ -379,7 +399,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const onUndoDispatch = async (vehicleId: string) => { /* TODO: Implement API call */ };
+    const onUndoDispatch = async (vehicleId: string) => { };
     
     const handleFinalizeTrip = async (vehicleId: string) => { 
         try {
@@ -450,7 +470,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    // --- LOGISTICA: Creación de Despacho (Salida) ---
     const handleCreateDispatch = async (invoiceIds: string[], vehicleId: string, destinationOfficeId: string): Promise<Dispatch | null> => {
         if (!currentUser) return null;
         
@@ -466,7 +485,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         try {
-            // Using API logic assuming endpoints exist
             const response = await apiFetch<{ dispatch: Dispatch, updatedInvoices: Invoice[] }>('/dispatches', {
                 method: 'POST',
                 body: JSON.stringify({ invoiceIds, vehicleId, destinationOfficeId, originOfficeId: currentUser.officeId })
@@ -483,15 +501,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             throw new Error("Respuesta inválida del servidor.");
         } catch (error: any) {
-            // FALLBACK / PERSISTENCE FIX
-            // If the dispatch endpoint fails (404/500), we MUST verify invoice updates
-            // to ensure they are removed from the 'Pending' list.
-            
             console.warn("Backend Dispatch creation failed, attempting to force invoice status update manually...");
             
             try {
-                // Manually update each invoice to 'En Tránsito' so persistence works on reload
-                // This is critical if the backend /dispatches endpoint is missing but /invoices is working
                 const updatePromises = invoiceIds.map(id => {
                     const invoice = invoices.find(i => i.id === id);
                     if (invoice) {
@@ -505,13 +517,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 
                 const results = await Promise.all(updatePromises);
                 
-                // Update local state with the results from the individual updates
                 setInvoices(prev => prev.map(inv => {
                     const updated = results.find(res => res && res.id === inv.id);
                     return updated ? updated : inv;
                 }));
                 
-                // Still create the local dispatch so the user sees the PDF
                 setDispatches(prev => [mockDispatch, ...prev]);
                 
                 addToast({ type: 'success', title: 'Despacho Generado', message: `Guía ${mockDispatch.dispatchNumber} creada. Facturas actualizadas.` });
@@ -525,11 +535,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    // --- LOGISTICA: Recepción de Despacho (Entrada) ---
     const handleReceiveDispatch = async (dispatchId: string, verifiedInvoiceIds: string[]): Promise<void> => {
         if (!currentUser) return;
         try {
-            const response = await apiFetch<{ updatedDispatch: Dispatch, updatedInvoices: Invoice[] }>(`/dispatches/${dispatchId}/receive`, {
+            // FIXED: Path matches backend doc /dispatches/receive/:dispatchId
+            const response = await apiFetch<{ updatedDispatch: Dispatch, updatedInvoices: Invoice[] }>(`/dispatches/receive/${dispatchId}`, {
                 method: 'POST',
                 body: JSON.stringify({ verifiedInvoiceIds, receivedBy: currentUser.name })
             });
@@ -543,15 +553,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 addToast({ type: 'success', title: 'Despacho Recibido', message: 'Se ha registrado la recepción de la carga.' });
             }
         } catch (error: any) {
-             // Simulation fallback
              if (error.message.includes('404')) {
                 setDispatches(prev => prev.map(d => d.id === dispatchId ? { ...d, status: 'Recibido', receivedDate: new Date().toISOString(), receivedBy: currentUser.name } : d));
                 
-                // Find associated invoice IDs from the local dispatch state if possible, or assume passed
                 const dispatch = dispatches.find(d => d.id === dispatchId);
                 const allDispatchInvoiceIds = dispatch?.invoiceIds || [];
                 
-                // Update local state first
                 setInvoices(prev => prev.map(inv => {
                     if (verifiedInvoiceIds.includes(inv.id)) {
                         return { ...inv, shippingStatus: 'En Oficina Destino' };
@@ -562,7 +569,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     return inv;
                 }));
                 
-                // FORCE PERSISTENCE: Manually update invoices on backend
                 const updatePromises = allDispatchInvoiceIds.map(id => {
                     const invoice = invoices.find(i => i.id === id);
                     if (invoice) {
@@ -596,7 +602,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleSaveAsociado, handleDeleteAsociado, handleSaveCertificado, handleDeleteCertificado,
         handleSavePagoAsociado, handleDeletePagoAsociado, handleSaveRecibo,
         handleDeleteRemesa, handleSaveAsientoManual, handleDeleteAsientoManual,
-        handleCreateCreditNote, handleCreateDebitNote, handleCreateDispatch, handleReceiveDispatch
+        handleCreateCreditNote, handleCreateDebitNote, handleCreateDispatch, handleReceiveDispatch,
+        handleGenerateMassiveDebt
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

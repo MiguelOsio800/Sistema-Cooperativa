@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Invoice, Asociado, Vehicle, Office, CompanyInfo, Client, Category, Remesa, Dispatch } from '../../types';
+import { Invoice, Asociado, Vehicle, Office, CompanyInfo, Client, Category, Remesa, Dispatch, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import { SendIcon, TruckIcon, CheckCircleIcon, ClipboardListIcon, ArchiveBoxIcon, PrinterIcon, ArrowsRightLeftIcon } from '../icons/Icons';
@@ -22,6 +22,7 @@ interface DespachosViewProps {
     onDispatchVehicle: (vehicleId: string) => Promise<Remesa | null>;
     companyInfo: CompanyInfo;
     currentUser: any;
+    permissions: Permissions;
 }
 
 type Tab = 'salidas' | 'entradas' | 'historial';
@@ -29,7 +30,7 @@ type Tab = 'salidas' | 'entradas' | 'historial';
 const DespachosView: React.FC<DespachosViewProps> = (props) => {
     const { 
         invoices, asociados, vehicles, offices, clients, categories,
-        companyInfo, currentUser
+        companyInfo, currentUser, permissions
     } = props;
 
     const { handleCreateDispatch, handleReceiveDispatch, dispatches } = useData();
@@ -55,27 +56,35 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
     const getOfficeName = (id: string) => offices.find(o => o.id === id)?.name || 'Desconocida';
 
     // 1. SALIDAS: Invoices pending dispatch from CURRENT office
+    // FIX: Removed strict check 'inv.guide.originOfficeId === currentUser.officeId' because App.tsx already filters invoices by permission.
+    // This allows Admins (who have no officeId) to see pending invoices.
     const pendingOutboundInvoices = useMemo(() => {
         return invoices.filter(inv => 
             inv.shippingStatus === 'Pendiente para Despacho' && 
-            inv.status === 'Activa' && 
-            inv.guide.originOfficeId === currentUser.officeId
+            inv.status === 'Activa'
         );
-    }, [invoices, currentUser.officeId]);
+    }, [invoices]);
 
     // 2. ENTRADAS: Dispatches coming TO current office with status 'En Tránsito'
     const pendingInboundDispatches = useMemo(() => {
+        // If user is admin, show all inbound dispatches regardless of destination? 
+        // Or strictly strictly stick to logic. Usually reception is strictly local.
+        // Keeping strict check here for safety, but if Admin needs to receive anything, we might relax it.
+        const userOfficeId = currentUser.officeId;
+        
         return dispatches.filter(d => 
-            d.destinationOfficeId === currentUser.officeId && 
-            d.status === 'En Tránsito'
+            d.status === 'En Tránsito' &&
+            (!userOfficeId || d.destinationOfficeId === userOfficeId) // Admin sees all, Operator sees only theirs
         );
     }, [dispatches, currentUser.officeId]);
 
     // 3. HISTORIAL: All dispatches involved with current office
     const dispatchHistory = useMemo(() => {
+        const userOfficeId = currentUser.officeId;
         return dispatches.filter(d => 
-            d.originOfficeId === currentUser.officeId || 
-            d.destinationOfficeId === currentUser.officeId
+            !userOfficeId || // Admin sees all
+            d.originOfficeId === userOfficeId || 
+            d.destinationOfficeId === userOfficeId
         ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [dispatches, currentUser.officeId]);
 
@@ -162,13 +171,15 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle>Generar Nuevo Despacho</CardTitle>
-                            <Button 
-                                onClick={() => setIsDispatchFormOpen(true)} 
-                                disabled={selectedInvoiceIds.length === 0}
-                            >
-                                <TruckIcon className="w-4 h-4 mr-2" />
-                                Procesar Despacho ({selectedInvoiceIds.length})
-                            </Button>
+                            {permissions['despachos.create'] && (
+                                <Button 
+                                    onClick={() => setIsDispatchFormOpen(true)} 
+                                    disabled={selectedInvoiceIds.length === 0}
+                                >
+                                    <TruckIcon className="w-4 h-4 mr-2" />
+                                    Procesar Despacho ({selectedInvoiceIds.length})
+                                </Button>
+                            )}
                         </div>
                         <p className="text-sm text-gray-500 mt-1">Seleccione las facturas y procese el despacho. La oficina de destino se selecciona al final.</p>
                     </CardHeader>
@@ -185,11 +196,11 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                                             className="h-4 w-4 rounded text-primary-600 focus:ring-primary-500"
                                         />
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factura</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destino (Factura)</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Peso</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Factura</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Destino (Factura)</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Fecha</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Peso</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -203,12 +214,13 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                                                 className="h-4 w-4 rounded text-primary-600 focus:ring-primary-500"
                                             />
                                         </td>
+                                        {/* Added text-gray-900 for explicit black in light mode */}
                                         <td className="px-6 py-4 font-mono text-sm font-medium text-gray-900 dark:text-white">{inv.invoiceNumber}</td>
                                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{inv.clientName}</td>
                                         <td className="px-6 py-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
                                             {getOfficeName(inv.guide.destinationOfficeId)}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">{inv.date}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-400">{inv.date}</td>
                                         <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white">{calculateInvoiceChargeableWeight(inv).toFixed(2)} Kg</td>
                                     </tr>
                                 ))}
@@ -259,10 +271,12 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                                             <p className="mt-1 font-semibold">{invoiceCount} Encomiendas</p>
                                         </div>
                                     </div>
-                                    <Button onClick={() => handleOpenVerification(dispatch)} className="w-full mt-2">
-                                        <ClipboardListIcon className="w-4 h-4 mr-2" />
-                                        Verificar Carga
-                                    </Button>
+                                    {permissions['despachos.receive'] && (
+                                        <Button onClick={() => handleOpenVerification(dispatch)} className="w-full mt-2">
+                                            <ClipboardListIcon className="w-4 h-4 mr-2" />
+                                            Verificar Carga
+                                        </Button>
+                                    )}
                                 </div>
                             )
                         }) : (
@@ -283,21 +297,21 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Control</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Origen</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destino</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Control</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Fecha</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Origen</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Destino</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-black uppercase font-bold">Estado</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-black uppercase font-bold">Acción</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {dispatchHistory.map(d => (
                                     <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="px-6 py-4 font-mono text-sm font-medium">{d.dispatchNumber}</td>
-                                        <td className="px-6 py-4 text-sm">{new Date(d.date).toLocaleDateString()}</td>
-                                        <td className="px-6 py-4 text-sm">{getOfficeName(d.originOfficeId)}</td>
-                                        <td className="px-6 py-4 text-sm">{getOfficeName(d.destinationOfficeId)}</td>
+                                        <td className="px-6 py-4 font-mono text-sm font-bold text-black dark:text-white">{d.dispatchNumber}</td>
+                                        <td className="px-6 py-4 text-sm font-bold text-black dark:text-white">{new Date(d.date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 text-sm font-bold text-black dark:text-white">{getOfficeName(d.originOfficeId)}</td>
+                                        <td className="px-6 py-4 text-sm font-bold text-black dark:text-white">{getOfficeName(d.destinationOfficeId)}</td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                                 d.status === 'Recibido' ? 'bg-green-100 text-green-800' : 
@@ -343,23 +357,30 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                             Marque las facturas que ha recibido físicamente y están en buen estado.
                         </p>
                         <div className="max-h-96 overflow-y-auto border rounded-lg divide-y dark:border-gray-700">
-                            {invoices.filter(inv => dispatchToVerify.invoiceIds.includes(inv.id)).map(inv => (
-                                <div key={inv.id} className="p-3 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => handleToggleVerifyInvoice(inv.id)}>
-                                    <input 
-                                        type="checkbox" 
-                                        checked={verifiedInvoiceIds.includes(inv.id)}
-                                        readOnly
-                                        className="h-5 w-5 text-green-600 rounded focus:ring-green-500 mr-4"
-                                    />
-                                    <div className="flex-1">
-                                        <div className="flex justify-between">
-                                            <span className="font-bold">{inv.invoiceNumber}</span>
-                                            <span className="text-sm font-semibold">{inv.guide.merchandise.reduce((s,m)=>s+m.quantity,0)} Pzas</span>
+                            {invoices.filter(inv => dispatchToVerify.invoiceIds.includes(inv.id)).length > 0 ? (
+                                invoices.filter(inv => dispatchToVerify.invoiceIds.includes(inv.id)).map(inv => (
+                                    <div key={inv.id} className="p-3 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => handleToggleVerifyInvoice(inv.id)}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={verifiedInvoiceIds.includes(inv.id)}
+                                            readOnly
+                                            className="h-5 w-5 text-green-600 rounded focus:ring-green-500 mr-4"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex justify-between">
+                                                <span className="font-bold text-black dark:text-white">{inv.invoiceNumber}</span>
+                                                <span className="text-sm font-semibold text-black dark:text-white">{inv.guide.merchandise.reduce((s,m)=>s+m.quantity,0)} Pzas</span>
+                                            </div>
+                                            <p className="text-sm text-gray-800 dark:text-gray-300 font-medium">{inv.clientName}</p>
                                         </div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">{inv.clientName}</p>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="p-6 text-center text-gray-500">
+                                    <p>No se encontraron las facturas asociadas a este despacho en la carga local.</p>
+                                    <p className="text-xs mt-2">Intente sincronizar o contacte a soporte.</p>
                                 </div>
-                            ))}
+                            )}
                         </div>
                         <div className="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
                             <p><strong>Nota:</strong> Las facturas NO marcadas se reportarán como "Faltantes".</p>

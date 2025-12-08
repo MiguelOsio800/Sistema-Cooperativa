@@ -8,6 +8,7 @@ import { SearchIcon, PlusIcon, UserIcon, ArrowLeftIcon, PlusCircleIcon } from '.
 import AsociadoDetailView from './AsociadoDetailView';
 import GenerarDeudaMasivaModal from './GenerarDeudaMasivaModal';
 import { useToast } from '../ui/ToastProvider';
+import { useData } from '../../contexts/DataContext';
 
 interface AsociadosGestionViewProps {
     asociados: Asociado[];
@@ -30,6 +31,7 @@ interface AsociadosGestionViewProps {
 
 const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
     const { asociados, permissions, onSaveAsociado, onSavePago } = props;
+    const { handleGenerateMassiveDebt } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedAsociado, setSelectedAsociado] = useState<Asociado | null>(null);
     const [isMassiveDebtModalOpen, setIsMassiveDebtModalOpen] = useState(false);
@@ -68,7 +70,7 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
         setSelectedAsociado(null);
     };
     
-    const handleGenerateMassiveDebt = (debtData: {
+    const handleGenerateMassiveDebtSubmit = async (debtData: {
         concepto: string,
         cuotas: string,
         montoBs: number,
@@ -76,27 +78,7 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
         fechaVencimiento: string,
         applyTo: 'Activo' | 'Todos'
     }) => {
-        const { applyTo, ...pagoData } = debtData;
-        
-        const associatesToApply = applyTo === 'Activo'
-            ? asociados.filter(a => a.status === 'Activo')
-            : asociados;
-
-        if (associatesToApply.length === 0) {
-            addToast({ type: 'warning', title: 'Sin Destinatarios', message: 'No se encontraron asociados que cumplan con el criterio.' });
-            return;
-        }
-
-        associatesToApply.forEach(asociado => {
-            const newPago: Omit<PagoAsociado, 'id' | 'reciboId'> = {
-                ...pagoData,
-                asociadoId: asociado.id,
-                status: 'Pendiente',
-            };
-            onSavePago(newPago as PagoAsociado);
-        });
-
-        addToast({ type: 'success', title: 'Operación Exitosa', message: `Se han generado ${associatesToApply.length} deudas.` });
+        await handleGenerateMassiveDebt(debtData);
         setIsMassiveDebtModalOpen(false);
     };
 
@@ -181,7 +163,7 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
             <GenerarDeudaMasivaModal
                 isOpen={isMassiveDebtModalOpen}
                 onClose={() => setIsMassiveDebtModalOpen(false)}
-                onGenerate={handleGenerateMassiveDebt}
+                onGenerate={handleGenerateMassiveDebtSubmit}
                 companyInfo={props.companyInfo}
             />
         </div>

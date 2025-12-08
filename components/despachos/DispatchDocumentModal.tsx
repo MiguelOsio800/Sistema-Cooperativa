@@ -86,7 +86,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                     </div>
                     <div className="text-right">
                         <h2 className="font-bold text-xl uppercase text-black">ENCOMIENDAS RECIBIDAS</h2>
-                        <p className="font-mono text-lg font-bold text-gray-700 text-black">Nº CONTROL: {dispatch.dispatchNumber}</p>
+                        <p className="font-mono text-lg font-bold text-black">Nº CONTROL: {dispatch.dispatchNumber}</p>
                         <p className="text-sm text-black">Fecha: {new Date(dispatch.date).toLocaleDateString('es-VE')}</p>
                         <p className="text-sm text-black">Origen: <strong>{originOffice?.name || 'N/A'}</strong></p>
                     </div>
@@ -103,7 +103,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                     </div>
                 </div>
 
-                {/* Main Table */}
+                {/* Main Table - Strict Black Text */}
                 <table className="w-full border-collapse mb-6 text-sm">
                     <thead>
                         <tr className="bg-gray-200 border-t-2 border-b-2 border-black">
