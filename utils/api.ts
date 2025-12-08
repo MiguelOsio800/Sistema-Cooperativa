@@ -111,8 +111,13 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
             }
             
             // Only log error if it's not a 404 (Not Found) or 403 (Forbidden)
-            // Also suppress logging if the message explicitly mentions permissions
-            if (response.status !== 404 && response.status !== 403 && !errorMessage.includes('No tiene los permisos')) {
+            // Also suppress logging if the message explicitly mentions permissions or generic fetch errors
+            if (
+                response.status !== 404 && 
+                response.status !== 403 && 
+                !errorMessage.includes('No tiene los permisos') &&
+                !errorMessage.includes('Error al obtener')
+            ) {
                 console.error(`❌ API Error en ${endpoint}:`, errorMessage);
             }
             
@@ -139,7 +144,7 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
         }
         
         // If it's a 403/permission error thrown above, suppress the warning log to keep console clean
-        if (!msg.includes('403') && !msg.includes('404') && !msg.includes('No tiene los permisos')) {
+        if (!msg.includes('403') && !msg.includes('404') && !msg.includes('No tiene los permisos') && !msg.includes('Error al obtener')) {
              console.warn(`🔥 Network/Fetch Error en ${endpoint}:`, msg);
         }
        

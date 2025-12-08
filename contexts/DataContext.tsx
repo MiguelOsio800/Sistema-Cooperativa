@@ -97,7 +97,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 error.message.includes('403') || 
                 error.message.includes('401') || 
                 error.message.includes('404') ||
-                error.message.includes('No tiene los permisos')
+                error.message.includes('No tiene los permisos') ||
+                error.message.includes('Error al obtener') // Handle generic backend errors gracefully
             )) {
                 return fallbackValue;
             }
@@ -116,13 +117,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const isTech = currentUser.roleId === 'role-tech';
                     const hasFullAccess = isAdmin || isTech;
 
+                    // Use fetchSafe for all main entities to prevent app crash if one endpoint fails
                     const [
                         invoicesData, 
                         clientsData, 
                         vehiclesData
                     ] = await Promise.all([
-                        apiFetch<Invoice[]>('/invoices'), 
-                        apiFetch<Client[]>('/clients'), 
+                        fetchSafe<Invoice[]>('/invoices', []), 
+                        fetchSafe<Client[]>('/clients', []), 
                         fetchSafe<Vehicle[]>('/vehicles', []) 
                     ]);
 
