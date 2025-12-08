@@ -65,6 +65,7 @@ export const CONFIG_SUB_NAV_ITEMS: NavItem[] = [
 
 
 export const SYSTEM_REPORTS: Report[] = [
+    { id: 'reporte_asociados', title: 'Estado de Cuenta de Asociados' }, 
     { id: 'general_envios', title: 'Reporte General de Envíos' },
     { id: 'libro_venta', title: 'Reporte de Libro de Venta' },
     { id: 'cuentas_cobrar', title: 'Reporte de Cuentas por Cobrar' },
@@ -89,7 +90,7 @@ export const ALL_PERMISSION_KEYS: string[] = [
     // Shipping Guide
     'shipping-guide.view',
     // Invoices
-    'invoices.view', 'invoices.create', 'invoices.edit', 'invoices.delete', 'invoices.void', 'invoices.changeStatus',
+    'invoices.view', 'invoices.create', 'invoices.edit', 'invoices.delete', 'invoices.void', 'invoices.changeStatus', 'invoices.manage_all_offices',
     // Despachos
     'despachos.view', 'despachos.create', 'despachos.receive',
     // Flota
@@ -105,6 +106,7 @@ export const ALL_PERMISSION_KEYS: string[] = [
     // Libro Contable
     'libro-contable.view', 'libro-contable.create', 'libro-contable.edit', 'libro-contable.delete',
     'plan-contable.view', 'plan-contable.create', 'plan-contable.edit', 'plan-contable.delete',
+    'expenses.manage_all_offices',
     // Inventario
     'inventario.view',
     'inventario-envios.view',
@@ -112,6 +114,7 @@ export const ALL_PERMISSION_KEYS: string[] = [
     'bienes-categorias.view', 'bienes-categorias.create', 'bienes-categorias.edit', 'bienes-categorias.delete',
     // Reports
     'reports.view',
+    'reports.associates.view', // Nuevo permiso específico
     // Auditoria
     'auditoria.view',
     // Configuracion
@@ -138,6 +141,7 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'invoices.delete': 'Eliminar Facturas (Permanente)',
     'invoices.void': 'Anular Facturas',
     'invoices.changeStatus': 'Cambiar Estado de Facturas',
+    'invoices.manage_all_offices': 'Gestionar Facturas de Todas las Oficinas',
     // Despachos
     'despachos.view': 'Ver Módulo de Despachos',
     'despachos.create': 'Procesar Despachos (Salidas)',
@@ -177,6 +181,7 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'plan-contable.create': 'Crear Cuentas Contables',
     'plan-contable.edit': 'Editar Cuentas Contables',
     'plan-contable.delete': 'Eliminar Cuentas Contables',
+    'expenses.manage_all_offices': 'Gestionar Gastos de Todas las Oficinas',
     // Inventario
     'inventario.view': 'Ver Módulo de Inventario',
     'inventario-envios.view': 'Ver Inventario de Envíos',
@@ -189,7 +194,8 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'bienes-categorias.edit': 'Editar Categorías de Bienes',
     'bienes-categorias.delete': 'Eliminar Categorías de Bienes',
     // Reports
-    'reports.view': 'Ver Reportes',
+    'reports.view': 'Ver Reportes Generales',
+    'reports.associates.view': 'Ver Reporte Estado Cuenta Asociados',
     // Auditoria
     'auditoria.view': 'Ver Auditoría',
     // Configuracion
@@ -222,7 +228,7 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
 const operatorPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'shipping-guide.view': true,
-    'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true,
+    'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true, 'invoices.manage_all_offices': false,
     'despachos.view': true, 'despachos.create': true, 'despachos.receive': true,
     'flota.view': true,
     'flota.dispatch': true, 
@@ -230,11 +236,15 @@ const operatorPermissions: Record<string, boolean> = {
     'asociados.view': true, // Enabled for data fetching, UI hidden via Sidebar
     'clientes.view': true, 'clientes.create': true, 'clientes.edit': true,
     'proveedores.view': false, 
+    'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true, 'libro-contable.delete': false,
+    'expenses.manage_all_offices': false,
+    'plan-contable.view': false,
     'inventario.view': true,
     'inventario-envios.view': true,
     'inventario-bienes.view': true,
     'bienes-categorias.view': true,
     'reports.view': true,
+    'reports.associates.view': false, // Operador no ve estado cuenta asociados
     'configuracion.view': false, 
     'categories.view': true, 'offices.view': true, 'shipping-types.view': true, 'payment-methods.view': true
 };

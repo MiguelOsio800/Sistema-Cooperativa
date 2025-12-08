@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AssetCategory, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -77,7 +78,8 @@ const BienesCategoryView: React.FC<BienesCategoryViewProps> = ({ categories, onS
                                             <Button variant="secondary" size="sm" onClick={() => handleOpenModal(cat)}><EditIcon className="w-4 h-4"/></Button>
                                         )}
                                         {permissions['bienes-categorias.delete'] && (
-                                            <Button variant="danger" size="sm" onClick={async () => {
+                                            <Button variant="danger" size="sm" onClick={async (e) => {
+                                                e.stopPropagation();
                                                 if (window.confirm('¿Está seguro de que desea eliminar esta categoría de bien? Esta acción no se puede deshacer.')) {
                                                     await onDelete(cat.id);
                                                 }

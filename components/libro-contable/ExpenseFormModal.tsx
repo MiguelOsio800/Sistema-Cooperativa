@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Expense, ExpenseCategory, Office, User, PaymentMethod, CompanyInfo, Supplier } from '../../types';
+import { Expense, ExpenseCategory, Office, User, PaymentMethod, CompanyInfo, Supplier, Permissions } from '../../types';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -18,17 +19,20 @@ interface ExpenseFormModalProps {
     currentUser: User;
     companyInfo: CompanyInfo;
     suppliers: Supplier[];
+    permissions?: Permissions;
 }
 
-const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, onSave, expense, expenseCategories, offices, paymentMethods, currentUser, companyInfo, suppliers }) => {
+const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, onSave, expense, expenseCategories, offices, paymentMethods, currentUser, companyInfo, suppliers, permissions }) => {
     const [formData, setFormData] = useState<Partial<Expense>>({});
     const [isFiscalDetailsVisible, setIsFiscalDetailsVisible] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const isOperator = currentUser.roleId !== 'role-admin' && currentUser.roleId !== 'role-tech';
+    
+    // Check permission to determine if user can assign expenses to any office or only their own
+    const canManageAllOffices = permissions?.['expenses.manage_all_offices'];
 
     useEffect(() => {
         if (isOpen) {
-            const defaultOfficeId = isOperator && currentUser.officeId ? currentUser.officeId : (expense?.officeId || '');
+            const defaultOfficeId = !canManageAllOffices && currentUser.officeId ? currentUser.officeId : (expense?.officeId || '');
             const initialData = expense || {
                 date: new Date().toISOString().split('T')[0],
                 description: '',
@@ -46,7 +50,7 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, on
             setIsFiscalDetailsVisible(!!initialData.supplierRif || !!initialData.invoiceNumber);
             setErrors({});
         }
-    }, [expense, isOpen, expenseCategories, offices, paymentMethods, currentUser, isOperator]);
+    }, [expense, isOpen, expenseCategories, offices, paymentMethods, currentUser, canManageAllOffices]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -133,8 +137,8 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, on
                      <Select label="Categoría de Gasto" name="category" value={formData.category || ''} onChange={handleChange}>
                         {expenseCategories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                      </Select>
-                     <Select label="Oficina Asociada (Opcional)" name="officeId" value={formData.officeId || ''} onChange={handleChange} disabled={isOperator}>
-                        {!isOperator && <option value="">Gasto General</option>}
+                     <Select label="Oficina Asociada (Opcional)" name="officeId" value={formData.officeId || ''} onChange={handleChange} disabled={!canManageAllOffices}>
+                        {canManageAllOffices && <option value="">Gasto General</option>}
                         {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
                     </Select>
                 </div>

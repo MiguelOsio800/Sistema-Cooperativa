@@ -134,7 +134,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, 
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getAsociadoName(user.asociadoId)}</td>
                                     <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                                         <Button variant="secondary" size="sm" onClick={() => handleOpenUserModal(user)} disabled={!isEditable}><EditIcon className="w-4 h-4"/></Button>
-                                        <Button variant="danger" size="sm" onClick={async () => {
+                                        <Button variant="danger" size="sm" onClick={async (e) => {
+                                            e.stopPropagation();
                                             if (window.confirm(`¿Está seguro de que desea eliminar al usuario '${user.name}'? Esta acción no se puede deshacer.`)) {
                                                 await onDeleteUser(user.id);
                                             }

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { PaymentMethod, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -105,7 +106,8 @@ const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({ paymentMethods,
                                     <Button variant="secondary" size="sm" onClick={() => handleOpenModal(pm)}><EditIcon className="w-4 h-4"/></Button>
                                 )}
                                 {permissions['payment-methods.delete'] && (
-                                    <Button variant="danger" size="sm" onClick={async () => {
+                                    <Button variant="danger" size="sm" onClick={async (e) => {
+                                        e.stopPropagation();
                                         if (window.confirm('¿Está seguro de que desea eliminar esta forma de pago? Esta acción no se puede deshacer.')) {
                                             await onDelete(pm.id);
                                         }

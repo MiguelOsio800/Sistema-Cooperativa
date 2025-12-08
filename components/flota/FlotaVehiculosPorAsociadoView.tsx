@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Invoice, Vehicle, Permissions, Office, CompanyInfo, Client, Asociado } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -150,7 +151,8 @@ const FlotaVehiculosPorAsociadoView: React.FC<FlotaVehiculosPorAsociadoViewProps
                                             {vehicle.status === 'Disponible' && (
                                                 <>
                                                     {permissions['flota.edit'] && <Button size="sm" variant="secondary" onClick={() => handleOpenVehicleModal(vehicle)} title="Editar Vehículo"><EditIcon className="w-4 h-4" /></Button>}
-                                                    {permissions['flota.delete'] && <Button size="sm" variant="danger" onClick={async () => {
+                                                    {permissions['flota.delete'] && <Button size="sm" variant="danger" onClick={async (e) => {
+                                                        e.stopPropagation();
                                                         if (window.confirm(`¿Está seguro de que desea eliminar el vehículo '${vehicle.modelo} - ${vehicle.placa}'? Esta acción no se puede deshacer.`)) {
                                                             await onDeleteVehicle(vehicle.id);
                                                         }

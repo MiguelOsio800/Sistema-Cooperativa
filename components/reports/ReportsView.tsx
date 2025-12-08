@@ -1,7 +1,10 @@
+
 import React from 'react';
 import Card, { CardTitle } from '../ui/Card';
-import { Report } from '../../types';
+import { Report, Permissions } from '../../types';
 import { FileTextIcon } from '../icons/Icons';
+import { useAuth } from '../../contexts/AuthContext';
+import { useConfig } from '../../contexts/ConfigContext';
 
 const ReportCard: React.FC<{ report: Report; onSelect: () => void }> = ({ report, onSelect }) => (
     <button
@@ -20,10 +23,18 @@ const ReportCard: React.FC<{ report: Report; onSelect: () => void }> = ({ report
 
 
 const ReportsView: React.FC<{reports: Report[]}> = ({ reports }) => {
+    const { userPermissions } = useConfig();
 
     const handleReportSelect = (reportId: string) => {
         window.location.hash = `report-detail/${reportId}`;
     };
+
+    const allowedReports = reports.filter(report => {
+        if (report.id === 'reporte_asociados') {
+            return userPermissions['reports.associates.view'];
+        }
+        return true; // All other reports are visible to anyone with access to the Reports module
+    });
 
     return (
         <>
@@ -31,7 +42,7 @@ const ReportsView: React.FC<{reports: Report[]}> = ({ reports }) => {
                 <CardTitle>Reportes del Sistema</CardTitle>
                 <p className="text-gray-500 dark:text-gray-400 mt-1 mb-6">Seleccione un reporte para visualizar sus datos.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {reports.map((report) => (
+                    {allowedReports.map((report) => (
                         <ReportCard
                             key={report.id}
                             report={report}

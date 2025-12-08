@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User, Role, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -69,11 +70,18 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRol
                                 <Button size="sm" variant="secondary" onClick={() => handleOpenRoleFormModal(role)} title="Editar Nombre del Rol">
                                     <EditIcon className="w-4 h-4" />
                                 </Button>
-                                <Button size="sm" variant="danger" onClick={async () => {
-                                    if (window.confirm(`¿Está seguro de que desea eliminar el rol '${role.name}'? Esta acción no se puede deshacer.`)) {
-                                        await onDeleteRole(role.id);
-                                    }
-                                }} disabled={isRoleInUse(role.id)} title={isRoleInUse(role.id) ? 'Rol en uso, no se puede eliminar' : 'Eliminar rol'}>
+                                <Button 
+                                    size="sm" 
+                                    variant="danger" 
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`¿Está seguro de que desea eliminar el rol '${role.name}'? Esta acción no se puede deshacer.`)) {
+                                            await onDeleteRole(role.id);
+                                        }
+                                    }} 
+                                    disabled={isRoleInUse(role.id)} 
+                                    title={isRoleInUse(role.id) ? 'Rol en uso, no se puede eliminar' : 'Eliminar rol'}
+                                >
                                     <TrashIcon className="w-4 h-4" />
                                 </Button>
                             </div>

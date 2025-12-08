@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Client, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -103,8 +104,9 @@ const ClientsView: React.FC<ClientsViewProps> = ({ clients, onSave, onDelete, pe
                                             <Button variant="secondary" size="sm" onClick={() => handleOpenModal(client)}><EditIcon className="w-4 h-4"/></Button>
                                         )}
                                         {permissions['clientes.delete'] && (
-                                            <Button variant="danger" size="sm" onClick={async () => {
-                                                if (window.confirm('¿Está seguro de que desea eliminar este cliente? Esta acción no se puede deshacer.')) {
+                                            <Button variant="danger" size="sm" onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm(`¿Está seguro de que desea eliminar al cliente '${client.name}'? Esta acción no se puede deshacer.`)) {
                                                     await onDelete(client.id);
                                                 }
                                             }}><TrashIcon className="w-4 h-4"/></Button>

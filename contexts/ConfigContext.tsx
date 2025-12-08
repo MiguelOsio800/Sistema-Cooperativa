@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { CompanyInfo, User, Role, Office, Category, ShippingType, PaymentMethod, Permissions, ExpenseCategory, CuentaContable } from '../types';
+import { CompanyInfo, User, Role, Office, Category, ShippingType, PaymentMethod, Permissions, ExpenseCategory, CuentaContable, Product } from '../types';
 import { useToast } from '../components/ui/ToastProvider';
 import { useSystem } from './SystemContext';
 import { useAuth } from './AuthContext';
@@ -11,6 +11,7 @@ import { DEFAULT_ROLE_PERMISSIONS } from '../constants';
 type ConfigContextType = {
     companyInfo: CompanyInfo;
     categories: Category[];
+    products: Product[];
     users: User[];
     roles: Role[];
     offices: Office[];
@@ -30,6 +31,8 @@ type ConfigContextType = {
     onUpdateRolePermissions: (roleId: string, permissions: Permissions) => Promise<void>;
     handleSaveCategory: (category: Category) => Promise<void>;
     onDeleteCategory: (categoryId: string) => Promise<void>;
+    handleSaveProduct: (product: Product) => Promise<void>;
+    onDeleteProduct: (productId: string) => Promise<void>;
     handleSaveOffice: (office: Office) => Promise<void>;
     onDeleteOffice: (officeId: string) => Promise<void>;
     handleSaveShippingType: (shippingType: ShippingType) => Promise<void>;
@@ -60,6 +63,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Initial state with a loading placeholder
     const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({ name: 'Cargando...', rif: '', address: '', phone: '' });
     const [categories, setCategories] = useState<Category[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [offices, setOffices] = useState<Office[]>([]);
@@ -106,18 +110,21 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                         categoriesData, 
                         officesData, 
                         shippingTypesData, 
-                        paymentMethodsData
+                        paymentMethodsData,
+                        productsData
                     ] = await Promise.all([
                         apiFetch<Category[]>('/categories'),
                         apiFetch<Office[]>('/offices'),
                         apiFetch<ShippingType[]>('/shipping-types'),
                         apiFetch<PaymentMethod[]>('/payment-methods'),
+                        fetchSafe<Product[]>('/products', [])
                     ]);
 
                     setCategories(categoriesData);
                     setOffices(officesData);
                     setShippingTypes(shippingTypesData);
                     setPaymentMethods(paymentMethodsData);
+                    setProducts(productsData);
 
                     // Group 2: Restricted/Admin Data
                     // We ONLY fetch these if the user is Admin or Tech to avoid 403 errors from backend
@@ -237,13 +244,14 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const handleLogout = async () => {
         try {
             if (currentUser) {
-                logAction(currentUser, 'CIERRE_SESION', `El usuario '${currentUser.name}' cerró sesión.`);
+                // Await log action to ensure it completes before token destruction
+                await logAction(currentUser, 'CIERRE_SESION', `El usuario '${currentUser.name}' cerró sesión.`);
             }
             await apiFetch('/auth/logout', { method: 'POST' });
             addToast({ type: 'info', title: 'Sesión Cerrada', message: 'Ha cerrado sesión exitosamente.' });
         } catch (error: any) {
             console.error('Logout failed:', error);
-            addToast({ type: 'error', title: 'Error al cerrar sesión', message: 'No se pudo contactar al servidor, pero se ha cerrado la sesión localmente.' });
+            // Don't show error for logout failure, just proceed to clear local state
         } finally {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
@@ -357,6 +365,8 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const handleSaveCategory = async (category: Category) => { await handleGenericSave(category, '/categories', setCategories, 'Categoría'); };
     const onDeleteCategory = async (id: string) => { await handleGenericDelete(id, '/categories', setCategories, 'Categoría'); };
+    const handleSaveProduct = async (product: Product) => { await handleGenericSave(product, '/products', setProducts, 'Producto'); };
+    const onDeleteProduct = async (id: string) => { await handleGenericDelete(id, '/products', setProducts, 'Producto'); };
     const handleSaveOffice = async (office: Office) => { await handleGenericSave(office, '/offices', setOffices, 'Oficina'); };
     const onDeleteOffice = async (id: string) => { await handleGenericDelete(id, '/offices', setOffices, 'Oficina'); };
     const handleSaveShippingType = async (st: ShippingType) => { await handleGenericSave(st, '/shipping-types', setShippingTypes, 'Tipo de Envío'); };
@@ -369,10 +379,11 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const handleDeleteCuentaContable = async (id: string) => { await handleGenericDelete(id, '/cuentas-contables', setCuentasContables, 'Cuenta Contable'); };
 
     const value: ConfigContextType = {
-        companyInfo, categories, users, roles, offices, shippingTypes, paymentMethods, 
+        companyInfo, categories, products, users, roles, offices, shippingTypes, paymentMethods, 
         expenseCategories, cuentasContables, userPermissions, isLoading, handleLogin, handleLogout, handleCompanyInfoSave, 
         handleSaveUser, onDeleteUser, handleSaveRole, onDeleteRole, onUpdateRolePermissions, 
-        handleSaveCategory, onDeleteCategory, handleSaveOffice, onDeleteOffice, 
+        handleSaveCategory, onDeleteCategory, handleSaveProduct, onDeleteProduct,
+        handleSaveOffice, onDeleteOffice, 
         handleSaveShippingType, onDeleteShippingType, handleSavePaymentMethod, 
         onDeletePaymentMethod, handleSaveExpenseCategory, onDeleteExpenseCategory,
         handleSaveCuentaContable, handleDeleteCuentaContable

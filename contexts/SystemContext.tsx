@@ -7,7 +7,7 @@ import { useAuth } from './AuthContext';
 interface SystemContextType {
     auditLog: AuditLog[];
     appErrors: AppError[];
-    logAction: (user: User, actionType: string, details: string, targetId?: string) => void;
+    logAction: (user: User, actionType: string, details: string, targetId?: string) => Promise<void>;
     setAppErrors: React.Dispatch<React.SetStateAction<AppError[]>>;
 }
 
@@ -71,12 +71,15 @@ export const SystemProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             if (auditLog.length > 0) {
                 setAuditLog(prev => [savedLog, ...prev]);
             }
-        } catch (error) {
-            // Often regular users can create logs but not read them, so this might not fail on POST.
-            // But if it does, we log it to console.
+        } catch (error: any) {
+            // Suppress "Session expired" errors during logging (common during logout)
+            if (error.message && (error.message.includes('Session expired') || error.message.includes('401'))) {
+                // Silent fail for session expiry during logging
+                return;
+            }
             console.error("Failed to save audit log to server:", error);
         }
-    }, [auditLog]); // Dependency on auditLog to know if we should update local state
+    }, [auditLog]);
 
     useEffect(() => {
         const handleError = (message: Event | string, source?: string, lineno?: number, colno?: number, error?: Error) => {

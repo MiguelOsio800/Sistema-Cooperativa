@@ -4,7 +4,7 @@ import { Asociado, Vehicle, Certificado, PagoAsociado, ReciboPagoAsociado, Permi
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
-import { SearchIcon, PlusIcon, UserIcon, ArrowLeftIcon, PlusCircleIcon } from '../icons/Icons';
+import { SearchIcon, PlusIcon, UserIcon, ArrowLeftIcon, PlusCircleIcon, TrashIcon } from '../icons/Icons';
 import AsociadoDetailView from './AsociadoDetailView';
 import GenerarDeudaMasivaModal from './GenerarDeudaMasivaModal';
 import { useToast } from '../ui/ToastProvider';
@@ -30,7 +30,7 @@ interface AsociadosGestionViewProps {
 }
 
 const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
-    const { asociados, permissions, onSaveAsociado, onSavePago } = props;
+    const { asociados, permissions, onSaveAsociado, onDeleteAsociado, onSavePago } = props;
     const { handleGenerateMassiveDebt } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedAsociado, setSelectedAsociado] = useState<Asociado | null>(null);
@@ -88,6 +88,7 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
             asociado={selectedAsociado} 
             onBack={handleBackToList}
             onSaveAsociado={onSaveAsociado}
+            onDeleteAsociado={onDeleteAsociado}
             vehicles={props.vehicles}
             onSaveVehicle={props.onSaveVehicle}
             onDeleteVehicle={props.onDeleteVehicle}
@@ -136,7 +137,7 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
                 <div className="mt-4 space-y-3">
                     {filteredAsociados.length > 0 ? filteredAsociados.map(asociado => (
                          <div key={asociado.id} 
-                            className="p-4 border dark:border-gray-700 rounded-lg flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+                            className="p-4 border dark:border-gray-700 rounded-lg flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer group"
                             onClick={() => handleSelectAsociado(asociado)}
                          >
                             <div className="flex items-center gap-4">
@@ -148,9 +149,27 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Código: {asociado.codigo} - C.I: {asociado.cedula}</p>
                                 </div>
                             </div>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${asociado.status === 'Activo' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
-                                {asociado.status}
-                            </span>
+                            <div className="flex items-center gap-3">
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${asociado.status === 'Activo' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                                    {asociado.status}
+                                </span>
+                                {permissions['asociados.delete'] && (
+                                    <Button 
+                                        variant="danger"
+                                        size="sm"
+                                        className="!p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm(`¿Está seguro de que desea eliminar al asociado ${asociado.nombre}?`)) {
+                                                await onDeleteAsociado(asociado.id);
+                                            }
+                                        }}
+                                        title="Eliminar Asociado"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     )) : (
                         <div className="text-center py-12 text-gray-500 dark:text-gray-400">

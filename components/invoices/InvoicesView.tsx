@@ -5,7 +5,7 @@ import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import InvoiceDetailView from './InvoiceDetailView';
-import { EditIcon, SearchIcon, ArchiveBoxIcon, ArrowsRightLeftIcon } from '../icons/Icons';
+import { EditIcon, SearchIcon, ArchiveBoxIcon, ArrowsRightLeftIcon, TrashIcon } from '../icons/Icons';
 import Select from '../ui/Select';
 import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
@@ -196,7 +196,17 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                             <Button variant="secondary" size="sm" onClick={() => handleEdit(invoice.id)}><EditIcon className="w-4 h-4" /></Button>
                                         )}
                                         {userPermissions['invoices.void'] && invoice.status === 'Activa' && (
-                                            <Button variant="danger" size="sm" onClick={async () => await onUpdateStatuses(invoice.id, { status: 'Anulada' })}>Anular</Button>
+                                            <Button 
+                                                variant="danger" 
+                                                size="sm" 
+                                                onClick={async () => {
+                                                    if(window.confirm('¿Está seguro de que desea anular esta factura?')) {
+                                                        await onDeleteInvoice(invoice.id);
+                                                    }
+                                                }}
+                                            >
+                                                Anular
+                                            </Button>
                                         )}
                                     </td>
                                 </tr>

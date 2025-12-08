@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Product } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -90,7 +91,18 @@ const ProductSettings: React.FC<ProductSettingsProps> = ({ products, onSave, onD
                                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{prod.description}</td>
                                     <td className="px-6 py-4 text-right space-x-2">
                                         <Button variant="secondary" size="sm" onClick={() => handleOpenModal(prod)}><EditIcon className="w-4 h-4"/></Button>
-                                        <Button variant="danger" size="sm" onClick={() => onDelete(prod.id)}><TrashIcon className="w-4 h-4"/></Button>
+                                        <Button 
+                                            variant="danger" 
+                                            size="sm" 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm('¿Está seguro de que desea eliminar este producto?')) {
+                                                    onDelete(prod.id);
+                                                }
+                                            }}
+                                        >
+                                            <TrashIcon className="w-4 h-4"/>
+                                        </Button>
                                     </td>
                                 </tr>
                             ))}

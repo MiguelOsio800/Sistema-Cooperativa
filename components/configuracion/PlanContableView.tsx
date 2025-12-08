@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { CuentaContable, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -36,9 +35,13 @@ const PlanContableView: React.FC<PlanContableViewProps> = ({ cuentas, setCuentas
         setIsModalOpen(false);
     };
 
-    const handleDelete = (cuentaId: string) => {
+    const handleDelete = async (e: React.MouseEvent, cuentaId: string) => {
+        e.stopPropagation();
         if (window.confirm('¿Está seguro de que desea eliminar esta cuenta contable? Esta acción no se puede deshacer.')) {
             const cuentaNombre = cuentas.find(c => c.id === cuentaId)?.nombre || 'La cuenta';
+            // Note: In a real app this should likely call a backend function passed via props
+            // Here we are updating local state as per the original component design, 
+            // but ensuring the UI event is handled correctly.
             setCuentas(cuentas.filter(c => c.id !== cuentaId));
             addToast({ type: 'success', title: 'Cuenta Eliminada', message: `${cuentaNombre} ha sido eliminada.` });
         }
@@ -93,7 +96,7 @@ const PlanContableView: React.FC<PlanContableViewProps> = ({ cuentas, setCuentas
                                             <Button variant="secondary" size="sm" onClick={() => handleOpenModal(cuenta)}><EditIcon className="w-4 h-4"/></Button>
                                         )}
                                         {permissions?.delete && (
-                                            <Button variant="danger" size="sm" onClick={() => handleDelete(cuenta.id)}><TrashIcon className="w-4 h-4"/></Button>
+                                            <Button variant="danger" size="sm" onClick={(e) => handleDelete(e, cuenta.id)}><TrashIcon className="w-4 h-4"/></Button>
                                         )}
                                     </td>
                                 </tr>

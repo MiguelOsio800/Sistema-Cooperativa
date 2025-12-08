@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Asociado, Vehicle, Certificado, Permissions } from '../../types';
 import Button from '../ui/Button';
-import { ArrowLeftIcon } from '../icons/Icons';
+import { ArrowLeftIcon, TrashIcon } from '../icons/Icons';
 import DatosSocioTab from './DatosSocioTab';
 import CertificadoVehiculoTab from './CertificadoVehiculoTab';
 
@@ -10,6 +10,7 @@ interface AsociadoDetailViewProps {
     asociado: Asociado;
     onBack: () => void;
     onSaveAsociado: (asociado: Asociado) => Promise<void>;
+    onDeleteAsociado: (asociadoId: string) => Promise<void>;
 
     vehicles: Vehicle[];
     onSaveVehicle: (vehicle: Vehicle) => Promise<void>;
@@ -25,13 +26,20 @@ interface AsociadoDetailViewProps {
 type Tab = 'datos' | 'vehiculos';
 
 const AsociadoDetailView: React.FC<AsociadoDetailViewProps> = (props) => {
-    const { asociado, onBack } = props;
+    const { asociado, onBack, onDeleteAsociado, permissions } = props;
     const [activeTab, setActiveTab] = useState<Tab>('datos');
     const [currentAsociado, setCurrentAsociado] = useState(asociado);
 
     const handleSaveAsociado = async (updatedAsociado: Asociado) => {
         await props.onSaveAsociado(updatedAsociado);
         setCurrentAsociado(updatedAsociado);
+    };
+
+    const handleDelete = async () => {
+        if (window.confirm(`¿Está seguro de que desea eliminar al asociado ${currentAsociado.nombre}? Esta acción no se puede deshacer y podría fallar si tiene registros relacionados.`)) {
+            await onDeleteAsociado(currentAsociado.id);
+            onBack();
+        }
     };
 
     const TabButton: React.FC<{ tabId: Tab, label: string }> = ({ tabId, label }) => (
@@ -56,13 +64,21 @@ const AsociadoDetailView: React.FC<AsociadoDetailViewProps> = (props) => {
                         Volver a la Búsqueda
                     </Button>
                 </div>
-                <div className="text-right">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                        {currentAsociado.id ? `${currentAsociado.nombre}` : 'Nuevo Asociado'}
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Código: {currentAsociado.codigo || 'N/A'}
-                    </p>
+                <div className="flex items-center gap-4 text-right">
+                    {currentAsociado.id && permissions['asociados.delete'] && (
+                        <Button variant="danger" onClick={handleDelete}>
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            Eliminar
+                        </Button>
+                    )}
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                            {currentAsociado.id ? `${currentAsociado.nombre}` : 'Nuevo Asociado'}
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Código: {currentAsociado.codigo || 'N/A'}
+                        </p>
+                    </div>
                 </div>
             </div>
 

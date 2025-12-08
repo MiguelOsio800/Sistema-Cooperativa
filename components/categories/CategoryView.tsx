@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Category, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -96,7 +97,8 @@ const CategoryView: React.FC<CategoryViewProps> = ({ categories, onSave, onDelet
                                             <Button variant="secondary" size="sm" onClick={() => handleOpenModal(cat)}><EditIcon className="w-4 h-4"/></Button>
                                         )}
                                         {permissions['categories.delete'] && (
-                                            <Button variant="danger" size="sm" onClick={async () => {
+                                            <Button variant="danger" size="sm" onClick={async (e) => {
+                                                e.stopPropagation();
                                                 if (window.confirm('¿Está seguro de que desea eliminar esta categoría? Esta acción no se puede deshacer.')) {
                                                     await onDelete(cat.id);
                                                 }

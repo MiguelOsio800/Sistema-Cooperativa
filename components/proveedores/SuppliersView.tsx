@@ -50,9 +50,10 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onSave, onDele
         setIsModalOpen(false);
     };
 
-    const handleDeleteClick = async (supplierId: string) => {
-        if (window.confirm('¿Está seguro de que desea eliminar este proveedor? Esta acción no se puede deshacer.')) {
-            await onDelete(supplierId);
+    const handleDeleteClick = async (e: React.MouseEvent, supplier: Supplier) => {
+        e.stopPropagation();
+        if (window.confirm(`¿Está seguro de que desea eliminar al proveedor '${supplier.name}'? Esta acción no se puede deshacer.`)) {
+            await onDelete(supplier.id);
         }
     };
 
@@ -106,7 +107,7 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onSave, onDele
                                                 variant="danger" 
                                                 size="sm" 
                                                 type="button"
-                                                onClick={() => handleDeleteClick(supplier.id)}
+                                                onClick={(e) => handleDeleteClick(e, supplier)}
                                             >
                                                 <TrashIcon className="w-4 h-4"/>
                                             </Button>

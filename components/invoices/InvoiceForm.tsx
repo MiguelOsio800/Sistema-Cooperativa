@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShippingGuide, Client, Merchandise, Financials, Category, Invoice, Office, ShippingType, PaymentMethod, CompanyInfo, User } from '../../types';
+import { ShippingGuide, Client, Merchandise, Financials, Category, Invoice, Office, ShippingType, PaymentMethod, CompanyInfo, User, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -25,6 +25,7 @@ type BaseFormProps = {
     shippingTypes: ShippingType[];
     paymentMethods: PaymentMethod[];
     currentUser: User;
+    permissions?: Permissions;
 };
 
 type CreateFormProps = BaseFormProps & {
@@ -39,15 +40,17 @@ type EditFormProps = BaseFormProps & {
 
 type InvoiceFormProps = CreateFormProps | EditFormProps;
 
-const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, companyInfo, categories, clients, offices, shippingTypes, paymentMethods, currentUser }) => {
+const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, companyInfo, categories, clients, offices, shippingTypes, paymentMethods, currentUser, permissions }) => {
     
-    const isOperator = currentUser.roleId !== 'role-admin' && currentUser.roleId !== 'role-tech';
+    // Permission check for managing office
+    const canManageAllOffices = permissions?.['invoices.manage_all_offices'];
     const { addToast } = useToast();
     
     const getInitialGuideState = useCallback((): ShippingGuide => {
         if (invoice) return invoice.guide;
 
-        const userOfficeId = isOperator && currentUser.officeId ? currentUser.officeId : offices[0]?.id || '';
+        // Default to user's office if they are restricted
+        const userOfficeId = !canManageAllOffices && currentUser.officeId ? currentUser.officeId : offices[0]?.id || '';
         
         const today = new Date();
         const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -73,7 +76,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             isTransbordo: false,
             receivedBy: '',
         }
-    }, [invoice, currentUser, offices, categories, shippingTypes, paymentMethods, isOperator]);
+    }, [invoice, currentUser, offices, categories, shippingTypes, paymentMethods, canManageAllOffices]);
 
     const [guide, setGuide] = useState<ShippingGuide>(getInitialGuideState());
     const [financials, setFinancials] = useState<Financials>(initialFinancials);
@@ -94,7 +97,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         if (!invoice) {
             setGuide(g => ({
                 ...g,
-                originOfficeId: g.originOfficeId || (isOperator && currentUser.officeId ? currentUser.officeId : offices[0]?.id || ''),
+                originOfficeId: g.originOfficeId || (!canManageAllOffices && currentUser.officeId ? currentUser.officeId : offices[0]?.id || ''),
                 destinationOfficeId: g.destinationOfficeId || offices[1]?.id || '',
                 shippingTypeId: g.shippingTypeId || shippingTypes[0]?.id || '',
                 paymentMethodId: g.paymentMethodId || paymentMethods[0]?.id || '',
@@ -104,7 +107,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 receivedBy: g.receivedBy || '',
             }));
         }
-    }, [offices, shippingTypes, paymentMethods, categories, invoice, isOperator, currentUser]);
+    }, [offices, shippingTypes, paymentMethods, categories, invoice, canManageAllOffices, currentUser]);
 
     useEffect(() => {
         const newFinancials = calculateFinancialDetails(guide, companyInfo);
@@ -431,7 +434,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                          <Card>
                             <CardHeader><CardTitle>Condiciones del Envío</CardTitle></CardHeader>
                             <div className="space-y-4">
-                                <Select label="Oficina de Origen" value={guide.originOfficeId} onChange={e => setGuide(g => ({...g, originOfficeId: e.target.value}))} disabled={isOperator && !!currentUser.officeId}>
+                                <Select label="Oficina de Origen" value={guide.originOfficeId} onChange={e => setGuide(g => ({...g, originOfficeId: e.target.value}))} disabled={!canManageAllOffices && !!currentUser.officeId}>
                                     {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
                                 </Select>
                                 <Select label="Oficina de Destino" value={guide.destinationOfficeId} onChange={e => setGuide(g => ({...g, destinationOfficeId: e.target.value}))} error={errors.destinationOfficeId}>

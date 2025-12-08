@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Office, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -68,7 +69,8 @@ const OfficesView: React.FC<OfficesViewProps> = ({ offices, onSave, onDelete, pe
                                             <Button variant="secondary" size="sm" onClick={() => handleOpenModal(office)}><EditIcon className="w-4 h-4"/></Button>
                                         )}
                                         {permissions['offices.delete'] && (
-                                            <Button variant="danger" size="sm" onClick={async () => {
+                                            <Button variant="danger" size="sm" onClick={async (e) => {
+                                                e.stopPropagation();
                                                 if (window.confirm('¿Está seguro de que desea eliminar esta oficina? Esta acción no se puede deshacer.')) {
                                                     await onDelete(office.id);
                                                 }

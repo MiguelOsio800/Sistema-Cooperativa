@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Asociado, PagoAsociado, ReciboPagoAsociado, CompanyInfo, Permissions, Invoice } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -32,7 +33,7 @@ const isOverdue = (dateString: string) => {
 
 const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
     const { asociados, pagos, recibos, onSavePago, onDeletePago, onSaveRecibo, companyInfo, permissions } = props;
-    const { invoices } = useData(); // Get invoices for debt calculation
+    const { invoices } = useData();
 
     const [selectedAsociadoId, setSelectedAsociadoId] = useState<string>('');
     const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
@@ -79,9 +80,6 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
 
     const associateInvoices = useMemo(() => {
         if (!selectedAsociado) return [];
-        // This is a simplified link. A real-world scenario might need a more robust link
-        // between invoices and associates, maybe through the vehicle.
-        // For now, let's assume invoices where the sender is the associate are theirs.
         return invoices.filter(inv => inv.clientIdNumber === selectedAsociado.cedula && inv.status === 'Activa');
     }, [invoices, selectedAsociado]);
 
@@ -183,9 +181,11 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                                                     variant="danger" 
                                                     size="sm" 
                                                     className="ml-4 !p-2 flex-shrink-0"
-                                                    onClick={async () => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
                                                         if (window.confirm(`¿Está seguro de que desea eliminar la deuda por "${p.concepto}"? Esta acción no se puede deshacer.`)) {
-                                                            await onDeletePago(p.id);
+                                                            onDeletePago(p.id);
                                                         }
                                                     }}
                                                     title="Eliminar Deuda"

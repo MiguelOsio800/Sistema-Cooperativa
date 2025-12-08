@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Invoice, Client, Category, Office, ShippingType, PaymentMethod, CompanyInfo, User } from '../../types';
+import { Invoice, Client, Category, Office, ShippingType, PaymentMethod, CompanyInfo, User, Permissions } from '../../types';
 import InvoiceForm from './InvoiceForm';
 
 interface EditInvoiceViewProps {
@@ -13,6 +13,7 @@ interface EditInvoiceViewProps {
     paymentMethods: PaymentMethod[];
     companyInfo: CompanyInfo;
     currentUser: User;
+    permissions: Permissions;
 }
 
 const EditInvoiceView: React.FC<EditInvoiceViewProps> = (props) => {
@@ -28,6 +29,7 @@ const EditInvoiceView: React.FC<EditInvoiceViewProps> = (props) => {
                 paymentMethods={props.paymentMethods}
                 companyInfo={props.companyInfo}
                 currentUser={props.currentUser}
+                permissions={props.permissions}
             />
         </div>
     );

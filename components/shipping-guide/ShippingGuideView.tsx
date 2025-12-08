@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Invoice, Client, Category, Office, ShippingType, PaymentMethod, CompanyInfo, User } from '../../types';
+import { Invoice, Client, Category, Office, ShippingType, PaymentMethod, CompanyInfo, User, Permissions } from '../../types';
 import InvoiceForm from '../invoices/InvoiceForm';
 
 interface ShippingGuideViewProps {
@@ -12,6 +12,7 @@ interface ShippingGuideViewProps {
     paymentMethods: PaymentMethod[];
     companyInfo: CompanyInfo;
     currentUser: User;
+    permissions: Permissions;
 }
 
 const ShippingGuideView: React.FC<ShippingGuideViewProps> = (props) => {
@@ -26,6 +27,7 @@ const ShippingGuideView: React.FC<ShippingGuideViewProps> = (props) => {
                 paymentMethods={props.paymentMethods}
                 companyInfo={props.companyInfo}
                 currentUser={props.currentUser}
+                permissions={props.permissions}
             />
         </div>
     );

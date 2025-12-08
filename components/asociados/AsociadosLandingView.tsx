@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Permissions } from '../../types';
 import AccountingTile from '../libro-contable/AccountingTile';
@@ -16,7 +17,7 @@ const AsociadosLandingView: React.FC<AsociadosLandingViewProps> = ({ permissions
     return (
         <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center">Módulo de Asociados</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {permissions['asociados.view'] && (
                     <AccountingTile
                         title="Gestión de Asociados"
@@ -42,15 +43,6 @@ const AsociadosLandingView: React.FC<AsociadosLandingViewProps> = ({ permissions
                         icon={BarChartIcon}
                         onClick={() => window.location.hash = 'asociados/estadisticas'}
                         colorVariant="green"
-                    />
-                )}
-                 {permissions['asociados.view'] && (
-                    <AccountingTile
-                        title="Reportes de Asociados"
-                        description="Generar estado de cuenta y otros reportes detallados."
-                        icon={FileTextIcon}
-                        onClick={() => window.location.hash = 'asociados/reportes'}
-                        colorVariant="purple"
                     />
                 )}
             </div>

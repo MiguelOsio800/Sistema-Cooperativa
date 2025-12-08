@@ -153,10 +153,10 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
         return true;
     }), [asientosManuales, startDate, endDate]);
 
-    // Check if user is Operator (Standard Office User) to show Simplified View
-    const isOperator = currentUser.roleId === 'role-op';
+    // Check permission to determine if Full Accounting or Simplified View should be shown
+    const showFullAccounting = permissions['plan-contable.view'];
 
-    if (isOperator) {
+    if (!showFullAccounting) {
         return (
             <div className="space-y-6">
                 <Card>
@@ -188,6 +188,20 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
                         />
                     </div>
                 </Card>
+                
+                <ExpenseFormModal
+                    isOpen={isExpenseFormOpen}
+                    onClose={() => setIsExpenseFormOpen(false)}
+                    onSave={handleSaveExpenseLocal}
+                    expense={editingExpense}
+                    expenseCategories={expenseCategories}
+                    offices={offices}
+                    paymentMethods={paymentMethods}
+                    currentUser={currentUser}
+                    companyInfo={companyInfo}
+                    suppliers={suppliers}
+                    permissions={permissions}
+                />
             </div>
         );
     }

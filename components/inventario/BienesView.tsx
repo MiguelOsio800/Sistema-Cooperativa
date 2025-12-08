@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Asset, Office, Permissions, AssetCategory } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -58,7 +59,7 @@ const BienesView: React.FC<BienesViewProps> = ({ assets, offices, assetCategorie
         paginatedData, 
         currentPage, 
         totalPages, 
-        setCurrentPage,
+        setCurrentPage, 
         totalItems
     } = usePagination(filteredAssets, ITEMS_PER_PAGE);
 
@@ -193,7 +194,8 @@ const BienesView: React.FC<BienesViewProps> = ({ assets, offices, assetCategorie
                                     </td>
                                     <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                                         {permissions['inventario-bienes.edit'] && <Button variant="secondary" size="sm" onClick={() => handleOpenModal(asset)}><EditIcon className="w-4 h-4"/></Button>}
-                                        {permissions['inventario-bienes.delete'] && <Button variant="danger" size="sm" onClick={async () => {
+                                        {permissions['inventario-bienes.delete'] && <Button variant="danger" size="sm" onClick={async (e) => {
+                                            e.stopPropagation();
                                             if (window.confirm(`¿Está seguro de que desea eliminar el bien '${asset.name}'? Esta acción no se puede deshacer.`)) {
                                                 await onDelete(asset.id);
                                             }

@@ -87,14 +87,18 @@ const AppContent: React.FC = () => {
             return invoices;
         }
         
-        // CRITICAL UPDATE:
-        // Users must see invoices created by their office (Origin)
-        // AND invoices sent TO their office (Destination) to allow reception/verification.
+        const inboundDispatchInvoiceIds = new Set(
+            dispatches
+                .filter(d => (d.destinationOfficeId === currentUser.officeId || d.originOfficeId === currentUser.officeId))
+                .flatMap(d => d.invoiceIds)
+        );
+
         return invoices.filter(invoice => 
             invoice.guide.originOfficeId === currentUser.officeId || 
-            invoice.guide.destinationOfficeId === currentUser.officeId
+            invoice.guide.destinationOfficeId === currentUser.officeId ||
+            inboundDispatchInvoiceIds.has(invoice.id)
         );
-    }, [invoices, currentUser]);
+    }, [invoices, dispatches, currentUser]);
 
     // Filter expenses based on user's office for data segregation
     const filteredExpenses = useMemo(() => {
@@ -128,8 +132,6 @@ const AppContent: React.FC = () => {
                  setCurrentPage('asociados-gestion');
             } else if (page === 'asociados' && param === 'estadisticas') {
                 setCurrentPage('asociados-estadisticas');
-            } else if (page === 'asociados' && param === 'reportes') {
-                setCurrentPage('asociados-reportes');
             } else if (page === 'asociados' && param === 'pagos') {
                 setCurrentPage('asociados-pagos');
             } else if (page === 'invoices' && param === 'filter' && subParam && filterValue) {
@@ -178,10 +180,10 @@ const AppContent: React.FC = () => {
         }
         switch (currentPage) {
             case 'dashboard': return <DashboardView invoices={filteredInvoices} vehicles={vehicles} companyInfo={companyInfo} offices={offices} />;
-            case 'shipping-guide': return <ShippingGuideView onSaveInvoice={handleSaveInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} />;
+            case 'shipping-guide': return <ShippingGuideView onSaveInvoice={handleSaveInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} permissions={userPermissions} />;
             case 'edit-invoice':
                 const invoiceToEdit = invoices.find(inv => inv.id === editingInvoiceId);
-                return invoiceToEdit ? <EditInvoiceView invoice={invoiceToEdit} onSaveInvoice={handleUpdateInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} /> : <div>Factura no encontrada</div>;
+                return invoiceToEdit ? <EditInvoiceView invoice={invoiceToEdit} onSaveInvoice={handleUpdateInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} permissions={userPermissions} /> : <div>Factura no encontrada</div>;
             case 'invoices': return <InvoicesView invoices={filteredInvoices} clients={clients} categories={categories} userPermissions={userPermissions} onUpdateStatuses={handleUpdateInvoiceStatuses} onDeleteInvoice={handleDeleteInvoice} companyInfo={companyInfo} initialFilter={invoiceFilter} offices={offices} />;
             case 'remesas': return <RemesasView 
                 remesas={remesas}
@@ -242,7 +244,6 @@ const AppContent: React.FC = () => {
                 permissions={userPermissions} companyInfo={companyInfo}
              />;
             case 'asociados-estadisticas': return <EstadisticasAsociadosView asociados={asociados} pagos={pagosAsociados} />;
-            case 'asociados-reportes': return <ReportesAsociadosView asociados={asociados} pagos={pagosAsociados} recibos={recibosPagoAsociados} companyInfo={companyInfo} />;
             case 'asociados-pagos': return <AsociadosPagosView 
                 asociados={asociados}
                 pagos={pagosAsociados}
@@ -255,6 +256,13 @@ const AppContent: React.FC = () => {
             />;
             case 'reports': return <ReportsView reports={SYSTEM_REPORTS} />;
             case 'report-detail': 
+                if (viewingReport?.id === 'reporte_asociados') {
+                    if (userPermissions['reports.associates.view']) {
+                        return <ReportesAsociadosView asociados={asociados} pagos={pagosAsociados} recibos={recibosPagoAsociados} companyInfo={companyInfo} />;
+                    } else {
+                        return <div className="text-center p-8 text-gray-500">No tiene permisos para ver este reporte.</div>;
+                    }
+                }
                 // Pass FILTERED data to ensure report security by office
                 return viewingReport ? <ReportDetailView report={viewingReport} invoices={filteredInvoices} clients={clients} expenses={filteredExpenses} offices={offices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} /> : <div>Reporte no encontrado</div>;
             case 'categories': return <CategoryView categories={categories} onSave={handleSaveCategory} onDelete={onDeleteCategory} permissions={userPermissions} />;
@@ -285,7 +293,6 @@ const AppContent: React.FC = () => {
                         />
                     );
                 } else {
-                    // If user manually navigated to #configuracion but has no permission, show dashboard instead
                     return <DashboardView invoices={filteredInvoices} vehicles={vehicles} companyInfo={companyInfo} offices={offices} />;
                 }
             default:

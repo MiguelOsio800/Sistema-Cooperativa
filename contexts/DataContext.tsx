@@ -230,6 +230,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const handleGenericDelete = async (id: string, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<any[]>>, itemType: string) => {
+        // Validation to prevent malformed URLs
+        if (!id || id === 'undefined' || id === 'null') {
+            addToast({ type: 'error', title: 'Error', message: `ID inválido para eliminar ${itemType}` });
+            return;
+        }
+        
         try {
             await apiFetch(`${endpoint}/${id}`, { method: 'DELETE' });
             stateSetter(prev => prev.filter(item => item.id !== id));
@@ -344,7 +350,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (error: any) { addToast({ type: 'error', title: 'Error al Cambiar Estado', message: error.message }); }
     };
 
-    const handleDeleteInvoice = async (id: string) => { await handleGenericDelete(id, '/invoices', setInvoices, 'Factura'); };
+    // Modified handleDeleteInvoice to align with DELETE /invoices/:id which voids the invoice (sets status to Anulada)
+    // The previous implementation was removing it from the list.
+    const handleDeleteInvoice = async (id: string) => { 
+        if (!currentUser) return;
+        try {
+            // Check if backend returns the updated invoice object or just 204/200
+            const response = await apiFetch<Invoice | { message: string }>(`/invoices/${id}`, { method: 'DELETE' });
+            
+            // If the response contains invoice data (updated status), use it
+            if (response && 'id' in response && response.status === 'Anulada') {
+                const voidedInvoice = response as Invoice;
+                setInvoices(prev => prev.map(inv => inv.id === voidedInvoice.id ? voidedInvoice : inv));
+            } else {
+                // If backend just says "Deleted" or "Voided" without body, assuming we should locally update status
+                setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'Anulada' } : inv));
+            }
+            
+            const invoiceNumber = invoices.find(i => i.id === id)?.invoiceNumber || id;
+            logAction(currentUser, 'ANULAR_FACTURA', `Anuló la factura ${invoiceNumber}.`, id);
+            addToast({ type: 'success', title: 'Factura Anulada', message: `La factura ${invoiceNumber} ha sido anulada.` });
+        } catch (error: any) { 
+            addToast({ type: 'error', title: 'Error al Anular Factura', message: error.message }); 
+        }
+    };
     
     const handleAssignToVehicle = async (invoiceIds: string[], vehicleId: string) => {
         try {

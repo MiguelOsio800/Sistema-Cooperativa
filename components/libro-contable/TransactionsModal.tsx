@@ -83,7 +83,8 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
         setIsExpenseModalOpen(false);
     };
     
-    const handleDeleteClick = async (expenseId: string) => {
+    const handleDeleteClick = async (e: React.MouseEvent, expenseId: string) => {
+        e.stopPropagation();
         if (window.confirm('¿Está seguro de que desea eliminar este gasto? Esta acción no se puede deshacer.')) {
             await onDeleteExpense(expenseId);
         }
@@ -151,7 +152,7 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
                                             variant="danger" 
                                             size="sm" 
                                             type="button"
-                                            onClick={() => handleDeleteClick(t.originalDoc.id)}
+                                            onClick={(e) => handleDeleteClick(e, t.originalDoc.id)}
                                         >
                                             <TrashIcon className="w-4 h-4"/>
                                         </Button>
@@ -198,6 +199,7 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
                 currentUser={currentUser}
                 companyInfo={companyInfo}
                 suppliers={suppliers}
+                permissions={permissions}
             />
         </>
     );
