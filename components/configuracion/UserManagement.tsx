@@ -136,9 +136,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, 
                                         <Button variant="secondary" size="sm" onClick={() => handleOpenUserModal(user)} disabled={!isEditable}><EditIcon className="w-4 h-4"/></Button>
                                         <Button variant="danger" size="sm" onClick={async (e) => {
                                             e.stopPropagation();
-                                            if (window.confirm(`¿Está seguro de que desea eliminar al usuario '${user.name}'? Esta acción no se puede deshacer.`)) {
-                                                await onDeleteUser(user.id);
-                                            }
+                                            await onDeleteUser(user.id);
                                         }} disabled={!isDeletable}><TrashIcon className="w-4 h-4"/></Button>
                                     </td>
                                 </tr>

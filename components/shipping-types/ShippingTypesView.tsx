@@ -68,9 +68,7 @@ const ShippingTypesView: React.FC<ShippingTypesViewProps> = ({ shippingTypes, on
                                                 size="sm" 
                                                 onClick={async (e) => {
                                                     e.stopPropagation();
-                                                    if (window.confirm('¿Está seguro de que desea eliminar este tipo de envío? Esta acción no se puede deshacer.')) {
-                                                        await onDelete(st.id);
-                                                    }
+                                                    await onDelete(st.id);
                                                 }}
                                             >
                                                 <TrashIcon className="w-4 h-4"/>

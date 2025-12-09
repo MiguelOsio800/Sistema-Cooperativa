@@ -108,9 +108,7 @@ const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({ paymentMethods,
                                 {permissions['payment-methods.delete'] && (
                                     <Button variant="danger" size="sm" onClick={async (e) => {
                                         e.stopPropagation();
-                                        if (window.confirm('¿Está seguro de que desea eliminar esta forma de pago? Esta acción no se puede deshacer.')) {
-                                            await onDelete(pm.id);
-                                        }
+                                        await onDelete(pm.id);
                                     }}><TrashIcon className="w-4 h-4"/></Button>
                                 )}
                             </div>

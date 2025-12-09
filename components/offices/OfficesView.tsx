@@ -71,9 +71,7 @@ const OfficesView: React.FC<OfficesViewProps> = ({ offices, onSave, onDelete, pe
                                         {permissions['offices.delete'] && (
                                             <Button variant="danger" size="sm" onClick={async (e) => {
                                                 e.stopPropagation();
-                                                if (window.confirm('¿Está seguro de que desea eliminar esta oficina? Esta acción no se puede deshacer.')) {
-                                                    await onDelete(office.id);
-                                                }
+                                                await onDelete(office.id);
                                             }}><TrashIcon className="w-4 h-4"/></Button>
                                         )}
                                     </td>

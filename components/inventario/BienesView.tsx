@@ -196,9 +196,7 @@ const BienesView: React.FC<BienesViewProps> = ({ assets, offices, assetCategorie
                                         {permissions['inventario-bienes.edit'] && <Button variant="secondary" size="sm" onClick={() => handleOpenModal(asset)}><EditIcon className="w-4 h-4"/></Button>}
                                         {permissions['inventario-bienes.delete'] && <Button variant="danger" size="sm" onClick={async (e) => {
                                             e.stopPropagation();
-                                            if (window.confirm(`¿Está seguro de que desea eliminar el bien '${asset.name}'? Esta acción no se puede deshacer.`)) {
-                                                await onDelete(asset.id);
-                                            }
+                                            await onDelete(asset.id);
                                         }}><TrashIcon className="w-4 h-4"/></Button>}
                                     </td>
                                 </tr>

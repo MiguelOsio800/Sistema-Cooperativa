@@ -36,10 +36,8 @@ const AsociadoDetailView: React.FC<AsociadoDetailViewProps> = (props) => {
     };
 
     const handleDelete = async () => {
-        if (window.confirm(`¿Está seguro de que desea eliminar al asociado ${currentAsociado.nombre}? Esta acción no se puede deshacer y podría fallar si tiene registros relacionados.`)) {
-            await onDeleteAsociado(currentAsociado.id);
-            onBack();
-        }
+        await onDeleteAsociado(currentAsociado.id);
+        onBack();
     };
 
     const TabButton: React.FC<{ tabId: Tab, label: string }> = ({ tabId, label }) => (

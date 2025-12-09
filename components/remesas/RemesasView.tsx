@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Remesa, Invoice, Asociado, Vehicle, Client, Office, CompanyInfo, Permissions, Category } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -194,9 +195,7 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                                                         <td className="px-2 py-2 text-right space-x-1">
                                                             <Button size="sm" variant="secondary" onClick={() => handleOpenManifestModal(rem)}><EyeIcon className="w-4 h-4"/></Button>
                                                             {permissions['remesas.delete'] && <Button size="sm" variant="danger" onClick={async () => {
-                                                                if (window.confirm('¿Está seguro de que desea eliminar esta remesa? Las facturas asociadas volverán al estado "Pendiente para Despacho".')) {
-                                                                    await onDeleteRemesa(rem.id);
-                                                                }
+                                                                await onDeleteRemesa(rem.id);
                                                             }}><TrashIcon className="w-4 h-4"/></Button>}
                                                         </td>
                                                     </tr>

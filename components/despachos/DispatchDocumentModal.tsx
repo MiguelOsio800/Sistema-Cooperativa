@@ -5,7 +5,7 @@ import html2canvas from 'html2canvas';
 import { Dispatch, Invoice, Vehicle, CompanyInfo, Office, Asociado } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { DownloadIcon, XIcon, PrinterIcon } from '../icons/Icons';
+import { DownloadIcon, XIcon } from '../icons/Icons';
 import { calculateInvoiceChargeableWeight } from '../../utils/financials';
 
 interface DispatchDocumentModalProps {
@@ -27,7 +27,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
 
     const originOffice = offices.find(o => o.id === dispatch.originOfficeId);
     
-    // Sort invoices by destination to group them visually if needed, though usually listed sequentially
+    // Sort invoices by destination to group them visually
     const sortedInvoices = [...invoices].sort((a, b) => a.guide.destinationOfficeId.localeCompare(b.guide.destinationOfficeId));
 
     const totalPackages = sortedInvoices.reduce((sum, inv) => sum + inv.guide.merchandise.reduce((s, m) => s + m.quantity, 0), 0);
@@ -38,16 +38,24 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
         const input = document.getElementById('dispatch-to-print');
         if (!input) return;
 
-        html2canvas(input, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+        // Use standard A4 dimensions at 96 DPI approx
+        const a4Width = 794; 
+        
+        html2canvas(input, { 
+            scale: 2, 
+            useCORS: true, 
+            backgroundColor: '#ffffff',
+            width: a4Width, // Force the canvas width
+            windowWidth: 1200, // Simulate a desktop browser width
+            x: 0,
+            y: 0
+        }).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
             
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-            const imgHeight = pdfWidth / ratio;
+            const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
             let heightLeft = imgHeight;
             let position = 0;
@@ -56,7 +64,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
             heightLeft -= pdfHeight;
 
             while (heightLeft > 0) {
-                position -= pdfHeight;
+                position = heightLeft - imgHeight; // Fix for multipage
                 pdf.addPage();
                 pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
                 heightLeft -= pdfHeight;
@@ -70,107 +78,118 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Guía de Despacho # ${dispatch.dispatchNumber}`} size="4xl">
-            <div id="dispatch-to-print" className="bg-white text-black font-sans p-10 leading-tight printable-area">
-                
-                {/* Header */}
-                <div className="flex justify-between items-start mb-6 border-b-2 border-black pb-4">
-                    <div className="flex items-center gap-4">
-                        {companyInfo.logoUrl && (
-                            <img src={companyInfo.logoUrl} alt="Logo" className="h-16 w-auto object-contain" />
-                        )}
-                        <div>
-                            <h1 className="font-bold text-xl uppercase text-black">{companyInfo.name}</h1>
-                            <p className="text-sm text-black">RIF: {companyInfo.rif}</p>
-                            <p className="text-sm text-black">{companyInfo.address}</p>
+            {/* Wrapper to handle scrolling for the fixed-width document */}
+            <div className="flex justify-center bg-gray-100 dark:bg-gray-800 py-4 rounded-lg overflow-auto max-h-[75vh]">
+                {/* Fixed A4 Size Container */}
+                <div 
+                    id="dispatch-to-print" 
+                    className="bg-white text-black font-mono text-[11px] leading-tight printable-area shadow-xl"
+                    style={{ 
+                        width: '794px', 
+                        minHeight: '1123px', 
+                        padding: '40px', 
+                        boxSizing: 'border-box'
+                    }}
+                >
+                    
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-6 text-black">
+                        <div className="w-1/2">
+                            <h1 className="font-bold text-sm text-black uppercase">{companyInfo.name}</h1>
+                            <p className="text-[10px] text-black">RIF: {companyInfo.rif}</p>
+                            <p className="text-[10px] text-black">{companyInfo.address}</p>
+                        </div>
+                        <div className="text-right w-1/2 text-black">
+                            <h2 className="font-bold text-base uppercase text-black">ENCOMIENDAS RECIBIDAS</h2>
+                            <p className="font-bold text-black">Nº CONTROL: {dispatch.dispatchNumber}</p>
+                            <p className="text-black">Fecha: {new Date(dispatch.date).toLocaleDateString('es-VE')}</p>
+                            <p className="text-black">Origen: {originOffice?.name || 'N/A'}</p>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <h2 className="font-bold text-xl uppercase text-black">ENCOMIENDAS RECIBIDAS</h2>
-                        <p className="font-mono text-lg font-bold text-black">Nº CONTROL: {dispatch.dispatchNumber}</p>
-                        <p className="text-sm text-black">Fecha: {new Date(dispatch.date).toLocaleDateString('es-VE')}</p>
-                        <p className="text-sm text-black">Origen: <strong>{originOffice?.name || 'N/A'}</strong></p>
-                    </div>
-                </div>
 
-                {/* Transport Info */}
-                <div className="mb-6 p-4 border border-black rounded-sm bg-gray-50">
-                    <h3 className="font-bold border-b border-black mb-2 pb-1 text-black">DATOS DE TRANSPORTE</h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <p className="text-black"><strong>Conductor:</strong> {vehicle.driver}</p>
-                        <p className="text-black"><strong>Asociado:</strong> {asociado.nombre} ({asociado.codigo})</p>
-                        <p className="text-black"><strong>Vehículo:</strong> {vehicle.modelo} - {vehicle.color}</p>
-                        <p className="text-black"><strong>Placa:</strong> {vehicle.placa}</p>
+                    <div className="text-center font-bold text-[11px] mb-2 text-black border-t border-b border-black py-1 uppercase">
+                        Manifiesto de Carga Inter-Oficina
                     </div>
-                </div>
 
-                {/* Main Table - Strict Black Text */}
-                <table className="w-full border-collapse mb-6 text-sm">
-                    <thead>
-                        <tr className="bg-gray-200 border-t-2 border-b-2 border-black">
-                            <th className="text-left py-2 px-2 text-black font-bold">Nº Factura</th>
-                            <th className="text-left py-2 px-2 text-black font-bold">Nº Control</th>
-                            <th className="text-left py-2 px-2 text-black font-bold">Destinatario / Oficina Destino</th>
-                            <th className="text-center py-2 px-2 text-black font-bold">Piezas</th>
-                            <th className="text-right py-2 px-2 text-black font-bold">Peso (Kg)</th>
-                            <th className="text-right py-2 px-2 text-black font-bold">Monto Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedInvoices.map((inv, index) => {
-                            const piezas = inv.guide.merchandise.reduce((sum, m) => sum + m.quantity, 0);
-                            const peso = calculateInvoiceChargeableWeight(inv);
-                            const destOfficeName = offices.find(o => o.id === inv.guide.destinationOfficeId)?.name || 'N/A';
-                            
-                            return (
-                                <tr key={inv.id} className="border-b border-gray-300">
-                                    <td className="py-2 px-2 font-mono text-black">{inv.invoiceNumber}</td>
-                                    <td className="py-2 px-2 text-black">{inv.controlNumber}</td>
-                                    <td className="py-2 px-2">
-                                        <div className="font-bold text-black">{inv.guide.receiver.name}</div>
-                                        <div className="text-xs text-black">{destOfficeName}</div>
-                                    </td>
-                                    <td className="py-2 px-2 text-center text-black">{piezas}</td>
-                                    <td className="py-2 px-2 text-right text-black">{peso.toFixed(2)}</td>
-                                    <td className="py-2 px-2 text-right text-black">{formatCurrency(inv.totalAmount)}</td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                    <tfoot className="border-t-2 border-black font-bold bg-gray-100">
-                        <tr>
-                            <td colSpan={3} className="py-2 px-2 text-right uppercase text-black">Total General</td>
-                            <td className="py-2 px-2 text-center text-black">{totalPackages}</td>
-                            <td className="py-2 px-2 text-right text-black">{totalWeight.toFixed(2)}</td>
-                            <td className="py-2 px-2 text-right text-black">{formatCurrency(totalAmount)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-
-                {/* Signatures */}
-                <div className="mt-16 grid grid-cols-2 gap-20 px-8">
-                    <div className="text-center">
-                        <div className="border-b border-black mb-2"></div>
-                        <p className="font-bold text-black">DESPACHADO POR</p>
-                        <p className="text-xs text-black">{originOffice?.name}</p>
+                    {/* Transport Info */}
+                    <div className="mb-4 text-black p-2 border border-black rounded-sm">
+                        <div className="grid grid-cols-2 gap-4">
+                            <p className="text-black"><strong>Conductor:</strong> {vehicle.driver}</p>
+                            <p className="text-black"><strong>Asociado:</strong> {asociado.nombre} ({asociado.codigo})</p>
+                            <p className="text-black"><strong>Vehículo:</strong> {vehicle.modelo} - {vehicle.color}</p>
+                            <p className="text-black"><strong>Placa:</strong> {vehicle.placa}</p>
+                        </div>
                     </div>
-                    <div className="text-center">
-                        <div className="border-b border-black mb-2"></div>
-                        <p className="font-bold text-black">RECIBIDO POR</p>
-                        <p className="text-xs text-black">Firma y Sello Oficina Destino</p>
-                    </div>
-                </div>
-                
-                <div className="mt-12 text-center text-[10px] text-gray-500">
-                    <p>Este documento certifica la transferencia de custodia de la mercancía listada.</p>
-                </div>
 
+                    {/* Main Table - Fixed Layout */}
+                    <table className="w-full border-collapse mb-6 text-[11px] text-black table-fixed">
+                        <thead className="border-t-2 border-b-2 border-black">
+                            <tr>
+                                <th className="text-left py-1 text-black w-[15%]">Nº Factura</th>
+                                <th className="text-left py-1 text-black w-[15%]">Nº Control</th>
+                                <th className="text-left py-1 text-black w-[25%] pl-2">Destinatario</th>
+                                <th className="text-left py-1 text-black w-[20%]">Oficina Destino</th>
+                                <th className="text-center py-1 text-black w-[8%]">Pzas</th>
+                                <th className="text-right py-1 text-black w-[17%]">Monto Total</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-black">
+                            {sortedInvoices.map((inv) => {
+                                const piezas = inv.guide.merchandise.reduce((sum, m) => sum + m.quantity, 0);
+                                const destOfficeName = offices.find(o => o.id === inv.guide.destinationOfficeId)?.name || 'N/A';
+                                
+                                return (
+                                    <tr key={inv.id} className="border-b border-gray-300 text-black">
+                                        <td className="py-1 text-black font-mono">{inv.invoiceNumber}</td>
+                                        <td className="py-1 text-black">{inv.controlNumber}</td>
+                                        <td className="py-1 text-black truncate pl-2">{inv.guide.receiver.name}</td>
+                                        <td className="py-1 text-black truncate">{destOfficeName}</td>
+                                        <td className="py-1 text-center text-black">{piezas}</td>
+                                        <td className="py-1 text-right text-black">{formatCurrency(inv.totalAmount)}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                        <tfoot className="border-t-2 border-black font-bold text-black bg-gray-100">
+                            <tr>
+                                <td colSpan={4} className="py-1 text-right uppercase text-black pr-2">Total General</td>
+                                <td className="py-1 text-center text-black">{totalPackages}</td>
+                                <td className="py-1 text-right text-black">{formatCurrency(totalAmount)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div className="flex justify-between text-[10px] mb-8 font-bold border-t border-black pt-2">
+                         <span>Total Peso Carga: {totalWeight.toFixed(2)} Kg</span>
+                         <span>Total Facturas: {sortedInvoices.length}</span>
+                    </div>
+
+                    {/* Signatures */}
+                    <div className="mt-16 grid grid-cols-2 gap-20 px-8 text-black text-[10px]">
+                        <div className="text-center text-black">
+                            <div className="border-b border-black mb-2"></div>
+                            <p className="font-bold text-black">DESPACHADO POR</p>
+                            <p className="text-[9px] text-black">{originOffice?.name}</p>
+                        </div>
+                        <div className="text-center text-black">
+                            <div className="border-b border-black mb-2"></div>
+                            <p className="font-bold text-black">RECIBIDO POR</p>
+                            <p className="text-[9px] text-black">Firma y Sello Oficina Destino</p>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-12 text-center text-[9px] text-gray-500">
+                        <p className="text-black">Este documento certifica la transferencia de custodia de la mercancía listada.</p>
+                    </div>
+
+                </div>
             </div>
             <div className="flex justify-end space-x-3 p-4 border-t dark:border-gray-700">
                 <Button type="button" variant="secondary" onClick={onClose}>
                     <XIcon className="w-4 h-4 mr-2" />Cerrar
                 </Button>
                 <Button type="button" onClick={handleDownloadPdf}>
-                    <PrinterIcon className="w-4 h-4 mr-2" />Imprimir Despacho
+                    <DownloadIcon className="w-4 h-4 mr-2" />Descargar PDF
                 </Button>
             </div>
         </Modal>

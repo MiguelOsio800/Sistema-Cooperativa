@@ -80,9 +80,7 @@ const BienesCategoryView: React.FC<BienesCategoryViewProps> = ({ categories, onS
                                         {permissions['bienes-categorias.delete'] && (
                                             <Button variant="danger" size="sm" onClick={async (e) => {
                                                 e.stopPropagation();
-                                                if (window.confirm('¿Está seguro de que desea eliminar esta categoría de bien? Esta acción no se puede deshacer.')) {
-                                                    await onDelete(cat.id);
-                                                }
+                                                await onDelete(cat.id);
                                             }}><TrashIcon className="w-4 h-4"/></Button>
                                         )}
                                     </td>

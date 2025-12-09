@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Asociado, CompanyInfo, Invoice, PagoAsociado } from '../../types';
 import Modal from '../ui/Modal';
@@ -9,7 +10,7 @@ import Select from '../ui/Select';
 interface GenerarDeudaProduccionModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onGenerate: (pago: PagoAsociado) => void;
+    onGenerate: (pago: PagoAsociado) => Promise<void>;
     asociado: Asociado;
     invoices: Invoice[];
     companyInfo: CompanyInfo;
@@ -22,6 +23,7 @@ const formatCurrency = (amount: number) => amount.toLocaleString('es-VE', { mini
 const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = ({ isOpen, onClose, onGenerate, asociado, invoices, companyInfo }) => {
     const { addToast } = useToast();
     const [debtType, setDebtType] = useState<DebtType>('pasajeros');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // State for Pasajeros
     const [pasajerosTarifa, setPasajerosTarifa] = useState<'divisa' | 'bs'>('divisa');
@@ -52,7 +54,7 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
         setCalculation({ total: totalFacturado, debt: debtAmount });
     };
     
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
         let newPago: Omit<PagoAsociado, 'id' | 'reciboId'> | null = null;
@@ -85,9 +87,16 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
         }
         
         if (newPago) {
-            onGenerate(newPago as PagoAsociado);
-            addToast({ type: 'success', title: 'Deuda Generada', message: `Se generó la deuda por ${newPago.concepto}` });
-            onClose();
+            setIsSubmitting(true);
+            try {
+                await onGenerate(newPago as PagoAsociado);
+                addToast({ type: 'success', title: 'Deuda Generada', message: `Se generó la deuda por ${newPago.concepto}` });
+                onClose();
+            } catch (error: any) {
+                addToast({ type: 'error', title: 'Error', message: error.message || 'No se pudo generar la deuda.' });
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -145,8 +154,10 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
                 )}
                 
                 <div className="flex justify-end space-x-2 pt-4 border-t dark:border-gray-700 mt-6">
-                    <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
-                    <Button type="submit">Generar Deuda</Button>
+                    <Button variant="secondary" type="button" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? 'Generando...' : 'Generar Deuda'}
+                    </Button>
                 </div>
             </form>
         </Modal>

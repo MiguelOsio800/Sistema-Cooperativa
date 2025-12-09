@@ -117,7 +117,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const isTech = currentUser.roleId === 'role-tech';
                     const hasFullAccess = isAdmin || isTech;
 
-                    // Use fetchSafe for all main entities to prevent app crash if one endpoint fails
                     const [
                         invoicesData, 
                         clientsData, 
@@ -211,7 +210,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchData();
     }, [isAuthenticated, currentUser, addToast]);
 
-    const handleGenericSave = async <T extends { id?: string; }>(item: T, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<T[]>>, itemType: string): Promise<void> => {
+    const handleGenericSave = async <T extends { id?: string; }>(item: T, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<T[]>>, itemType: string): Promise<boolean> => {
         const isUpdating = !!item.id;
         const url = isUpdating ? `${endpoint}/${item.id}` : endpoint;
         const method = isUpdating ? 'PUT' : 'POST';
@@ -226,47 +225,52 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === (savedItem as any).id ? savedItem : i) : [...prev, savedItem]);
             const displayName = (item as any).name || (item as any).nombre || (item as any).modelo || (item as any).description || (item as any).concepto || (item as any).comprobanteNumero || itemType;
             addToast({ type: 'success', title: `${itemType} Guardado`, message: `'${displayName}' se ha guardado.` });
-        } catch (error: any) { addToast({ type: 'error', title: `Error al Guardar ${itemType}`, message: error.message }); }
+            return true;
+        } catch (error: any) { 
+            addToast({ type: 'error', title: `Error al Guardar ${itemType}`, message: error.message }); 
+            return false;
+        }
     };
 
-    const handleGenericDelete = async (id: string, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<any[]>>, itemType: string) => {
-        // Validation to prevent malformed URLs
+    const handleGenericDelete = async (id: string, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<any[]>>, itemType: string): Promise<boolean> => {
         if (!id || id === 'undefined' || id === 'null') {
             addToast({ type: 'error', title: 'Error', message: `ID inválido para eliminar ${itemType}` });
-            return;
+            return false;
         }
         
         try {
             await apiFetch(`${endpoint}/${id}`, { method: 'DELETE' });
             stateSetter(prev => prev.filter(item => item.id !== id));
             addToast({ type: 'success', title: `${itemType} Eliminado`, message: `El elemento ha sido eliminado.` });
+            return true;
         } catch (error: any) { 
             console.error(error);
             addToast({ type: 'error', title: `Error al Eliminar ${itemType}`, message: error.message }); 
+            return false;
         }
     };
     
-    const handleSaveClient = (client: Client) => handleGenericSave(client, '/clients', setClients, 'Cliente');
-    const handleDeleteClient = (id: string) => handleGenericDelete(id, '/clients', setClients, 'Cliente');
-    const handleSaveSupplier = (supplier: Supplier) => handleGenericSave(supplier, '/suppliers', setSuppliers, 'Proveedor');
-    const handleDeleteSupplier = (id: string) => handleGenericDelete(id, '/suppliers', setSuppliers, 'Proveedor');
-    const handleSaveVehicle = (vehicle: Vehicle) => handleGenericSave(vehicle, '/vehicles', setVehicles, 'Vehículo');
-    const handleDeleteVehicle = (id: string) => handleGenericDelete(id, '/vehicles', setVehicles, 'Vehículo');
-    const handleSaveExpense = (expense: Expense) => handleGenericSave(expense, '/expenses', setExpenses, 'Gasto');
-    const handleDeleteExpense = (id: string) => handleGenericDelete(id, '/expenses', setExpenses, 'Gasto');
-    const handleSaveAsset = (asset: Asset) => handleGenericSave(asset, '/assets', setAssets, 'Bien');
-    const handleDeleteAsset = (id: string) => handleGenericDelete(id, '/assets', setAssets, 'Bien');
-    const handleSaveAssetCategory = (cat: AssetCategory) => handleGenericSave(cat, '/asset-categories', setAssetCategories, 'Categoría de Bien');
-    const handleDeleteAssetCategory = (id: string) => handleGenericDelete(id, '/asset-categories', setAssetCategories, 'Categoría de Bien');
-    const handleSaveAsociado = (asociado: Asociado) => handleGenericSave(asociado, '/asociados', setAsociados, 'Asociado');
-    const handleDeleteAsociado = (id: string) => handleGenericDelete(id, '/asociados', setAsociados, 'Asociado');
-    const handleSaveCertificado = (cert: Certificado) => handleGenericSave(cert, '/asociados/certificados', setCertificados, 'Certificado');
-    const handleDeleteCertificado = (id: string) => handleGenericDelete(id, '/asociados/certificados', setCertificados, 'Certificado');
+    const handleSaveClient = (client: Client) => handleGenericSave(client, '/clients', setClients, 'Cliente').then(() => {});
+    const handleDeleteClient = (id: string) => handleGenericDelete(id, '/clients', setClients, 'Cliente').then(() => {});
+    const handleSaveSupplier = (supplier: Supplier) => handleGenericSave(supplier, '/suppliers', setSuppliers, 'Proveedor').then(() => {});
+    const handleDeleteSupplier = (id: string) => handleGenericDelete(id, '/suppliers', setSuppliers, 'Proveedor').then(() => {});
+    const handleSaveVehicle = (vehicle: Vehicle) => handleGenericSave(vehicle, '/vehicles', setVehicles, 'Vehículo').then(() => {});
+    const handleDeleteVehicle = (id: string) => handleGenericDelete(id, '/vehicles', setVehicles, 'Vehículo').then(() => {});
+    const handleSaveExpense = (expense: Expense) => handleGenericSave(expense, '/expenses', setExpenses, 'Gasto').then(() => {});
+    const handleDeleteExpense = (id: string) => handleGenericDelete(id, '/expenses', setExpenses, 'Gasto').then(() => {});
+    const handleSaveAsset = (asset: Asset) => handleGenericSave(asset, '/assets', setAssets, 'Bien').then(() => {});
+    const handleDeleteAsset = (id: string) => handleGenericDelete(id, '/assets', setAssets, 'Bien').then(() => {});
+    const handleSaveAssetCategory = (cat: AssetCategory) => handleGenericSave(cat, '/asset-categories', setAssetCategories, 'Categoría de Bien').then(() => {});
+    const handleDeleteAssetCategory = (id: string) => handleGenericDelete(id, '/asset-categories', setAssetCategories, 'Categoría de Bien').then(() => {});
+    const handleSaveAsociado = (asociado: Asociado) => handleGenericSave(asociado, '/asociados', setAsociados, 'Asociado').then(() => {});
+    const handleDeleteAsociado = (id: string) => handleGenericDelete(id, '/asociados', setAsociados, 'Asociado').then(() => {});
+    const handleSaveCertificado = (cert: Certificado) => handleGenericSave(cert, '/asociados/certificados', setCertificados, 'Certificado').then(() => {});
+    const handleDeleteCertificado = (id: string) => handleGenericDelete(id, '/asociados/certificados', setCertificados, 'Certificado').then(() => {});
     
-    const handleSavePagoAsociado = (pago: PagoAsociado) => handleGenericSave(pago, '/asociados/deudas', setPagosAsociados, 'Pago de Asociado');
-    const handleDeletePagoAsociado = (id: string) => handleGenericDelete(id, '/asociados/deudas', setPagosAsociados, 'Pago de Asociado');
+    // UPDATED ROUTE TO /asociados/pagos
+    const handleSavePagoAsociado = (pago: PagoAsociado) => handleGenericSave(pago, '/asociados/pagos', setPagosAsociados, 'Pago de Asociado').then(() => {});
+    const handleDeletePagoAsociado = (id: string) => handleGenericDelete(id, '/asociados/pagos', setPagosAsociados, 'Pago de Asociado').then(() => {});
     
-    // NEW: Use the proper bulk endpoint for massive debt
     const handleGenerateMassiveDebt = async (debtData: any) => {
         try {
             const result = await apiFetch<{ count: number }>('/asociados/deuda-masiva', {
@@ -274,7 +278,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 body: JSON.stringify(debtData)
             });
             
-            // Refresh payments list to reflect changes
             if (asociados.length > 0) {
                 const debtsPromises = asociados.map(a => fetchSafe<PagoAsociado[]>(`/asociados/${a.id}/deudas`, []));
                 const allDebtsResults = await Promise.all(debtsPromises);
@@ -287,7 +290,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
     
-    const handleSaveRecibo = (recibo: ReciboPagoAsociado) => handleGenericSave(recibo, '/asociados/registrar-pago', setRecibosPagoAsociados, 'Recibo');
+    const handleSaveRecibo = (recibo: ReciboPagoAsociado) => handleGenericSave(recibo, '/asociados/registrar-pago', setRecibosPagoAsociados, 'Recibo').then(() => {});
     
     const handleSaveAsientoManual = (asiento: AsientoManual) => {
         const newAsiento = { ...asiento, id: asiento.id || `manual-${Date.now()}` };
@@ -350,20 +353,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (error: any) { addToast({ type: 'error', title: 'Error al Cambiar Estado', message: error.message }); }
     };
 
-    // Modified handleDeleteInvoice to align with DELETE /invoices/:id which voids the invoice (sets status to Anulada)
-    // The previous implementation was removing it from the list.
     const handleDeleteInvoice = async (id: string) => { 
         if (!currentUser) return;
         try {
-            // Check if backend returns the updated invoice object or just 204/200
             const response = await apiFetch<Invoice | { message: string }>(`/invoices/${id}`, { method: 'DELETE' });
-            
-            // If the response contains invoice data (updated status), use it
             if (response && 'id' in response && response.status === 'Anulada') {
                 const voidedInvoice = response as Invoice;
                 setInvoices(prev => prev.map(inv => inv.id === voidedInvoice.id ? voidedInvoice : inv));
             } else {
-                // If backend just says "Deleted" or "Voided" without body, assuming we should locally update status
                 setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'Anulada' } : inv));
             }
             

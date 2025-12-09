@@ -12,7 +12,6 @@ import AccountingTile from '../libro-contable/AccountingTile';
 import RoleManagement from '../system/RoleManagement';
 import { apiFetch } from '../../utils/api';
 import { useConfig } from '../../contexts/ConfigContext';
-import ProductSettings from './ProductSettings';
 
 
 interface ConfiguracionViewProps {
@@ -240,7 +239,7 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = (props) => {
         asociados
     } = props;
 
-    const { products, handleSaveProduct, onDeleteProduct } = useConfig();
+    // Se elimina el uso de products, handleSaveProduct y onDeleteProduct del contexto
 
     if (!permissions['configuracion.view']) {
         return <Card><CardTitle>Acceso Denegado</CardTitle><p>No tienes permiso para ver esta sección.</p></Card>;
@@ -278,15 +277,6 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = (props) => {
                     onSaveRole={onSaveRole}
                     onDeleteRole={onDeleteRole}
                     onUpdateRolePermissions={onUpdateRolePermissions}
-                />
-            )}
-
-            {/* Product Management Section */}
-            {permissions['configuracion.view'] && (
-                <ProductSettings 
-                    products={products}
-                    onSave={handleSaveProduct}
-                    onDelete={onDeleteProduct}
                 />
             )}
 

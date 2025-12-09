@@ -181,12 +181,10 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                                                     variant="danger" 
                                                     size="sm" 
                                                     className="ml-4 !p-2 flex-shrink-0"
-                                                    onClick={(e) => {
+                                                    onClick={async (e) => {
                                                         e.stopPropagation();
                                                         e.preventDefault();
-                                                        if (window.confirm(`¿Está seguro de que desea eliminar la deuda por "${p.concepto}"? Esta acción no se puede deshacer.`)) {
-                                                            onDeletePago(p.id);
-                                                        }
+                                                        await onDeletePago(p.id);
                                                     }}
                                                     title="Eliminar Deuda"
                                                 >

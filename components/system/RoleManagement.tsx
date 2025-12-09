@@ -75,9 +75,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRol
                                     variant="danger" 
                                     onClick={async (e) => {
                                         e.stopPropagation();
-                                        if (window.confirm(`¿Está seguro de que desea eliminar el rol '${role.name}'? Esta acción no se puede deshacer.`)) {
-                                            await onDeleteRole(role.id);
-                                        }
+                                        await onDeleteRole(role.id);
                                     }} 
                                     disabled={isRoleInUse(role.id)} 
                                     title={isRoleInUse(role.id) ? 'Rol en uso, no se puede eliminar' : 'Eliminar rol'}

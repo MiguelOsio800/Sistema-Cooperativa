@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Vehicle, Certificado } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -160,9 +161,7 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                     <div className="flex gap-2">
                                         <Button variant="secondary" size="sm" onClick={() => handleSelectVehicle(v)}><EditIcon className="w-4 h-4" /></Button>
                                         <Button variant="danger" size="sm" onClick={async () => {
-                                            if (window.confirm(`¿Está seguro de que desea eliminar el vehículo con placa '${v.placa}'? Esta acción no se puede deshacer.`)) {
-                                                await onDeleteVehicle(v.id);
-                                            }
+                                            await onDeleteVehicle(v.id);
                                         }}><TrashIcon className="w-4 h-4" /></Button>
                                     </div>
                                 </div>
@@ -287,9 +286,7 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                             <td className="px-4 py-2 text-right space-x-2">
                                                 <Button variant="secondary" size="sm" type="button" onClick={() => handleOpenCertModal(selectedVehicle.id!, c)}><EditIcon className="w-4 h-4" /></Button>
                                                 <Button variant="danger" size="sm" type="button" onClick={async () => {
-                                                    if (window.confirm('¿Está seguro de que desea eliminar este certificado? Esta acción no se puede deshacer.')) {
-                                                        await onDeleteCertificado(c.id);
-                                                    }
+                                                    await onDeleteCertificado(c.id);
                                                 }}><TrashIcon className="w-4 h-4" /></Button>
                                             </td>
                                         </tr>

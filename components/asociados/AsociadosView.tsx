@@ -160,9 +160,7 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
                                         className="!p-2 opacity-0 group-hover:opacity-100 transition-opacity"
                                         onClick={async (e) => {
                                             e.stopPropagation();
-                                            if (window.confirm(`¿Está seguro de que desea eliminar al asociado ${asociado.nombre}?`)) {
-                                                await onDeleteAsociado(asociado.id);
-                                            }
+                                            await onDeleteAsociado(asociado.id);
                                         }}
                                         title="Eliminar Asociado"
                                     >

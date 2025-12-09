@@ -50,13 +50,6 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onSave, onDele
         setIsModalOpen(false);
     };
 
-    const handleDeleteClick = async (e: React.MouseEvent, supplier: Supplier) => {
-        e.stopPropagation();
-        if (window.confirm(`¿Está seguro de que desea eliminar al proveedor '${supplier.name}'? Esta acción no se puede deshacer.`)) {
-            await onDelete(supplier.id);
-        }
-    };
-
     return (
         <>
             <Card>
@@ -107,7 +100,10 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onSave, onDele
                                                 variant="danger" 
                                                 size="sm" 
                                                 type="button"
-                                                onClick={(e) => handleDeleteClick(e, supplier)}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    await onDelete(supplier.id);
+                                                }}
                                             >
                                                 <TrashIcon className="w-4 h-4"/>
                                             </Button>
