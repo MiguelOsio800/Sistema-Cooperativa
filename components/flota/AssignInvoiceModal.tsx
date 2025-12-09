@@ -21,8 +21,10 @@ const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose
 
     const { currentLoadKg, selectedInvoicesWeight, newTotalLoad, isOverloaded } = useMemo(() => {
         // Calculate what is already on the truck
+        // FIX: Only count invoices that are "Pendiente para Despacho". 
+        // Invoices that are "En Tránsito" or "Entregada" (already in a Remesa) should not count towards current loading capacity.
         const currentLoadKg = allInvoices
-            .filter(i => i.vehicleId === vehicle.id)
+            .filter(i => i.vehicleId === vehicle.id && i.shippingStatus === 'Pendiente para Despacho')
             .reduce((sum, inv) => sum + calculateInvoiceChargeableWeight(inv), 0);
         
         // Calculate what is being selected

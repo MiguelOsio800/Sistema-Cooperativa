@@ -18,6 +18,7 @@ export interface User {
     officeId?: string;
     asociadoId?: string; // Link to an Associate (Fleet Owner logic)
     password?: string;
+    permissions?: Permissions; // Permissions injected directly from backend (Solution 1)
 }
 
 export interface CompanyInfo {

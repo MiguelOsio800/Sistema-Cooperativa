@@ -14,7 +14,6 @@ import LibroVentasModal from './LibroVentasModal';
 import LibroDeComprasModal from './LibroDeComprasModal';
 import LibroMayorModal from './LibroMayorModal';
 import LibroAuxiliarModal from './LibroAuxiliarModal';
-import PlanContableManagementModal from './PlanContableManagementModal';
 import { useConfig } from '../../contexts/ConfigContext';
 import AsientoManualModal from './AsientoManualModal';
 import ExpenseFormModal from './ExpenseFormModal';
@@ -51,7 +50,7 @@ export type Transaction = {
 
 const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
     const { invoices, expenses, expenseCategories, offices, paymentMethods, companyInfo, suppliers, asientosManuales, onSaveExpense, onDeleteExpense, onSaveExpenseCategory, onDeleteExpenseCategory, onSaveAsientoManual, onDeleteAsientoManual, permissions, currentUser } = props;
-    const { cuentasContables, handleSaveCuentaContable, handleDeleteCuentaContable } = useConfig();
+    const { cuentasContables } = useConfig();
     const [activeModal, setActiveModal] = useState<string | null>(null);
     
     // For Operators (Office Expense Management)
@@ -279,15 +278,6 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
                     onClick={() => setActiveModal('expenseCategories')}
                     colorVariant="orange"
                 />
-                {permissions['plan-contable.view'] && (
-                    <AccountingTile
-                        title="Plan de Cuentas"
-                        description="Gestionar el catálogo de cuentas contables."
-                        icon={BookOpenIcon}
-                        onClick={() => setActiveModal('planContable')}
-                        colorVariant="purple"
-                    />
-                )}
             </div>
 
             {activeModal === 'transactions' && (
@@ -366,16 +356,6 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
                     isOpen={activeModal === 'libroCompras'}
                     onClose={handleCloseAllModals}
                     expenses={filteredDateExpenses}
-                />
-            )}
-            {activeModal === 'planContable' && (
-                <PlanContableManagementModal
-                    isOpen={activeModal === 'planContable'}
-                    onClose={handleCloseAllModals}
-                    cuentas={cuentasContables}
-                    onSave={handleSaveCuentaContable}
-                    onDelete={handleDeleteCuentaContable}
-                    permissions={permissions}
                 />
             )}
             {activeModal === 'asientoManual' && (

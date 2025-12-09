@@ -45,14 +45,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, permissions, isSidebarOp
 
     const visibleNavItems = NAV_ITEMS.filter(item => {
        const key = item.permissionKey;
-       
-       // Special rule: Hide 'asociados' menu item from sidebar for Operators ('role-op').
-       // This allows the permission to be TRUE (so data can be fetched for the Fleet module),
-       // while keeping the dedicated module hidden from the menu to reduce clutter.
-       if (item.id === 'asociados' && currentUser.roleId === 'role-op') {
-           return false;
-       }
-
+       // PURE PERMISSION CHECK:
+       // The visibility of the menu item depends ONLY on whether the user has the 'view' permission.
        return permissions[key];
     });
 

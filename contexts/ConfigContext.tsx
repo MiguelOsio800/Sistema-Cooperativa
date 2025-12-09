@@ -80,12 +80,13 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 error.message.includes('403') ||
                 error.message.includes('401') ||
                 error.message.includes('404') ||
-                error.message.includes('No tiene los permisos') // Backend specific message
+                error.message.includes('No tiene los permisos') || // Backend specific message
+                error.message.includes('Failed to fetch') // Network issues shouldn't crash the whole app load
             )) {
                 // Silent fail for permissions/not found, just use fallback
                 return fallbackValue;
             }
-            // If it's a network error or 500, we might want to let it propagate or just log it
+            // If it's a critical error (like 500), log it but still return fallback to keep app running
             console.warn(`Error fetching ${endpoint}:`, error.message);
             return fallbackValue;
         }
@@ -101,56 +102,66 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     const isTech = currentUser.roleId === 'role-tech';
                     const hasFullAccess = isAdmin || isTech;
 
-                    // Group 1: Public/Essential Data (Should generally succeed for all users)
+                    // Group 1: Public/Essential Data 
+                    // CRITICAL FIX: Wrapped ALL fetches in fetchSafe. 
+                    // This ensures that if the backend denies access to '/offices' or '/shipping-types' 
+                    // (e.g. for an Accountant role), the app continues to load the rest of the data.
                     const [
                         categoriesData, 
                         officesData, 
                         shippingTypesData, 
-                        paymentMethodsData
+                        paymentMethodsData,
+                        rolesData 
                     ] = await Promise.all([
-                        apiFetch<Category[]>('/categories'),
-                        apiFetch<Office[]>('/offices'),
-                        apiFetch<ShippingType[]>('/shipping-types'),
-                        apiFetch<PaymentMethod[]>('/payment-methods')
+                        fetchSafe<Category[]>('/categories', []),
+                        fetchSafe<Office[]>('/offices', []),
+                        fetchSafe<ShippingType[]>('/shipping-types', []),
+                        fetchSafe<PaymentMethod[]>('/payment-methods', []),
+                        fetchSafe<Role[]>('/roles', [])
                     ]);
 
                     setCategories(categoriesData);
                     setOffices(officesData);
                     setShippingTypes(shippingTypesData);
                     setPaymentMethods(paymentMethodsData);
-
-                    // Group 2: Restricted/Admin Data
-                    // We ONLY fetch these if the user is Admin or Tech to avoid 403 errors from backend
-                    let usersData: User[] = [];
-                    let rolesData: Role[] = [];
-                    let expenseCategoriesData: ExpenseCategory[] = [];
-                    let cuentasData: CuentaContable[] = [];
-
-                    if (hasFullAccess) {
-                        [
-                            usersData, 
-                            rolesData, 
-                            expenseCategoriesData,
-                            cuentasData
-                        ] = await Promise.all([
-                            fetchSafe<User[]>('/users', []),
-                            fetchSafe<Role[]>('/roles', []),
-                            fetchSafe<ExpenseCategory[]>('/expense-categories', []),
-                            fetchSafe<CuentaContable[]>('/cuentas-contables', [])
-                        ]);
-                    }
-
-                    setUsers(usersData);
                     setRoles(rolesData);
+
+                    // Group 2: Restricted Data
+                    // We attempt to fetch these for all authenticated users.
+                    // If the user (e.g. Accountant) has permission on backend, it works.
+                    // If not, fetchSafe returns the fallback empty array silently.
+                    
+                    const [expenseCategoriesData, cuentasData] = await Promise.all([
+                        fetchSafe<ExpenseCategory[]>('/expense-categories', []),
+                        fetchSafe<CuentaContable[]>('/cuentas-contables', [])
+                    ]);
+
                     setExpenseCategories(expenseCategoriesData);
                     
-                    if (hasFullAccess && cuentasData && cuentasData.length > 0) {
+                    // Fallback for Plan de Cuentas if empty but user has Accounting Permissions
+                    // This allows the module to be usable even if the backend endpoint fails or returns empty initially
+                    const hasAccountingPerm = 
+                        currentUser.permissions?.['libro-contable.view'] || 
+                        currentUser.permissions?.['plan-contable.view'] ||
+                        // Check rolesData we just fetched to see if this user's role has permission
+                        (rolesData.find(r => r.id === currentUser.roleId)?.permissions['libro-contable.view']);
+
+                    if (cuentasData && cuentasData.length > 0) {
                         setCuentasContables(cuentasData);
-                    } else if (hasFullAccess) {
-                        // Only fallback to initial plan if we actually tried and got nothing/error
-                        setCuentasContables(PLAN_DE_CUENTAS_INICIAL);
+                    } else if (hasAccountingPerm || hasFullAccess) {
+                         // Only use hardcoded fallback if we expected data (have permission) but got none
+                         setCuentasContables(PLAN_DE_CUENTAS_INICIAL);
                     } else {
                         setCuentasContables([]);
+                    }
+
+                    // Group 3: Highly Restricted (Users Management)
+                    // Still kept behind strict check to avoid unnecessary traffic/errors
+                    if (hasFullAccess) {
+                        const usersData = await fetchSafe<User[]>('/users', []);
+                        setUsers(usersData);
+                    } else {
+                        setUsers([]);
                     }
 
                 } catch (error: any) {
@@ -182,22 +193,30 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, [isAuthenticated]);
 
     useEffect(() => {
-        // Logic to set permissions based on the loaded role OR fallback to defaults
+        // Logic to determine permissions.
+        // Priority 1: Permissions directly from the user object (Server sent them).
+        // Priority 2: Look up role in the fetched list (Custom roles).
+        // Priority 3: Hardcoded defaults based on ID (Legacy).
+        
         if (currentUser) {
-            // 1. Try to find the role in the fetched 'roles' list (likely only works for Admins)
-            const fetchedRole = roles.find(r => r.id === currentUser.roleId);
-            
-            if (fetchedRole) {
-                setUserPermissions(fetchedRole.permissions);
+            if (currentUser.permissions && Object.keys(currentUser.permissions).length > 0) {
+                // Solution 1: Backend sent explicit permissions
+                setUserPermissions(currentUser.permissions);
             } else {
-                // 2. If not found (e.g., Operator who got 403 on /roles), use hardcoded defaults
-                const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId];
-                if (defaultPerms) {
-                    setUserPermissions(defaultPerms);
+                // Fallback: Look up role in the fetched list
+                const fetchedRole = roles.find(r => r.id === currentUser.roleId);
+                
+                if (fetchedRole) {
+                    setUserPermissions(fetchedRole.permissions);
                 } else {
-                    // 3. If unknown role ID, default to empty (secure closed)
-                    console.warn(`Unknown role ID: ${currentUser.roleId}. No permissions assigned.`);
-                    setUserPermissions({});
+                    // Last Resort: Hardcoded defaults
+                    const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId];
+                    if (defaultPerms) {
+                        setUserPermissions(defaultPerms);
+                    } else {
+                        console.warn(`Unknown role ID: ${currentUser.roleId}. No permissions assigned.`);
+                        setUserPermissions({});
+                    }
                 }
             }
         } else {

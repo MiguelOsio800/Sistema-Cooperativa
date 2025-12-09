@@ -41,7 +41,9 @@ const refreshToken = async (): Promise<string | null> => {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {}): Promise<T> => {
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {}, retries = 2, backoff = 300): Promise<T> => {
     const token = localStorage.getItem('accessToken');
     const headers = new Headers(options.headers);
 
@@ -66,6 +68,14 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
 
     try {
         let response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+
+        // Handle 429 - Too Many Requests with exponential backoff
+        if (response.status === 429 && retries > 0) {
+            console.warn(`⚠️ 429 Rate Limited on ${endpoint}. Reintentando en ${backoff}ms...`);
+            await sleep(backoff);
+            // Recursive call with decremented retries and doubled backoff
+            return apiFetch<T>(endpoint, options, retries - 1, backoff * 2);
+        }
 
         if (response.status === 401) {
             // CRITICAL FIX: If the 401 comes from the login endpoint itself, 

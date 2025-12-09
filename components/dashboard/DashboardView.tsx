@@ -1,8 +1,9 @@
+
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
-import { DollarSignIcon, ReceiptIcon, ShieldCheckIcon, TruckIcon, ExclamationTriangleIcon, WrenchScrewdriverIcon, CheckCircleIcon, SettingsIcon } from '../icons/Icons';
-import { Invoice, CompanyInfo, Office, Vehicle, ShippingStatus, MasterStatus } from '../../types';
+import { DollarSignIcon, ReceiptIcon, ShieldCheckIcon, TruckIcon, ExclamationTriangleIcon, SettingsIcon, CheckCircleIcon } from '../icons/Icons';
+import { Invoice, CompanyInfo, Office, Vehicle, ShippingStatus, Permissions } from '../../types';
 import { calculateFinancialDetails } from '../../utils/financials';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
@@ -156,6 +157,7 @@ interface DashboardViewProps {
     vehicles: Vehicle[];
     companyInfo: CompanyInfo;
     offices: Office[];
+    permissions: Permissions;
 }
 
 type ChartConfig = {
@@ -172,7 +174,7 @@ type ChartConfigs = {
     office: ChartConfig;
 };
 
-const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, companyInfo, offices }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, companyInfo, offices, permissions }) => {
     
     const currentFullYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
@@ -392,194 +394,212 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
     
     return (
         <div className="space-y-6">
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard title="Total Flete (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.freight)} icon={TruckIcon} change={memoizedStats.freightChange.value} changeType={memoizedStats.freightChange.type} />
-                <StatCard title="Total IVA (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.iva)} icon={DollarSignIcon} change={memoizedStats.ivaChange.value} changeType={memoizedStats.ivaChange.type} />
-                <StatCard title="Total Ipostel (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.ipostel)} icon={ReceiptIcon} change={memoizedStats.ipostelChange.value} changeType={memoizedStats.ipostelChange.type} />
-                <StatCard title="Total Seguro (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.insuranceCost)} icon={ShieldCheckIcon} change={memoizedStats.insuranceChange.value} changeType={memoizedStats.insuranceChange.type} />
-            </div>
+            {/* Stat Cards - Only show if invoices are viewable */}
+            {permissions['invoices.view'] && (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatCard title="Total Flete (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.freight)} icon={TruckIcon} change={memoizedStats.freightChange.value} changeType={memoizedStats.freightChange.type} />
+                    <StatCard title="Total IVA (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.iva)} icon={DollarSignIcon} change={memoizedStats.ivaChange.value} changeType={memoizedStats.ivaChange.type} />
+                    <StatCard title="Total Ipostel (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.ipostel)} icon={ReceiptIcon} change={memoizedStats.ipostelChange.value} changeType={memoizedStats.ipostelChange.type} />
+                    <StatCard title="Total Seguro (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.insuranceCost)} icon={ShieldCheckIcon} change={memoizedStats.insuranceChange.value} changeType={memoizedStats.insuranceChange.type} />
+                </div>
+            )}
 
             {/* Main Charts & Alerts */}
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                 <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                             <CardTitle>{memoizedStats.incomeChartTitle}</CardTitle>
-                             <Button variant="secondary" size="sm" onClick={() => handleConfigChange('income', 'isOpen', !chartConfigs.income.isOpen)} className="!p-2">
-                                <SettingsIcon className="w-5 h-5" />
-                            </Button>
+                 {permissions['invoices.view'] ? (
+                     <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                 <CardTitle>{memoizedStats.incomeChartTitle}</CardTitle>
+                                 <Button variant="secondary" size="sm" onClick={() => handleConfigChange('income', 'isOpen', !chartConfigs.income.isOpen)} className="!p-2">
+                                    <SettingsIcon className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.income.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                                <ConfigPanel chartKey="income" config={chartConfigs.income} />
+                            </div>
                         </div>
-                    </CardHeader>
-                    <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.income.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                        <div className="overflow-hidden">
-                            <ConfigPanel chartKey="income" config={chartConfigs.income} />
-                        </div>
-                    </div>
-                    <div className="h-80 p-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={memoizedStats.incomeChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-                                <XAxis dataKey="name" className="text-xs" stroke="currentColor" />
-                                <YAxis className="text-xs" stroke="currentColor" tickFormatter={(value) => `Bs.${Number(value)/1000}k`} />
-                                <Tooltip
-                                    formatter={(value: number) => formatCurrency(value)}
-                                    contentStyle={{
-                                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                        backdropFilter: 'blur(5px)',
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: '0.5rem',
-                                        color: '#1f2937',
-                                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-                                    }}
-                                    cursor={{ fill: 'rgba(59, 130, 246, 0.1)'}}
-                                />
-                                <Legend />
-                                <Bar dataKey="Ingresos" fill="#3b82f6" barSize={chartConfigs.income.view === 'month' ? 15 : 30}/>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </Card>
-                <AlertsPanel invoices={invoices} />
-            </div>
-
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle>{memoizedStats.statusChartTitle}</CardTitle>
-                             <Button variant="secondary" size="sm" onClick={() => handleConfigChange('status', 'isOpen', !chartConfigs.status.isOpen)} className="!p-2">
-                                <SettingsIcon className="w-5 h-5" />
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.status.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                        <div className="overflow-hidden">
-                            <ConfigPanel chartKey="status" config={chartConfigs.status} />
-                        </div>
-                    </div>
-                    <div className="h-80">
+                        <div className="h-80 p-4">
                             <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={memoizedStats.shipmentStatusData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    outerRadius={95}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                    nameKey="name"
-                                    label={renderCustomizedLabel}
-                                    onClick={handlePieClick}
-                                    className="cursor-pointer"
-                                >
-                                    {memoizedStats.shipmentStatusData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={PIE_COLORS[entry.name as keyof typeof PIE_COLORS] || '#8884d8'} />
-                                    ))}
-                                </Pie>
-                                <Tooltip contentStyle={{
-                                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                        backdropFilter: 'blur(5px)',
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: '0.5rem',
-                                        color: '#1f2937'
-                                    }}/>
-                                    <Legend wrapperStyle={{fontSize: '12px', paddingTop: '20px'}} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                         <div className="flex justify-between items-center">
-                             <CardTitle>{memoizedStats.paymentChartTitle}</CardTitle>
-                             <Button variant="secondary" size="sm" onClick={() => handleConfigChange('payment', 'isOpen', !chartConfigs.payment.isOpen)} className="!p-2">
-                                <SettingsIcon className="w-5 h-5" />
-                            </Button>
+                                <BarChart data={memoizedStats.incomeChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                    <XAxis dataKey="name" className="text-xs" stroke="currentColor" />
+                                    <YAxis className="text-xs" stroke="currentColor" tickFormatter={(value) => `Bs.${Number(value)/1000}k`} />
+                                    <Tooltip
+                                        formatter={(value: number) => formatCurrency(value)}
+                                        contentStyle={{
+                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                            backdropFilter: 'blur(5px)',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '0.5rem',
+                                            color: '#1f2937',
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                                        }}
+                                        cursor={{ fill: 'rgba(59, 130, 246, 0.1)'}}
+                                    />
+                                    <Legend />
+                                    <Bar dataKey="Ingresos" fill="#3b82f6" barSize={chartConfigs.income.view === 'month' ? 15 : 30}/>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
-                    </CardHeader>
-                    <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.payment.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                        <div className="overflow-hidden">
-                            <ConfigPanel chartKey="payment" config={chartConfigs.payment} />
+                    </Card>
+                 ) : (
+                    <Card className="lg:col-span-2 flex items-center justify-center p-12">
+                        <div className="text-center text-gray-500 dark:text-gray-400">
+                            <ExclamationTriangleIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p>No tiene permisos para ver estadísticas de facturación.</p>
                         </div>
-                    </div>
-                     <div className="h-80">
-                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={memoizedStats.paymentTypeData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    outerRadius={95}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                    nameKey="displayName"
-                                    label={renderCustomizedLabel}
-                                >
-                                    {memoizedStats.paymentTypeData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={PAYMENT_TYPE_COLORS[entry.name as keyof typeof PAYMENT_TYPE_COLORS] || '#8884d8'} />
-                                    ))}
-                                </Pie>
-                                <Tooltip 
-                                    formatter={(value, name) => [value, name]}
-                                    contentStyle={{
-                                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                        backdropFilter: 'blur(5px)',
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: '0.5rem',
-                                        color: '#1f2937'
-                                    }}
-                                />
-                                <Legend 
-                                    formatter={(value) => <span className="text-gray-600 dark:text-gray-300">{value}</span>}
-                                    wrapperStyle={{fontSize: '12px', paddingTop: '20px'}} 
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </Card>
+                    </Card>
+                 )}
+                
+                {permissions['invoices.view'] && <AlertsPanel invoices={invoices} />}
             </div>
+
+            {/* Other Charts */}
+            {permissions['invoices.view'] && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle>{memoizedStats.statusChartTitle}</CardTitle>
+                                 <Button variant="secondary" size="sm" onClick={() => handleConfigChange('status', 'isOpen', !chartConfigs.status.isOpen)} className="!p-2">
+                                    <SettingsIcon className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.status.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                                <ConfigPanel chartKey="status" config={chartConfigs.status} />
+                            </div>
+                        </div>
+                        <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={memoizedStats.shipmentStatusData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        outerRadius={95}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                        nameKey="name"
+                                        label={renderCustomizedLabel}
+                                        onClick={handlePieClick}
+                                        className="cursor-pointer"
+                                    >
+                                        {memoizedStats.shipmentStatusData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[entry.name as keyof typeof PIE_COLORS] || '#8884d8'} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip contentStyle={{
+                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                            backdropFilter: 'blur(5px)',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '0.5rem',
+                                            color: '#1f2937'
+                                        }}/>
+                                        <Legend wrapperStyle={{fontSize: '12px', paddingTop: '20px'}} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                             <div className="flex justify-between items-center">
+                                 <CardTitle>{memoizedStats.paymentChartTitle}</CardTitle>
+                                 <Button variant="secondary" size="sm" onClick={() => handleConfigChange('payment', 'isOpen', !chartConfigs.payment.isOpen)} className="!p-2">
+                                    <SettingsIcon className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.payment.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                                <ConfigPanel chartKey="payment" config={chartConfigs.payment} />
+                            </div>
+                        </div>
+                         <div className="h-80">
+                             <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={memoizedStats.paymentTypeData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        outerRadius={95}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                        nameKey="displayName"
+                                        label={renderCustomizedLabel}
+                                    >
+                                        {memoizedStats.paymentTypeData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={PAYMENT_TYPE_COLORS[entry.name as keyof typeof PAYMENT_TYPE_COLORS] || '#8884d8'} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip 
+                                        formatter={(value, name) => [value, name]}
+                                        contentStyle={{
+                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                            backdropFilter: 'blur(5px)',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '0.5rem',
+                                            color: '#1f2937'
+                                        }}
+                                    />
+                                    <Legend 
+                                        formatter={(value) => <span className="text-gray-600 dark:text-gray-300">{value}</span>}
+                                        wrapperStyle={{fontSize: '12px', paddingTop: '20px'}} 
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </Card>
+                </div>
+            )}
+            
              <div className="grid grid-cols-1">
-                 <Card>
-                    <CardHeader>
-                         <div className="flex justify-between items-center">
-                             <CardTitle>{memoizedStats.officeChartTitle}</CardTitle>
-                             <Button variant="secondary" size="sm" onClick={() => handleConfigChange('office', 'isOpen', !chartConfigs.office.isOpen)} className="!p-2">
-                                <SettingsIcon className="w-5 h-5" />
-                            </Button>
+                 {/* Office Chart - Only if allowed to see office data */}
+                 {permissions['offices.view'] && permissions['invoices.view'] ? (
+                     <Card>
+                        <CardHeader>
+                             <div className="flex justify-between items-center">
+                                 <CardTitle>{memoizedStats.officeChartTitle}</CardTitle>
+                                 <Button variant="secondary" size="sm" onClick={() => handleConfigChange('office', 'isOpen', !chartConfigs.office.isOpen)} className="!p-2">
+                                    <SettingsIcon className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.office.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                                <ConfigPanel chartKey="office" config={chartConfigs.office} />
+                            </div>
                         </div>
-                    </CardHeader>
-                    <div className={`grid transition-all duration-500 ease-in-out ${chartConfigs.office.isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                        <div className="overflow-hidden">
-                            <ConfigPanel chartKey="office" config={chartConfigs.office} />
+                         <div className="h-80 p-4">
+                            <ResponsiveContainer width="100%" height="100%">
+                                 <BarChart data={memoizedStats.officeProductionData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700"/>
+                                    <XAxis dataKey="name" className="text-xs" stroke="currentColor"/>
+                                    <YAxis className="text-xs" stroke="currentColor" tickFormatter={(value) => `Bs.${Number(value)/1000}k`}/>
+                                    <Tooltip
+                                        formatter={(value: number) => formatCurrency(value)}
+                                        contentStyle={{
+                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                            backdropFilter: 'blur(5px)',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '0.5rem',
+                                            color: '#1f2937'
+                                        }}
+                                        cursor={{fill: 'rgba(0, 0, 0, 0.05)'}}
+                                    />
+                                    <Legend />
+                                    <Bar dataKey="Producción" fill="#16a34a" />
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
-                    </div>
-                     <div className="h-80 p-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                             <BarChart data={memoizedStats.officeProductionData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700"/>
-                                <XAxis dataKey="name" className="text-xs" stroke="currentColor"/>
-                                <YAxis className="text-xs" stroke="currentColor" tickFormatter={(value) => `Bs.${Number(value)/1000}k`}/>
-                                <Tooltip
-                                    formatter={(value: number) => formatCurrency(value)}
-                                    contentStyle={{
-                                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                        backdropFilter: 'blur(5px)',
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: '0.5rem',
-                                        color: '#1f2937'
-                                    }}
-                                    cursor={{fill: 'rgba(0, 0, 0, 0.05)'}}
-                                />
-                                <Legend />
-                                <Bar dataKey="Producción" fill="#16a34a" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </Card>
+                    </Card>
+                 ) : null}
             </div>
         </div>
     );

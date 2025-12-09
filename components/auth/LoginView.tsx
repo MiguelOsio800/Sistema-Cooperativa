@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -7,7 +6,7 @@ import { UserIcon, LockIcon, PackageIcon } from '../icons/Icons';
 import { CompanyInfo } from '../../types';
 
 interface LoginViewProps {
-  onLogin: (username: string, password: string, rememberMe: boolean) => void;
+  onLogin: (username: string, password: string, rememberMe: boolean) => Promise<void>;
   companyInfo: CompanyInfo;
 }
 
@@ -16,6 +15,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, companyInfo }) => {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<{ username?: string, password?: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
   const rememberedUserOnLoad = useRef(localStorage.getItem('rememberedUser'));
 
   useEffect(() => {
@@ -34,7 +34,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, companyInfo }) => {
       }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { username?: string, password?: string } = {};
     if (!username.trim()) newErrors.username = 'El campo de usuario es requerido.';
@@ -46,7 +46,14 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, companyInfo }) => {
     }
 
     setErrors({});
-    onLogin(username, password, rememberMe);
+    setIsLoading(true);
+    try {
+        await onLogin(username, password, rememberMe);
+    } finally {
+        // We keep loading true if login is successful as the app redirects/remounts
+        // But if it failed (and onLogin threw or returned), we stop loading.
+        setIsLoading(false);
+    }
   };
 
 
@@ -100,6 +107,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, companyInfo }) => {
                 onChange={handleUsernameChange}
                 required
                 error={errors.username}
+                disabled={isLoading}
               />
             </div>
              <div className="rounded-md shadow-sm mt-4">
@@ -114,13 +122,22 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, companyInfo }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     error={errors.password}
+                    disabled={isLoading}
                 />
              </div>
 
 
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center">
-                <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                <input 
+                    id="remember-me" 
+                    name="remember-me" 
+                    type="checkbox" 
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" 
+                    checked={rememberMe} 
+                    onChange={(e) => setRememberMe(e.target.checked)} 
+                    disabled={isLoading}
+                />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                   Recordarme
                 </label>
@@ -128,8 +145,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, companyInfo }) => {
             </div>
 
             <div>
-              <Button type="submit" className="w-full">
-                Entrar
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Iniciando sesión...' : 'Entrar'}
               </Button>
             </div>
           </form>

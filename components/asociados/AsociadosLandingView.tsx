@@ -17,7 +17,7 @@ const AsociadosLandingView: React.FC<AsociadosLandingViewProps> = ({ permissions
     return (
         <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center">Módulo de Asociados</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {permissions['asociados.view'] && (
                     <AccountingTile
                         title="Gestión de Asociados"
@@ -28,15 +28,6 @@ const AsociadosLandingView: React.FC<AsociadosLandingViewProps> = ({ permissions
                     />
                 )}
                 {permissions['asociados.view'] && (
-                    <AccountingTile
-                        title="Pagos de Asociados"
-                        description="Registrar abonos, generar recibos y gestionar deudas."
-                        icon={CreditCardIcon}
-                        onClick={() => window.location.hash = 'asociados/pagos'}
-                        colorVariant="orange"
-                    />
-                )}
-                {permissions['asociados.view'] && (
                      <AccountingTile
                         title="Estadísticas de Pagos"
                         description="Ver reporte de asociados solventes y con deudas."
@@ -44,6 +35,17 @@ const AsociadosLandingView: React.FC<AsociadosLandingViewProps> = ({ permissions
                         onClick={() => window.location.hash = 'asociados/estadisticas'}
                         colorVariant="green"
                     />
+                )}
+                {permissions['asociados.view'] && (
+                    <div className="md:col-span-2">
+                        <AccountingTile
+                            title="Pagos de Asociados"
+                            description="Registrar abonos, generar recibos y gestionar deudas."
+                            icon={CreditCardIcon}
+                            onClick={() => window.location.hash = 'asociados/pagos'}
+                            colorVariant="orange"
+                        />
+                    </div>
                 )}
             </div>
         </div>
