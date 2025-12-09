@@ -29,7 +29,7 @@ const expenseStatusColors: { [key: string]: string } = {
     'Pendiente': 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
 };
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 7;
 
 interface TransactionsModalProps {
     isOpen: boolean;

@@ -109,6 +109,54 @@ const AppContent: React.FC = () => {
         return expenses.filter(expense => expense.officeId === currentUser.officeId);
     }, [expenses, currentUser]);
 
+    // Filter inventory based on user's office (derived from visible invoices)
+    const filteredInventory = useMemo(() => {
+        if (!currentUser) return [];
+        if (currentUser.roleId === 'role-admin' || currentUser.roleId === 'role-tech' || !currentUser.officeId) {
+            return inventory;
+        }
+        // Create a set of IDs for O(1) lookup of allowed invoices
+        const allowedInvoiceIds = new Set(filteredInvoices.map(inv => inv.id));
+        
+        return inventory.filter(item => 
+            item.invoiceId && allowedInvoiceIds.has(item.invoiceId)
+        );
+    }, [inventory, filteredInvoices, currentUser]);
+
+    // Filter remesas based on user's office for data segregation
+    const filteredRemesas = useMemo(() => {
+        if (!currentUser) return [];
+        // Admin/Tech see all
+        if (currentUser.roleId === 'role-admin' || currentUser.roleId === 'role-tech' || !currentUser.officeId) {
+            return remesas;
+        }
+        
+        // Operator: Only see remesas that contain invoices originating from their office.
+        // We create a Set of invoice IDs belonging to the user's office for O(1) lookup.
+        const userOfficeId = currentUser.officeId;
+        const officeInvoiceIds = new Set(
+            invoices
+                .filter(inv => inv.guide.originOfficeId === userOfficeId)
+                .map(inv => inv.id)
+        );
+
+        return remesas.filter(remesa => 
+            // A remesa is visible if at least one of its invoices belongs to this office
+            remesa.invoiceIds.some(id => officeInvoiceIds.has(id))
+        );
+    }, [remesas, invoices, currentUser]);
+
+    // Restrict the list of viewable offices in Reports
+    const viewableOffices = useMemo(() => {
+        if (!currentUser) return [];
+        // Admins and Tech see all offices
+        if (currentUser.roleId === 'role-admin' || currentUser.roleId === 'role-tech' || !currentUser.officeId) {
+            return offices;
+        }
+        // Operators only see their own office in filters
+        return offices.filter(o => o.id === currentUser.officeId);
+    }, [offices, currentUser]);
+
     useEffect(() => {
         if (!isAuthenticated) return;
 
@@ -186,7 +234,7 @@ const AppContent: React.FC = () => {
                 return invoiceToEdit ? <EditInvoiceView invoice={invoiceToEdit} onSaveInvoice={handleUpdateInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} permissions={userPermissions} /> : <div>Factura no encontrada</div>;
             case 'invoices': return <InvoicesView invoices={filteredInvoices} clients={clients} categories={categories} userPermissions={userPermissions} onUpdateStatuses={handleUpdateInvoiceStatuses} onDeleteInvoice={handleDeleteInvoice} companyInfo={companyInfo} initialFilter={invoiceFilter} offices={offices} />;
             case 'remesas': return <RemesasView 
-                remesas={remesas}
+                remesas={filteredRemesas} 
                 asociados={asociados}
                 vehicles={vehicles}
                 invoices={filteredInvoices}
@@ -201,7 +249,7 @@ const AppContent: React.FC = () => {
                 companyInfo={companyInfo}
             />;
             case 'despachos': return <DespachosView
-                invoices={filteredInvoices} // IMPORTANT: filteredInvoices now includes inbound invoices
+                invoices={filteredInvoices} 
                 asociados={asociados}
                 vehicles={vehicles}
                 offices={offices}
@@ -263,8 +311,7 @@ const AppContent: React.FC = () => {
                         return <div className="text-center p-8 text-gray-500">No tiene permisos para ver este reporte.</div>;
                     }
                 }
-                // Pass FILTERED data to ensure report security by office
-                return viewingReport ? <ReportDetailView report={viewingReport} invoices={filteredInvoices} clients={clients} expenses={filteredExpenses} offices={offices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} /> : <div>Reporte no encontrado</div>;
+                return viewingReport ? <ReportDetailView report={viewingReport} invoices={filteredInvoices} clients={clients} expenses={filteredExpenses} offices={viewableOffices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} /> : <div>Reporte no encontrado</div>;
             case 'categories': return <CategoryView categories={categories} onSave={handleSaveCategory} onDelete={onDeleteCategory} permissions={userPermissions} />;
             case 'clientes': return <ClientsView clients={clients} onSave={handleSaveClient} onDelete={handleDeleteClient} permissions={userPermissions} />;
             case 'proveedores': return <SuppliersView suppliers={suppliers} onSave={handleSaveSupplier} onDelete={handleDeleteSupplier} permissions={userPermissions} />;
@@ -273,7 +320,7 @@ const AppContent: React.FC = () => {
             case 'payment-methods': return <PaymentMethodsView paymentMethods={paymentMethods} onSave={handleSavePaymentMethod} onDelete={onDeletePaymentMethod} permissions={userPermissions} />;
             case 'libro-contable': return <LibroContableView invoices={filteredInvoices} expenses={filteredExpenses} expenseCategories={expenseCategories} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} onSaveExpenseCategory={handleSaveExpenseCategory} onDeleteExpenseCategory={onDeleteExpenseCategory} permissions={userPermissions} offices={offices} currentUser={currentUser} paymentMethods={paymentMethods} companyInfo={companyInfo} suppliers={suppliers} asientosManuales={asientosManuales} onSaveAsientoManual={handleSaveAsientoManual} onDeleteAsientoManual={handleDeleteAsientoManual} />;
             case 'inventario': return <InventarioLandingView permissions={userPermissions} />;
-            case 'inventario-envios': return <InventarioView items={inventory} permissions={userPermissions} filter={inventoryFilter} />;
+            case 'inventario-envios': return <InventarioView items={filteredInventory} permissions={userPermissions} filter={inventoryFilter} />;
             case 'inventario-bienes': return <BienesView assets={assets} onSave={handleSaveAsset} onDelete={handleDeleteAsset} permissions={userPermissions} offices={offices} assetCategories={assetCategories} />;
             case 'bienes-categorias': return <BienesCategoryView categories={assetCategories} onSave={handleSaveAssetCategory} onDelete={handleDeleteAssetCategory} permissions={userPermissions} />;
             case 'auditoria': return <AuditLogView auditLog={auditLog} users={users} />;

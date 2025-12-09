@@ -32,8 +32,8 @@ const refreshToken = async (): Promise<string | null> => {
         // Clear tokens if refresh fails
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        // Force logout by reloading the page. AuthContext will see no tokens and show login.
-        window.location.reload(); 
+        // Do NOT reload page here. Let the AuthContext detect the missing/invalid token and handle the logout state UI.
+        // window.location.reload(); 
         return null;
     }
 };

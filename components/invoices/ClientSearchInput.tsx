@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Client, ShippingGuide } from '../../types';
 import Input from '../ui/Input';
@@ -92,11 +93,16 @@ const ClientSearchInput: React.FC<ClientSearchInputProps> = ({ clients, onClient
                     {results.map(client => (
                         <li
                             key={client.id}
-                            className="px-4 py-2 cursor-pointer hover:bg-primary-500 hover:text-white dark:hover:bg-primary-600"
+                            className="px-4 py-2 cursor-pointer hover:bg-primary-500 hover:text-white dark:hover:bg-primary-600 border-b border-gray-100 dark:border-gray-600 last:border-0"
                             onClick={() => handleSelect(client)}
                         >
                             <p className="font-semibold">{client.name}</p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{client.idNumber}</p>
+                            {client.email && (
+                                <p className='text-xs text-gray-400 dark:text-gray-500 truncate'>
+                                    {client.email}
+                                </p>
+                            )}
                         </li>
                     ))}
                 </ul>

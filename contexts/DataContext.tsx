@@ -222,7 +222,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         try {
             const savedItem = await apiFetch<T>(url, { method, body: JSON.stringify(bodyToSend) });
-            stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === (savedItem as any).id ? savedItem : i) : [...prev, savedItem]);
+            
+            // Fix: Merge incomplete API response with original item to preserve fields (like email) that might be missing in response
+            const finalItem = isUpdating ? { ...item, ...savedItem } : savedItem;
+
+            stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === (finalItem as any).id ? finalItem : i) : [...prev, finalItem]);
             const displayName = (item as any).name || (item as any).nombre || (item as any).modelo || (item as any).description || (item as any).concepto || (item as any).comprobanteNumero || itemType;
             addToast({ type: 'success', title: `${itemType} Guardado`, message: `'${displayName}' se ha guardado.` });
             return true;

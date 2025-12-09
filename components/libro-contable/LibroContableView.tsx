@@ -60,7 +60,7 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
     
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [transactionType, setTransactionType] = useState('todos');
+    const [transactionType, setTransactionType] = useState('gastos'); // Default to 'gastos'
 
     const filteredTransactions = useMemo((): Transaction[] => {
         const start = startDate ? new Date(startDate + 'T00:00:00') : null;
@@ -163,9 +163,7 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle>Gastos de Oficina</CardTitle>
-                            <Button onClick={() => handleOpenExpenseForm(null)}>
-                                <PlusIcon className="w-4 h-4 mr-2" /> Registrar Nuevo Gasto
-                            </Button>
+                            {/* Removed redundant button from here */}
                         </div>
                         <p className="text-sm text-gray-500">Registre y gestione los gastos operativos de su oficina.</p>
                     </CardHeader>

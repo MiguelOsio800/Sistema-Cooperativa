@@ -119,7 +119,8 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                     const assignedInvoices = getAssignedInvoices(vehicle.id);
                     const currentLoadKg = assignedInvoices.reduce((sum, inv) => sum + calculateInvoiceChargeableWeight(inv), 0);
                     const loadPercentage = vehicle.capacidadCarga > 0 ? (currentLoadKg / vehicle.capacidadCarga) * 100 : 0;
-                    const vehicleRemesas = getVehicleRemesas(vehicle.id);
+                    // Fix: Slice to show only last 7 remesas
+                    const vehicleRemesas = getVehicleRemesas(vehicle.id).slice(0, 7);
                     
                     return (
                         <Card key={vehicle.id}>
@@ -173,7 +174,7 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                                 
                                 {/* Remesa History */}
                                 <div className="md:col-span-2">
-                                    <h3 className="font-semibold text-lg mb-2">Historial de Remesas del Vehículo</h3>
+                                    <h3 className="font-semibold text-lg mb-2">Historial de Remesas del Vehículo (Últimas 7)</h3>
                                     <div className="overflow-x-auto max-h-80">
                                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                                             <thead className="bg-gray-50 dark:bg-gray-700/50">

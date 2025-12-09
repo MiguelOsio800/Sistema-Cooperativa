@@ -39,7 +39,7 @@ interface InvoicesViewProps {
     offices: Office[];
 }
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 7;
 
 const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categories, userPermissions, onUpdateStatuses, onDeleteInvoice, companyInfo, initialFilter, offices }) => {
     const { handleCreateCreditNote, handleCreateDebitNote } = useData();

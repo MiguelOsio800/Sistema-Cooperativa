@@ -1,6 +1,4 @@
 
-
-
 import React, { useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import Modal from '../ui/Modal';
@@ -23,33 +21,39 @@ const formatCurrency = (amount: number = 0) => `Bs. ${amount.toLocaleString('es-
 const LibroDeComprasModal: React.FC<LibroDeComprasModalProps> = ({ isOpen, onClose, expenses }) => {
     
     const fiscallyRelevantExpenses = useMemo(() => {
+        if (!Array.isArray(expenses)) return [];
         return expenses.filter(exp => 
-            exp.supplierRif && exp.supplierRif.toUpperCase() !== 'N/A' && exp.supplierRif.trim() !== '' &&
-            exp.invoiceNumber && exp.invoiceNumber.toUpperCase() !== 'N/A' && exp.invoiceNumber.trim() !== ''
+            exp && // Check if exp exists
+            exp.supplierRif && typeof exp.supplierRif === 'string' && exp.supplierRif.toUpperCase() !== 'N/A' && exp.supplierRif.trim() !== '' &&
+            exp.invoiceNumber && typeof exp.invoiceNumber === 'string' && exp.invoiceNumber.toUpperCase() !== 'N/A' && exp.invoiceNumber.trim() !== ''
         );
     }, [expenses]);
     
-    const sortedExpenses = [...fiscallyRelevantExpenses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedExpenses = [...fiscallyRelevantExpenses].sort((a, b) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        return dateA - dateB;
+    });
 
     const { paginatedData, currentPage, totalPages, setCurrentPage, totalItems } = usePagination(sortedExpenses, ITEMS_PER_PAGE);
     
     const totals = sortedExpenses.reduce((acc, exp) => {
-        acc.total += exp.amount || 0;
-        acc.base += exp.taxableBase || 0;
-        acc.vat += exp.vatAmount || 0;
+        acc.total += Number(exp.amount) || 0;
+        acc.base += Number(exp.taxableBase) || 0;
+        acc.vat += Number(exp.vatAmount) || 0;
         return acc;
     }, { total: 0, base: 0, vat: 0 });
 
     const handleExport = () => {
         const dataToExport = sortedExpenses.map(exp => ({
-            "Fecha": exp.date,
-            "Nº Factura": exp.invoiceNumber,
-            "Nº Control": exp.controlNumber,
-            "Proveedor": exp.supplierName,
-            "RIF Proveedor": exp.supplierRif,
-            "Total Compra": exp.amount,
-            "Base Imponible": exp.taxableBase,
-            "IVA (16%)": exp.vatAmount,
+            "Fecha": exp.date || '',
+            "Nº Factura": exp.invoiceNumber || '',
+            "Nº Control": exp.controlNumber || '',
+            "Proveedor": exp.supplierName || '',
+            "RIF Proveedor": exp.supplierRif || '',
+            "Total Compra": Number(exp.amount) || 0,
+            "Base Imponible": Number(exp.taxableBase) || 0,
+            "IVA (16%)": Number(exp.vatAmount) || 0,
         }));
 
         const totalsRow = {
@@ -115,9 +119,9 @@ const LibroDeComprasModal: React.FC<LibroDeComprasModalProps> = ({ isOpen, onClo
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-black">{exp.controlNumber}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-black">{exp.supplierName}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-black font-mono">{exp.supplierRif}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-semibold text-black font-mono">{formatCurrency(exp.amount)}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-black font-mono">{formatCurrency(exp.taxableBase)}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-black font-mono">{formatCurrency(exp.vatAmount)}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-semibold text-black font-mono">{formatCurrency(Number(exp.amount) || 0)}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-black font-mono">{formatCurrency(Number(exp.taxableBase) || 0)}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-black font-mono">{formatCurrency(Number(exp.vatAmount) || 0)}</td>
                                 </tr>
                             ))
                         ) : (
