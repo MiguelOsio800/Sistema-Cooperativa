@@ -1,17 +1,19 @@
 
-import React from 'react';
+import React, {ElementType} from 'react';
 import { Page, Report } from './types';
 import { HomeIcon, FilePlusIcon, TruckIcon, BarChartIcon, SettingsIcon, ReceiptIcon, TagIcon, UsersIcon, BuildingOfficeIcon, ListBulletIcon, CreditCardIcon, BookOpenIcon, ArchiveBoxIcon, ShieldCheckIcon, WrenchScrewdriverIcon, BriefcaseIcon, ClipboardDocumentListIcon, SendIcon } from './components/icons/Icons';
 
 interface NavItem {
     id: Page;
     label: string;
-    icon: React.ElementType;
+    icon: ElementType;
     permissionKey: string; 
     description?: string;
     colorVariant?: 'blue' | 'green' | 'purple' | 'orange';
 }
 
+// 1. Menú Lateral (Sidebar)
+// Solo se listan los módulos principales que requieren permisos .view
 export const NAV_ITEMS: NavItem[] = [
     { id: 'dashboard', label: 'Inicio', icon: HomeIcon, permissionKey: 'dashboard.view' },
     { id: 'shipping-guide', label: 'Crear Factura', icon: FilePlusIcon, permissionKey: 'shipping-guide.view' },
@@ -84,106 +86,146 @@ export const SYSTEM_REPORTS: Report[] = [
 
 export const OFFICES: string[] = ['Caracas - San Agustín', 'Valencia - San Blas', 'Barquisimeto - Centro'];
 
+// 2. Lista Maestra de Permisos (Total 78)
 export const ALL_PERMISSION_KEYS: string[] = [
-    // Dashboard
+    // Inicio (1)
     'dashboard.view',
-    // Shipping Guide
+    // Facturación y Guías (8)
     'shipping-guide.view',
-    // Invoices
-    'invoices.view', 'invoices.create', 'invoices.edit', 'invoices.delete', 'invoices.void', 'invoices.changeStatus', 'invoices.manage_all_offices',
-    // Despachos
-    'despachos.view', 'despachos.create', 'despachos.receive',
-    // Flota
-    'flota.view', 'flota.create', 'flota.edit', 'flota.delete', 'flota.dispatch',
-    // Remesas
-    'remesas.view', 'remesas.create', 'remesas.delete',
-    // Asociados
-    'asociados.view', 'asociados.create', 'asociados.edit', 'asociados.delete', 'asociados.pagos.delete',
-    // Clientes
-    'clientes.view', 'clientes.create', 'clientes.edit', 'clientes.delete',
-    // Proveedores
-    'proveedores.view', 'proveedores.create', 'proveedores.edit', 'proveedores.delete',
-    // Libro Contable
-    'libro-contable.view', 'libro-contable.create', 'libro-contable.edit', 'libro-contable.delete',
-    'plan-contable.view', 'plan-contable.create', 'plan-contable.edit', 'plan-contable.delete',
+    'invoices.view',
+    'invoices.create',
+    'invoices.edit',
+    'invoices.delete',
+    'invoices.void',
+    'invoices.changeStatus',
+    'invoices.manage_all_offices',
+    // Despachos (3)
+    'despachos.view',
+    'despachos.create',
+    'despachos.receive',
+    // Flota (5)
+    'flota.view',
+    'flota.create',
+    'flota.edit',
+    'flota.delete',
+    'flota.dispatch',
+    // Remesas (3)
+    'remesas.view',
+    'remesas.create',
+    'remesas.delete',
+    // Asociados (5)
+    'asociados.view',
+    'asociados.create',
+    'asociados.edit',
+    'asociados.delete',
+    'asociados.pagos.delete',
+    // Clientes (4)
+    'clientes.view',
+    'clientes.create',
+    'clientes.edit',
+    'clientes.delete',
+    // Proveedores (4)
+    'proveedores.view',
+    'proveedores.create',
+    'proveedores.edit',
+    'proveedores.delete',
+    // Libro Contable y Gastos (9)
+    'libro-contable.view',
+    'libro-contable.create',
+    'libro-contable.edit',
+    'libro-contable.delete',
     'expenses.manage_all_offices',
-    // Inventario
+    'plan-contable.view',
+    'plan-contable.create',
+    'plan-contable.edit',
+    'plan-contable.delete',
+    // Inventario (10)
     'inventario.view',
     'inventario-envios.view',
-    'inventario-bienes.view', 'inventario-bienes.create', 'inventario-bienes.edit', 'inventario-bienes.delete',
-    'bienes-categorias.view', 'bienes-categorias.create', 'bienes-categorias.edit', 'bienes-categorias.delete',
-    // Reports
+    'inventario-bienes.view',
+    'inventario-bienes.create',
+    'inventario-bienes.edit',
+    'inventario-bienes.delete',
+    'bienes-categorias.view',
+    'bienes-categorias.create',
+    'bienes-categorias.edit',
+    'bienes-categorias.delete',
+    // Reportes (2)
     'reports.view',
-    'reports.associates.view', // Nuevo permiso específico
-    // Auditoria
+    'reports.associates.view',
+    // Auditoría (1)
     'auditoria.view',
-    // Configuracion
+    // Configuración General (6)
     'configuracion.view',
     'config.company.edit',
-    'config.users.manage', 'config.users.edit_protected', 'config.users.manage_tech_users',
+    'config.users.manage',
+    'config.users.edit_protected',
+    'config.users.manage_tech_users',
     'config.roles.manage',
-    // Config sub-modules
-    'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
-    'offices.view', 'offices.create', 'offices.edit', 'offices.delete',
-    'shipping-types.view', 'shipping-types.create', 'shipping-types.edit', 'shipping-types.delete',
-    'payment-methods.view', 'payment-methods.create', 'payment-methods.edit', 'payment-methods.delete',
+    // Configuración: Tablas Auxiliares (16)
+    'categories.view',
+    'categories.create',
+    'categories.edit',
+    'categories.delete',
+    'offices.view',
+    'offices.create',
+    'offices.edit',
+    'offices.delete',
+    'shipping-types.view',
+    'shipping-types.create',
+    'shipping-types.edit',
+    'shipping-types.delete',
+    'payment-methods.view',
+    'payment-methods.create',
+    'payment-methods.edit',
+    'payment-methods.delete',
 ];
 
+// 3. Traducciones para la UI de Gestión de Roles
 export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
-    // Dashboard
     'dashboard.view': 'Ver Inicio',
-    // Shipping Guide
     'shipping-guide.view': 'Crear Guías/Facturas',
-    // Invoices
     'invoices.view': 'Ver Facturas',
-    'invoices.create': 'Crear Facturas',
+    'invoices.create': 'Crear Facturas (Guardar)',
     'invoices.edit': 'Editar Facturas',
     'invoices.delete': 'Eliminar Facturas (Permanente)',
     'invoices.void': 'Anular Facturas',
     'invoices.changeStatus': 'Cambiar Estado de Facturas',
     'invoices.manage_all_offices': 'Gestionar Facturas de Todas las Oficinas',
-    // Despachos
     'despachos.view': 'Ver Módulo de Despachos',
     'despachos.create': 'Procesar Despachos (Salidas)',
     'despachos.receive': 'Verificar y Recibir Carga',
-    // Flota
     'flota.view': 'Ver Módulo de Flota',
     'flota.create': 'Añadir Vehículos a Flota',
     'flota.edit': 'Editar Vehículos de Flota',
     'flota.delete': 'Eliminar Vehículos de Flota',
     'flota.dispatch': 'Despachar y Finalizar Viajes',
-    // Remesas
     'remesas.view': 'Ver Módulo de Remesas',
     'remesas.create': 'Crear Remesas',
     'remesas.delete': 'Eliminar Remesas',
-    // Asociados
     'asociados.view': 'Ver Módulo de Asociados',
     'asociados.create': 'Crear Asociados',
     'asociados.edit': 'Editar Asociados',
     'asociados.delete': 'Eliminar Asociados',
     'asociados.pagos.delete': 'Eliminar Deudas de Asociados',
-    // Clientes
     'clientes.view': 'Ver Clientes',
     'clientes.create': 'Crear Clientes',
     'clientes.edit': 'Editar Clientes',
     'clientes.delete': 'Eliminar Clientes',
-    // Proveedores
     'proveedores.view': 'Ver Proveedores',
     'proveedores.create': 'Crear Proveedores',
     'proveedores.edit': 'Editar Proveedores',
     'proveedores.delete': 'Eliminar Proveedores',
-    // Libro Contable
     'libro-contable.view': 'Ver Libro Contable',
     'libro-contable.create': 'Registrar Gastos',
     'libro-contable.edit': 'Editar Gastos',
     'libro-contable.delete': 'Eliminar Gastos',
+    'expenses.manage_all_offices': 'Gestionar Gastos de Todas las Oficinas',
     'plan-contable.view': 'Ver Plan de Cuentas',
     'plan-contable.create': 'Crear Cuentas Contables',
     'plan-contable.edit': 'Editar Cuentas Contables',
     'plan-contable.delete': 'Eliminar Cuentas Contables',
-    'expenses.manage_all_offices': 'Gestionar Gastos de Todas las Oficinas',
-    // Inventario
-    'inventario.view': 'Ver Módulo de Inventario',
+    'inventario.view': 'Ver Módulo de Inventario (General)',
     'inventario-envios.view': 'Ver Inventario de Envíos',
     'inventario-bienes.view': 'Ver Inventario de Bienes',
     'inventario-bienes.create': 'Crear Bienes',
@@ -193,23 +235,19 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'bienes-categorias.create': 'Crear Categorías de Bienes',
     'bienes-categorias.edit': 'Editar Categorías de Bienes',
     'bienes-categorias.delete': 'Eliminar Categorías de Bienes',
-    // Reports
     'reports.view': 'Ver Reportes Generales',
     'reports.associates.view': 'Ver Reporte Estado Cuenta Asociados',
-    // Auditoria
     'auditoria.view': 'Ver Auditoría',
-    // Configuracion
     'configuracion.view': 'Ver Configuración',
     'config.company.edit': 'Editar Datos de la Empresa',
     'config.users.manage': 'Gestionar Usuarios',
-    'config.users.edit_protected': 'Editar Usuarios Protegidos',
+    'config.users.edit_protected': 'Editar Usuarios Protegidos (Sistema)',
     'config.users.manage_tech_users': 'Gestionar Usuarios de Soporte',
     'config.roles.manage': 'Gestionar Roles y Permisos',
-    // Config sub-modules
     'categories.view': 'Ver Categorías de Mercancía',
-    'categories.create': 'Crear Categorías de Mercancía',
-    'categories.edit': 'Editar Categorías de Mercancía',
-    'categories.delete': 'Eliminar Categorías de Mercancía',
+    'categories.create': 'Crear Categorías',
+    'categories.edit': 'Editar Categorías',
+    'categories.delete': 'Eliminar Categorías',
     'offices.view': 'Ver Oficinas',
     'offices.create': 'Crear Oficinas',
     'offices.edit': 'Editar Oficinas',
@@ -224,7 +262,7 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'payment-methods.delete': 'Eliminar Formas de Pago',
 };
 
-// Default permissions for standard roles to use as fallback if API fetching fails (e.g. 403)
+// Default permissions for standard roles to use as fallback
 const operatorPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'shipping-guide.view': true,
@@ -233,7 +271,7 @@ const operatorPermissions: Record<string, boolean> = {
     'flota.view': true,
     'flota.dispatch': true, 
     'remesas.view': true,
-    'asociados.view': true, // Enabled for data fetching, UI hidden via Sidebar
+    'asociados.view': true,
     'clientes.view': true, 'clientes.create': true, 'clientes.edit': true,
     'proveedores.view': false, 
     'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true, 'libro-contable.delete': false,
@@ -244,7 +282,7 @@ const operatorPermissions: Record<string, boolean> = {
     'inventario-bienes.view': true,
     'bienes-categorias.view': true,
     'reports.view': true,
-    'reports.associates.view': false, // Operador no ve estado cuenta asociados
+    'reports.associates.view': false, 
     'configuracion.view': false, 
     'categories.view': true, 'offices.view': true, 'shipping-types.view': true, 'payment-methods.view': true
 };

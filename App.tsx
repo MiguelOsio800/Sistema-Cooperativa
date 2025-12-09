@@ -82,20 +82,22 @@ const AppContent: React.FC = () => {
 
     // --- DATA SEGREGATION LOGIC (PURE PERMISSION BASED) ---
     
-    // 1. Invoices: Show all if 'invoices.manage_all_offices' is true, otherwise filter by office.
+    // Helper: Determine if user has Global Access (Admin, Support, Manager, ACCOUNTANT)
+    // We treat 'plan-contable.view' as a flag for Accountants who need to see everything.
+    const hasGlobalAccess = useMemo(() => {
+        if (!currentUser) return false;
+        return userPermissions['invoices.manage_all_offices'] || userPermissions['plan-contable.view'];
+    }, [userPermissions, currentUser]);
+
+    // 1. Invoices
     const filteredInvoices = useMemo(() => {
         if (!currentUser) return [];
         
-        // GLOBAL PERMISSION CHECK: Admins/Support/Managers
-        if (userPermissions['invoices.manage_all_offices']) {
+        if (hasGlobalAccess) {
             return invoices;
         }
         
         // OFFICE RESTRICTION CHECK: Regular Operators
-        // Only see:
-        // - Invoices generated in their office (Origin)
-        // - Invoices destined to their office (Destination)
-        // - Invoices currently inbound to their office via Dispatch
         const inboundDispatchInvoiceIds = new Set(
             dispatches
                 .filter(d => (d.destinationOfficeId === currentUser.officeId || d.originOfficeId === currentUser.officeId))
@@ -107,47 +109,43 @@ const AppContent: React.FC = () => {
             invoice.guide.destinationOfficeId === currentUser.officeId ||
             inboundDispatchInvoiceIds.has(invoice.id)
         );
-    }, [invoices, dispatches, currentUser, userPermissions]);
+    }, [invoices, dispatches, currentUser, hasGlobalAccess]);
 
-    // 2. Expenses: Show all if 'expenses.manage_all_offices' is true.
+    // 2. Expenses
     const filteredExpenses = useMemo(() => {
         if (!currentUser) return [];
         
-        if (userPermissions['expenses.manage_all_offices']) {
+        if (userPermissions['expenses.manage_all_offices'] || userPermissions['plan-contable.view']) {
             return expenses;
         }
         
         return expenses.filter(expense => expense.officeId === currentUser.officeId);
     }, [expenses, currentUser, userPermissions]);
 
-    // 3. Inventory: Derived from visible invoices + Global Check
+    // 3. Inventory
     const filteredInventory = useMemo(() => {
         if (!currentUser) return [];
         
-        if (userPermissions['invoices.manage_all_offices']) {
+        if (hasGlobalAccess) {
             return inventory;
         }
         
-        // O(1) lookup for invoices the user is allowed to see
         const allowedInvoiceIds = new Set(filteredInvoices.map(inv => inv.id));
         
         return inventory.filter(item => 
             item.invoiceId && allowedInvoiceIds.has(item.invoiceId)
         );
-    }, [inventory, filteredInvoices, currentUser, userPermissions]);
+    }, [inventory, filteredInvoices, currentUser, hasGlobalAccess]);
 
-    // 4. Remesas: Show all if 'invoices.manage_all_offices' (Global Logistics) is true.
+    // 4. Remesas
     const filteredRemesas = useMemo(() => {
         if (!currentUser) return [];
         
-        if (userPermissions['invoices.manage_all_offices']) {
+        if (hasGlobalAccess) {
             return remesas;
         }
         
-        // Strict: Only see remesas containing at least one invoice from user's office
         const userOfficeId = currentUser.officeId;
-        
-        // Get IDs of invoices originating from this office
         const officeInvoiceIds = new Set(
             invoices
                 .filter(inv => inv.guide.originOfficeId === userOfficeId)
@@ -157,18 +155,18 @@ const AppContent: React.FC = () => {
         return remesas.filter(remesa => 
             remesa.invoiceIds.some(id => officeInvoiceIds.has(id))
         );
-    }, [remesas, invoices, currentUser, userPermissions]);
+    }, [remesas, invoices, currentUser, hasGlobalAccess]);
 
-    // 5. Offices List: For reports dropdowns
+    // 5. Offices List
     const viewableOffices = useMemo(() => {
         if (!currentUser) return [];
         
-        if (userPermissions['invoices.manage_all_offices'] || userPermissions['expenses.manage_all_offices']) {
+        if (hasGlobalAccess || userPermissions['expenses.manage_all_offices']) {
             return offices;
         }
         
         return offices.filter(o => o.id === currentUser.officeId);
-    }, [offices, currentUser, userPermissions]);
+    }, [offices, currentUser, hasGlobalAccess, userPermissions]);
 
 
     useEffect(() => {
@@ -188,7 +186,6 @@ const AppContent: React.FC = () => {
             setSelectedAsociadoId(null);
 
             // --- STRICT PERMISSION CHECK FOR ROUTING ---
-            // Even if a user types the URL, if they lack the permission, redirect to dashboard.
             const pagePermissionMap: Partial<Record<Page, string>> = {
                 'dashboard': 'dashboard.view',
                 'shipping-guide': 'shipping-guide.view',
@@ -224,7 +221,6 @@ const AppContent: React.FC = () => {
                     window.location.hash = 'dashboard';
                     setCurrentPage('dashboard');
                 } else {
-                    // Worst case: User has 0 permissions.
                     setCurrentPage('dashboard');
                 }
                 return;
@@ -286,14 +282,13 @@ const AppContent: React.FC = () => {
             );
         }
         
-        // Pass FILTERED data to components to enforce segregation
         switch (currentPage) {
             case 'dashboard': return <DashboardView invoices={filteredInvoices} vehicles={vehicles} companyInfo={companyInfo} offices={offices} permissions={userPermissions} />;
             case 'shipping-guide': return <ShippingGuideView onSaveInvoice={handleSaveInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} permissions={userPermissions} />;
             case 'edit-invoice':
                 const invoiceToEdit = invoices.find(inv => inv.id === editingInvoiceId);
-                // Security check for Edit: Only allow if global permission OR owns the invoice
-                if (invoiceToEdit && !userPermissions['invoices.manage_all_offices'] && invoiceToEdit.guide.originOfficeId !== currentUser.officeId) {
+                // Security check for Edit: Allow if global permission OR owns the invoice
+                if (invoiceToEdit && !hasGlobalAccess && invoiceToEdit.guide.originOfficeId !== currentUser.officeId) {
                      return <div className="text-center p-8">No tiene permiso para editar facturas de otra oficina.</div>;
                 }
                 return invoiceToEdit ? <EditInvoiceView invoice={invoiceToEdit} onSaveInvoice={handleUpdateInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} permissions={userPermissions} /> : <div>Factura no encontrada</div>;
@@ -408,8 +403,10 @@ const AppContent: React.FC = () => {
                     return <DashboardView invoices={filteredInvoices} vehicles={vehicles} companyInfo={companyInfo} offices={offices} permissions={userPermissions} />;
                 }
             default:
-                // Fallback to Dashboard
-                return <DashboardView invoices={filteredInvoices} vehicles={vehicles} companyInfo={companyInfo} offices={offices} permissions={userPermissions} />;
+                if (userPermissions['dashboard.view']) {
+                    return <DashboardView invoices={filteredInvoices} vehicles={vehicles} companyInfo={companyInfo} offices={offices} permissions={userPermissions} />;
+                }
+                return <div className="p-8 text-center text-gray-500">Bienvenido. No tienes permisos para ver el panel de inicio. Contacta a soporte.</div>;
         }
     };
 

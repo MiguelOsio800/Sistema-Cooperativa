@@ -152,57 +152,6 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
         return true;
     }), [asientosManuales, startDate, endDate]);
 
-    // Check permission to determine if Full Accounting or Simplified View should be shown
-    const showFullAccounting = permissions['plan-contable.view'];
-
-    if (!showFullAccounting) {
-        return (
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle>Gastos de Oficina</CardTitle>
-                            {/* Removed redundant button from here */}
-                        </div>
-                        <p className="text-sm text-gray-500">Registre y gestione los gastos operativos de su oficina.</p>
-                    </CardHeader>
-                    {/* Reuse TransactionsModal content but embedded directly for simpler UX */}
-                    <div className="mt-4 border-t pt-4 dark:border-gray-700">
-                        <TransactionsModal
-                            isOpen={true} // Always visible, but without Modal wrapper conceptually
-                            onClose={() => {}} // No close action needed here as it's embedded
-                            transactions={filteredTransactions} // Already filtered by office in App.tsx
-                            permissions={permissions}
-                            onSaveExpense={onSaveExpense}
-                            onDeleteExpense={onDeleteExpense}
-                            expenseCategories={expenseCategories}
-                            offices={offices}
-                            paymentMethods={paymentMethods}
-                            currentUser={currentUser}
-                            companyInfo={companyInfo}
-                            suppliers={suppliers}
-                            embedded={true} // Prop to tell modal to render without the Modal wrapper
-                        />
-                    </div>
-                </Card>
-                
-                <ExpenseFormModal
-                    isOpen={isExpenseFormOpen}
-                    onClose={() => setIsExpenseFormOpen(false)}
-                    onSave={handleSaveExpenseLocal}
-                    expense={editingExpense}
-                    expenseCategories={expenseCategories}
-                    offices={offices}
-                    paymentMethods={paymentMethods}
-                    currentUser={currentUser}
-                    companyInfo={companyInfo}
-                    suppliers={suppliers}
-                    permissions={permissions}
-                />
-            </div>
-        );
-    }
-
     // Admin / Tech View (Full Accounting)
     return (
         <div className="space-y-6">

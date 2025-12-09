@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
-import { DollarSignIcon, ReceiptIcon, ShieldCheckIcon, TruckIcon, ExclamationTriangleIcon, SettingsIcon, CheckCircleIcon } from '../icons/Icons';
+import { DollarSignIcon, ReceiptIcon, ShieldCheckIcon, TruckIcon, ExclamationTriangleIcon, SettingsIcon, CheckCircleIcon, BookOpenIcon } from '../icons/Icons';
 import { Invoice, CompanyInfo, Office, Vehicle, ShippingStatus, Permissions } from '../../types';
 import { calculateFinancialDetails } from '../../utils/financials';
 import Button from '../ui/Button';
@@ -392,10 +392,25 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
         }
     };
     
+    // Allow users with Accounting access to see dashboard charts as well
+    const canViewStats = permissions['invoices.view'] || permissions['libro-contable.view'];
+
+    if (!permissions['dashboard.view']) return null;
+
     return (
         <div className="space-y-6">
-            {/* Stat Cards - Only show if invoices are viewable */}
-            {permissions['invoices.view'] && (
+            {/* Welcome Banner / Overview for Non-Invoice Users */}
+            {!canViewStats && (
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Bienvenido al Sistema</h2>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">
+                        Utilice el menú lateral para acceder a los módulos habilitados para su rol (ej. Libro Contable, Inventario, etc.).
+                    </p>
+                </div>
+            )}
+
+            {/* Stat Cards - Only show if invoices or accounting stats are viewable */}
+            {canViewStats && (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard title="Total Flete (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.freight)} icon={TruckIcon} change={memoizedStats.freightChange.value} changeType={memoizedStats.freightChange.type} />
                     <StatCard title="Total IVA (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.iva)} icon={DollarSignIcon} change={memoizedStats.ivaChange.value} changeType={memoizedStats.ivaChange.type} />
@@ -406,7 +421,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
 
             {/* Main Charts & Alerts */}
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                 {permissions['invoices.view'] ? (
+                 {canViewStats ? (
                      <Card className="lg:col-span-2">
                         <CardHeader>
                             <div className="flex justify-between items-center">
@@ -445,20 +460,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
                             </ResponsiveContainer>
                         </div>
                     </Card>
-                 ) : (
-                    <Card className="lg:col-span-2 flex items-center justify-center p-12">
-                        <div className="text-center text-gray-500 dark:text-gray-400">
-                            <ExclamationTriangleIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                            <p>No tiene permisos para ver estadísticas de facturación.</p>
-                        </div>
-                    </Card>
-                 )}
+                 ) : null}
                 
-                {permissions['invoices.view'] && <AlertsPanel invoices={invoices} />}
+                {canViewStats && <AlertsPanel invoices={invoices} />}
             </div>
 
             {/* Other Charts */}
-            {permissions['invoices.view'] && (
+            {canViewStats && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card>
                         <CardHeader>
@@ -561,7 +569,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
             
              <div className="grid grid-cols-1">
                  {/* Office Chart - Only if allowed to see office data */}
-                 {permissions['offices.view'] && permissions['invoices.view'] ? (
+                 {permissions['offices.view'] && canViewStats ? (
                      <Card>
                         <CardHeader>
                              <div className="flex justify-between items-center">

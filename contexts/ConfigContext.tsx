@@ -75,18 +75,15 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         try {
             return await apiFetch<T>(endpoint);
         } catch (error: any) {
-            // Check for permission errors specifically to avoid noise in console
             if (error.message && (
                 error.message.includes('403') ||
                 error.message.includes('401') ||
                 error.message.includes('404') ||
-                error.message.includes('No tiene los permisos') || // Backend specific message
-                error.message.includes('Failed to fetch') // Network issues shouldn't crash the whole app load
+                error.message.includes('No tiene los permisos') ||
+                error.message.includes('Failed to fetch')
             )) {
-                // Silent fail for permissions/not found, just use fallback
                 return fallbackValue;
             }
-            // If it's a critical error (like 500), log it but still return fallback to keep app running
             console.warn(`Error fetching ${endpoint}:`, error.message);
             return fallbackValue;
         }
@@ -102,10 +99,6 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     const isTech = currentUser.roleId === 'role-tech';
                     const hasFullAccess = isAdmin || isTech;
 
-                    // Group 1: Public/Essential Data 
-                    // CRITICAL FIX: Wrapped ALL fetches in fetchSafe. 
-                    // This ensures that if the backend denies access to '/offices' or '/shipping-types' 
-                    // (e.g. for an Accountant role), the app continues to load the rest of the data.
                     const [
                         categoriesData, 
                         officesData, 
@@ -126,11 +119,6 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     setPaymentMethods(paymentMethodsData);
                     setRoles(rolesData);
 
-                    // Group 2: Restricted Data
-                    // We attempt to fetch these for all authenticated users.
-                    // If the user (e.g. Accountant) has permission on backend, it works.
-                    // If not, fetchSafe returns the fallback empty array silently.
-                    
                     const [expenseCategoriesData, cuentasData] = await Promise.all([
                         fetchSafe<ExpenseCategory[]>('/expense-categories', []),
                         fetchSafe<CuentaContable[]>('/cuentas-contables', [])
@@ -138,25 +126,19 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
                     setExpenseCategories(expenseCategoriesData);
                     
-                    // Fallback for Plan de Cuentas if empty but user has Accounting Permissions
-                    // This allows the module to be usable even if the backend endpoint fails or returns empty initially
                     const hasAccountingPerm = 
                         currentUser.permissions?.['libro-contable.view'] || 
                         currentUser.permissions?.['plan-contable.view'] ||
-                        // Check rolesData we just fetched to see if this user's role has permission
                         (rolesData.find(r => r.id === currentUser.roleId)?.permissions['libro-contable.view']);
 
                     if (cuentasData && cuentasData.length > 0) {
                         setCuentasContables(cuentasData);
                     } else if (hasAccountingPerm || hasFullAccess) {
-                         // Only use hardcoded fallback if we expected data (have permission) but got none
                          setCuentasContables(PLAN_DE_CUENTAS_INICIAL);
                     } else {
                         setCuentasContables([]);
                     }
 
-                    // Group 3: Highly Restricted (Users Management)
-                    // Still kept behind strict check to avoid unnecessary traffic/errors
                     if (hasFullAccess) {
                         const usersData = await fetchSafe<User[]>('/users', []);
                         setUsers(usersData);
@@ -194,29 +176,27 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         // Logic to determine permissions.
-        // Priority 1: Permissions directly from the user object (Server sent them).
-        // Priority 2: Look up role in the fetched list (Custom roles).
+        // Priority 1: Look up role in the LIVE fetched list (allows real-time updates without re-login)
+        // Priority 2: Permissions directly from the user object (Server sent them at login, might be stale)
         // Priority 3: Hardcoded defaults based on ID (Legacy).
         
         if (currentUser) {
-            if (currentUser.permissions && Object.keys(currentUser.permissions).length > 0) {
-                // Solution 1: Backend sent explicit permissions
+            const fetchedRole = roles.find(r => r.id === currentUser.roleId);
+            
+            if (fetchedRole && fetchedRole.permissions && Object.keys(fetchedRole.permissions).length > 0) {
+                // Best case: We found the role in the fresh list from the server
+                setUserPermissions(fetchedRole.permissions);
+            } else if (currentUser.permissions && Object.keys(currentUser.permissions).length > 0) {
+                // Fallback: Use permissions attached to the user object (snapshot from login)
                 setUserPermissions(currentUser.permissions);
             } else {
-                // Fallback: Look up role in the fetched list
-                const fetchedRole = roles.find(r => r.id === currentUser.roleId);
-                
-                if (fetchedRole) {
-                    setUserPermissions(fetchedRole.permissions);
+                // Last Resort: Hardcoded defaults
+                const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId];
+                if (defaultPerms) {
+                    setUserPermissions(defaultPerms);
                 } else {
-                    // Last Resort: Hardcoded defaults
-                    const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId];
-                    if (defaultPerms) {
-                        setUserPermissions(defaultPerms);
-                    } else {
-                        console.warn(`Unknown role ID: ${currentUser.roleId}. No permissions assigned.`);
-                        setUserPermissions({});
-                    }
+                    console.warn(`Unknown role ID: ${currentUser.roleId}. No permissions assigned.`);
+                    setUserPermissions({});
                 }
             }
         } else {
@@ -256,14 +236,12 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const handleLogout = async () => {
         try {
             if (currentUser) {
-                // Await log action to ensure it completes before token destruction
                 await logAction(currentUser, 'CIERRE_SESION', `El usuario '${currentUser.name}' cerró sesión.`);
             }
             await apiFetch('/auth/logout', { method: 'POST' });
             addToast({ type: 'info', title: 'Sesión Cerrada', message: 'Ha cerrado sesión exitosamente.' });
         } catch (error: any) {
             console.error('Logout failed:', error);
-            // Don't show error for logout failure, just proceed to clear local state
         } finally {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
