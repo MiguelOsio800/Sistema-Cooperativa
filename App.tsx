@@ -82,10 +82,11 @@ const AppContent: React.FC = () => {
 
     // --- DATA SEGREGATION LOGIC (PURE PERMISSION BASED) ---
     
-    // Helper: Determine if user has Global Access (Admin, Support, Manager, ACCOUNTANT)
-    // We treat 'plan-contable.view' as a flag for Accountants who need to see everything.
+    // Helper: Determine if user has Global Access (Admin, Support, Accountant)
     const hasGlobalAccess = useMemo(() => {
         if (!currentUser) return false;
+        // Admins, Support, and Accountants (who need to see all financials) get global access.
+        // We check 'manage_all_offices' OR 'plan-contable.view' (Accountant flag)
         return userPermissions['invoices.manage_all_offices'] || userPermissions['plan-contable.view'];
     }, [userPermissions, currentUser]);
 

@@ -115,16 +115,6 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
         setActiveModal(null);
     }
 
-    const handleOpenExpenseForm = (expense: Expense | null) => {
-        setEditingExpense(expense);
-        setIsExpenseFormOpen(true);
-    };
-
-    const handleSaveExpenseLocal = async (expense: Expense) => {
-        await onSaveExpense(expense);
-        setIsExpenseFormOpen(false);
-    };
-
     const filteredDateInvoices = useMemo(() => invoices.filter(t => {
         const tDate = new Date(t.date + 'T00:00:00');
         const start = startDate ? new Date(startDate + 'T00:00:00') : null;
@@ -152,13 +142,47 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
         return true;
     }), [asientosManuales, startDate, endDate]);
 
-    // Admin / Tech View (Full Accounting)
+    // CHECK FOR FULL ACCOUNTING ACCESS
+    // Accountants/Admins have 'plan-contable.view'. Operators do NOT.
+    const hasFullAccountingAccess = permissions['plan-contable.view'];
+
+    if (!hasFullAccountingAccess) {
+        // OPERATOR VIEW: Simplified Expenses Only
+        return (
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Registro de Gastos Operativos</CardTitle>
+                        <p className="text-sm text-gray-500">Gestione los gastos asociados a su oficina o caja chica.</p>
+                    </CardHeader>
+                    {/* Embedded Transactions Modal (View Only Mode mostly) */}
+                    <TransactionsModal
+                        isOpen={true} // Always "open" as embedded component
+                        onClose={() => {}}
+                        transactions={filteredTransactions.filter(t => t.type === 'Gasto')} // Force show only expenses
+                        permissions={permissions}
+                        onSaveExpense={onSaveExpense}
+                        onDeleteExpense={onDeleteExpense}
+                        expenseCategories={expenseCategories}
+                        offices={offices}
+                        paymentMethods={paymentMethods}
+                        currentUser={currentUser}
+                        companyInfo={companyInfo}
+                        suppliers={suppliers}
+                        embedded={true}
+                    />
+                </Card>
+            </div>
+        );
+    }
+
+    // FULL ACCOUNTING VIEW (Admin / Accountant / Tech)
     return (
         <div className="space-y-6">
              <Card>
                 <CardHeader>
-                    <CardTitle>Filtros Contables Globales</CardTitle>
-                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Estos filtros se aplicarán a todos los módulos que abra.</p>
+                    <CardTitle>Contabilidad General</CardTitle>
+                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Filtros globales para libros y balances.</p>
                 </CardHeader>
                 <div className="flex flex-wrap items-end gap-4">
                     <div className="flex-grow">
