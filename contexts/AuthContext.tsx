@@ -12,6 +12,7 @@ interface AuthContextType {
     isWarningModalOpen: boolean;
     countdown: number;
     handleExtendSession: () => void;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -104,49 +105,52 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [resetIdleTimer]);
 
+    const fetchUserProfile = useCallback(async () => {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+            try {
+                let userProfile;
+                // Changed from /auth/profile to /auth/validate-token to match backend docs
+                // Added fallback to /auth/profile in case of 404
+                try {
+                    userProfile = await apiFetch<User>('/auth/validate-token', {
+                        method: 'POST'
+                    });
+                } catch (error: any) {
+                    if (error.message && error.message.includes('404')) {
+                        console.warn("Endpoint /auth/validate-token not found (404), trying fallback /auth/profile...");
+                        userProfile = await apiFetch<User>('/auth/profile', {
+                            method: 'GET'
+                        });
+                    } else {
+                        throw error;
+                    }
+                }
+                
+                if (userProfile && userProfile.id) {
+                    setCurrentUser(userProfile);
+                    setIsAuthenticated(true);
+                } else {
+                    throw new Error("Invalid profile data");
+                }
+            } catch (error) {
+                console.error("Session validation failed:", error);
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                setIsAuthenticated(false);
+                setCurrentUser(null);
+            }
+        }
+        setIsAuthLoading(false);
+    }, []);
 
     useEffect(() => {
-        const validateSession = async () => {
-            const token = localStorage.getItem('accessToken');
-            if (token) {
-                try {
-                    let userProfile;
-                    // Changed from /auth/profile to /auth/validate-token to match backend docs
-                    // Added fallback to /auth/profile in case of 404
-                    try {
-                        userProfile = await apiFetch<User>('/auth/validate-token', {
-                            method: 'POST'
-                        });
-                    } catch (error: any) {
-                        if (error.message && error.message.includes('404')) {
-                            console.warn("Endpoint /auth/validate-token not found (404), trying fallback /auth/profile...");
-                            userProfile = await apiFetch<User>('/auth/profile', {
-                                method: 'GET'
-                            });
-                        } else {
-                            throw error;
-                        }
-                    }
-                    
-                    if (userProfile && userProfile.id) {
-                        setCurrentUser(userProfile);
-                        setIsAuthenticated(true);
-                    } else {
-                        throw new Error("Invalid profile data");
-                    }
-                } catch (error) {
-                    console.error("Session validation failed:", error);
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
-                    setIsAuthenticated(false);
-                    setCurrentUser(null);
-                }
-            }
-            setIsAuthLoading(false);
-        };
+        fetchUserProfile();
+    }, [fetchUserProfile]);
 
-        validateSession();
-    }, []);
+    const refreshUser = async () => {
+        await fetchUserProfile();
+    };
 
     return (
         <AuthContext.Provider value={{ 
@@ -157,7 +161,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCurrentUser,
             isWarningModalOpen,
             countdown,
-            handleExtendSession
+            handleExtendSession,
+            refreshUser
         }}>
             {children}
         </AuthContext.Provider>

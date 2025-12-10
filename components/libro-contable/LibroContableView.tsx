@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Invoice, Expense, Permissions, ExpenseCategory, Office, User, PaymentMethod, CompanyInfo, Supplier, CuentaContable, AsientoManual } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Input from '../ui/Input';
-import { BookOpenIcon, TagIcon, ArrowsRightLeftIcon, PlusIcon } from '../icons/Icons';
+import { BookOpenIcon, TagIcon, ArrowsRightLeftIcon, PlusIcon, ListBulletIcon } from '../icons/Icons';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import LibroDiarioModal from './LibroDiarioModal';
@@ -17,6 +17,7 @@ import LibroAuxiliarModal from './LibroAuxiliarModal';
 import { useConfig } from '../../contexts/ConfigContext';
 import AsientoManualModal from './AsientoManualModal';
 import ExpenseFormModal from './ExpenseFormModal';
+import PlanContableManagementModal from './PlanContableManagementModal';
 
 
 interface LibroContableViewProps {
@@ -36,6 +37,9 @@ interface LibroContableViewProps {
     onDeleteAsientoManual: (asientoId: string) => Promise<void>;
     permissions: Permissions;
     currentUser: User;
+    // Props passed from App.tsx via useConfig
+    onSaveCuenta?: (cuenta: CuentaContable) => Promise<void>;
+    onDeleteCuenta?: (cuentaId: string) => Promise<void>;
 }
 
 export type Transaction = {
@@ -49,7 +53,14 @@ export type Transaction = {
 };
 
 const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
-    const { invoices, expenses, expenseCategories, offices, paymentMethods, companyInfo, suppliers, asientosManuales, onSaveExpense, onDeleteExpense, onSaveExpenseCategory, onDeleteExpenseCategory, onSaveAsientoManual, onDeleteAsientoManual, permissions, currentUser } = props;
+    const { 
+        invoices, expenses, expenseCategories, offices, paymentMethods, 
+        companyInfo, suppliers, asientosManuales, 
+        onSaveExpense, onDeleteExpense, onSaveExpenseCategory, onDeleteExpenseCategory, 
+        onSaveAsientoManual, onDeleteAsientoManual, permissions, currentUser,
+        onSaveCuenta, onDeleteCuenta
+    } = props;
+    
     const { cuentasContables } = useConfig();
     const [activeModal, setActiveModal] = useState<string | null>(null);
     
@@ -245,6 +256,13 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
                     colorVariant="orange"
                 />
                  <AccountingTile
+                    title="Plan de Cuentas"
+                    description="Gestionar el catálogo de cuentas contables."
+                    icon={ListBulletIcon}
+                    onClick={() => setActiveModal('planContable')}
+                    colorVariant="purple"
+                />
+                 <AccountingTile
                     title="Categorías de Gastos"
                     description="Organizar y clasificar los gastos."
                     icon={TagIcon}
@@ -337,6 +355,16 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
                     onClose={handleCloseAllModals}
                     onSave={onSaveAsientoManual}
                     cuentasContables={cuentasContables}
+                />
+            )}
+            {activeModal === 'planContable' && onSaveCuenta && onDeleteCuenta && (
+                <PlanContableManagementModal
+                    isOpen={activeModal === 'planContable'}
+                    onClose={handleCloseAllModals}
+                    cuentas={cuentasContables}
+                    onSave={onSaveCuenta}
+                    onDelete={onDeleteCuenta}
+                    permissions={permissions}
                 />
             )}
         </div>

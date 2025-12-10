@@ -51,7 +51,8 @@ const AppContent: React.FC = () => {
         handleCompanyInfoSave, handleSaveUser, onDeleteUser, handleSaveRole, onDeleteRole, 
         onUpdateRolePermissions, handleSaveCategory, onDeleteCategory, handleSaveOffice,
         onDeleteOffice, handleSaveShippingType, onDeleteShippingType, handleSavePaymentMethod, 
-        onDeletePaymentMethod, handleSaveExpenseCategory, onDeleteExpenseCategory
+        onDeletePaymentMethod, handleSaveExpenseCategory, onDeleteExpenseCategory,
+        handleSaveCuentaContable, handleDeleteCuentaContable
     } = useConfig();
     const {
         invoices, clients, suppliers, vehicles, expenses, inventory, assets, assetCategories,
@@ -379,7 +380,26 @@ const AppContent: React.FC = () => {
             case 'offices': return <OfficesView offices={offices} onSave={handleSaveOffice} onDelete={onDeleteOffice} permissions={userPermissions} />;
             case 'shipping-types': return <ShippingTypesView shippingTypes={shippingTypes} onSave={handleSaveShippingType} onDelete={onDeleteShippingType} permissions={userPermissions} />;
             case 'payment-methods': return <PaymentMethodsView paymentMethods={paymentMethods} onSave={handleSavePaymentMethod} onDelete={onDeletePaymentMethod} permissions={userPermissions} />;
-            case 'libro-contable': return <LibroContableView invoices={filteredInvoices} expenses={filteredExpenses} expenseCategories={expenseCategories} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} onSaveExpenseCategory={handleSaveExpenseCategory} onDeleteExpenseCategory={onDeleteExpenseCategory} permissions={userPermissions} offices={offices} currentUser={currentUser} paymentMethods={paymentMethods} companyInfo={companyInfo} suppliers={suppliers} asientosManuales={asientosManuales} onSaveAsientoManual={handleSaveAsientoManual} onDeleteAsientoManual={handleDeleteAsientoManual} />;
+            case 'libro-contable': return <LibroContableView 
+                invoices={filteredInvoices} 
+                expenses={filteredExpenses} 
+                expenseCategories={expenseCategories} 
+                onSaveExpense={handleSaveExpense} 
+                onDeleteExpense={handleDeleteExpense} 
+                onSaveExpenseCategory={handleSaveExpenseCategory} 
+                onDeleteExpenseCategory={onDeleteExpenseCategory} 
+                permissions={userPermissions} 
+                offices={offices} 
+                currentUser={currentUser} 
+                paymentMethods={paymentMethods} 
+                companyInfo={companyInfo} 
+                suppliers={suppliers} 
+                asientosManuales={asientosManuales} 
+                onSaveAsientoManual={handleSaveAsientoManual} 
+                onDeleteAsientoManual={handleDeleteAsientoManual} 
+                onSaveCuenta={handleSaveCuentaContable}
+                onDeleteCuenta={handleDeleteCuentaContable}
+            />;
             case 'inventario': return <InventarioLandingView permissions={userPermissions} />;
             case 'inventario-envios': return <InventarioView items={filteredInventory} permissions={userPermissions} filter={inventoryFilter} />;
             case 'inventario-bienes': return <BienesView assets={assets} onSave={handleSaveAsset} onDelete={handleDeleteAsset} permissions={userPermissions} offices={offices} assetCategories={assetCategories} />;

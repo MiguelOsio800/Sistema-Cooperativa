@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Role, Permissions } from '../../types';
 import Modal from '../ui/Modal';
@@ -5,6 +6,7 @@ import Button from '../ui/Button';
 import { ALL_PERMISSION_KEYS, PERMISSION_KEY_TRANSLATIONS } from '../../constants';
 import Input from '../ui/Input';
 import { SearchIcon, ChevronRightIcon, ChevronLeftIcon } from '../icons/Icons';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Helper to make permission keys more readable
 const formatPermissionKey = (key: string): string => {
@@ -64,6 +66,7 @@ const RolePermissionModal: React.FC<{
     onSave: (roleId: string, permissions: Permissions) => void;
     role: Role;
 }> = ({ isOpen, onClose, onSave, role }) => {
+    const { refreshUser, currentUser } = useAuth();
     const [chosen, setChosen] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
     
@@ -121,12 +124,18 @@ const RolePermissionModal: React.FC<{
         setSelectedChosen([]);
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         const newPermissions: Permissions = chosen.reduce((acc, key) => {
             acc[key] = true;
             return acc;
         }, {} as Permissions);
+        
         onSave(role.id, newPermissions);
+
+        // Si se está editando el rol del usuario actual, refrescar su perfil/permisos
+        if (currentUser && currentUser.roleId === role.id) {
+            await refreshUser();
+        }
     };
 
     return (

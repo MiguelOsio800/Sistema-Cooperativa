@@ -1,6 +1,6 @@
 
 import { CompanyInfo, Role, Permissions } from './types';
-import { ALL_PERMISSION_KEYS } from './constants';
+import { ALL_PERMISSION_KEYS, DEFAULT_ROLE_PERMISSIONS } from './constants';
 
 export const DUMMY_COMPANY_INFO: CompanyInfo = {
     name: 'Cooperativa Mixta Fraternidad Del Transporte',
@@ -17,32 +17,12 @@ export const DUMMY_COMPANY_INFO: CompanyInfo = {
 // --- MOCK DATA IS NO LONGER USED, DATA IS FETCHED FROM API ---
 // --- KEEPING ROLE/PERMISSION STRUCTURE FOR REFERENCE IF NEEDED ---
 
-const operatorPermissions: Permissions = {
-    'dashboard.view': true,
-    'shipping-guide.view': true,
-    'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true,
-    'flota.view': true,
-    'remesas.view': true,
-    'asociados.view': true,
-    'clientes.view': true, 'clientes.create': true, 'clientes.edit': true,
-    'proveedores.view': true, 'proveedores.create': true, 'proveedores.edit': true,
-    'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true,
-    'inventario.view': true,
-    'inventario-envios.view': true,
-    'inventario-bienes.view': true,
-    'bienes-categorias.view': true,
-    'reports.view': true,
-    'configuracion.view': true,
-};
-
-const adminPermissions: Permissions = ALL_PERMISSION_KEYS.reduce((acc, key) => { acc[key] = true; return acc; }, {} as Permissions);
-adminPermissions['config.users.edit_protected'] = false; // Admin cannot edit tech users by default
-adminPermissions['config.users.manage_tech_users'] = false;
-
-const techPermissions: Permissions = ALL_PERMISSION_KEYS.reduce((acc, key) => { acc[key] = true; return acc; }, {} as Permissions);
+// Permissions are now imported from constants.tsx via DEFAULT_ROLE_PERMISSIONS to ensure consistency
 
 export const BASE_ROLES: Role[] = [
-    { id: 'role-admin', name: 'Administrador', permissions: adminPermissions },
-    { id: 'role-op', name: 'Operador', permissions: operatorPermissions },
-    { id: 'role-tech', name: 'Soporte Técnico', permissions: techPermissions },
+    { id: 'role-admin', name: 'Administrador', permissions: DEFAULT_ROLE_PERMISSIONS['role-admin'] },
+    { id: 'role-op', name: 'Operador', permissions: DEFAULT_ROLE_PERMISSIONS['role-op'] },
+    { id: 'role-tech', name: 'Soporte Técnico', permissions: DEFAULT_ROLE_PERMISSIONS['role-tech'] },
+    { id: 'role-assistant', name: 'Asistente', permissions: DEFAULT_ROLE_PERMISSIONS['role-assistant'] },
+    { id: 'role-accountant', name: 'Contador', permissions: DEFAULT_ROLE_PERMISSIONS['role-accountant'] },
 ];

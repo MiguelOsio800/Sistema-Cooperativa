@@ -117,7 +117,29 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     setOffices(officesData);
                     setShippingTypes(shippingTypesData);
                     setPaymentMethods(paymentMethodsData);
-                    setRoles(rolesData);
+                    
+                    // --- ROLE MERGING LOGIC ---
+                    // Ensure system roles exist in the state even if DB is empty/partial
+                    const systemRoles: Role[] = [
+                        { id: 'role-admin', name: 'Administrador', permissions: DEFAULT_ROLE_PERMISSIONS['role-admin'] },
+                        { id: 'role-op', name: 'Operador', permissions: DEFAULT_ROLE_PERMISSIONS['role-op'] },
+                        { id: 'role-tech', name: 'Soporte Técnico', permissions: DEFAULT_ROLE_PERMISSIONS['role-tech'] },
+                        { id: 'role-assistant', name: 'Asistente', permissions: DEFAULT_ROLE_PERMISSIONS['role-assistant'] },
+                        { id: 'role-accountant', name: 'Contador', permissions: DEFAULT_ROLE_PERMISSIONS['role-accountant'] },
+                    ];
+
+                    const mergedRoles = [...rolesData];
+                    // Add system roles if they are not present by ID in the fetched data
+                    systemRoles.forEach(sysRole => {
+                        if (!mergedRoles.find(r => r.id === sysRole.id)) {
+                            // Also check by name to avoid duplicates if ID is different (e.g. auto-generated in DB)
+                            if (!mergedRoles.find(r => r.name.toLowerCase() === sysRole.name.toLowerCase())) {
+                                mergedRoles.push(sysRole);
+                            }
+                        }
+                    });
+                    
+                    setRoles(mergedRoles);
 
                     const [expenseCategoriesData, cuentasData] = await Promise.all([
                         fetchSafe<ExpenseCategory[]>('/expense-categories', []),
@@ -126,9 +148,12 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
                     setExpenseCategories(expenseCategoriesData);
                     
+                    // Determine if we should show accounting plan based on role guess or actual permissions
+                    const roleName = rolesData.find(r => r.id === currentUser.roleId)?.name?.toLowerCase() || '';
                     const hasAccountingPerm = 
                         currentUser.permissions?.['libro-contable.view'] || 
-                        currentUser.permissions?.['plan-contable.view'] ||
+                        roleName.includes('contador') ||
+                        roleName.includes('admin') ||
                         (rolesData.find(r => r.id === currentUser.roleId)?.permissions['libro-contable.view']);
 
                     if (cuentasData && cuentasData.length > 0) {
@@ -175,30 +200,41 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, [isAuthenticated]);
 
     useEffect(() => {
-        // Logic to determine permissions.
-        // Priority 1: Look up role in the LIVE fetched list (allows real-time updates without re-login)
-        // Priority 2: Permissions directly from the user object (Server sent them at login, might be stale)
-        // Priority 3: Hardcoded defaults based on ID (Legacy).
+        // --- PERMISSION RESOLUTION LOGIC ---
+        // Priority 1: DB/State permissions (if configured)
+        // Priority 2: Name-based Fallback (if role exists but permissions empty)
+        // Priority 3: Hardcoded ID Fallback (Legacy)
         
         if (currentUser) {
             const fetchedRole = roles.find(r => r.id === currentUser.roleId);
             
+            let resolvedPermissions: Permissions = {};
+
+            // 1. Check loaded role for explicit permissions
             if (fetchedRole && fetchedRole.permissions && Object.keys(fetchedRole.permissions).length > 0) {
-                // Best case: We found the role in the fresh list from the server
-                setUserPermissions(fetchedRole.permissions);
-            } else if (currentUser.permissions && Object.keys(currentUser.permissions).length > 0) {
-                // Fallback: Use permissions attached to the user object (snapshot from login)
-                setUserPermissions(currentUser.permissions);
-            } else {
-                // Last Resort: Hardcoded defaults
-                const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId];
-                if (defaultPerms) {
-                    setUserPermissions(defaultPerms);
-                } else {
-                    console.warn(`Unknown role ID: ${currentUser.roleId}. No permissions assigned.`);
-                    setUserPermissions({});
-                }
+                resolvedPermissions = fetchedRole.permissions;
+            } 
+            // 2. Name-based Fallback: If role exists but has NO permissions (e.g. manually created "Contador"), use default template
+            else if (fetchedRole) {
+                const roleNameLower = fetchedRole.name.toLowerCase();
+                if (roleNameLower.includes('admin')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-admin'];
+                else if (roleNameLower.includes('operador')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-op'];
+                else if (roleNameLower.includes('asistente')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-assistant'];
+                else if (roleNameLower.includes('contador')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-accountant'];
+                else if (roleNameLower.includes('soporte')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-tech'];
             }
+
+            // 3. ID-based Fallback: Check hardcoded IDs
+            if (Object.keys(resolvedPermissions).length === 0) {
+                 resolvedPermissions = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId] || {};
+            }
+            
+            // 4. User Object Fallback: Last resort, use permissions attached to user at login
+            if (Object.keys(resolvedPermissions).length === 0 && currentUser.permissions) {
+                resolvedPermissions = currentUser.permissions;
+            }
+
+            setUserPermissions(resolvedPermissions);
         } else {
             setUserPermissions({});
         }
