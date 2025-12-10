@@ -87,8 +87,10 @@ const AppContent: React.FC = () => {
     const hasGlobalAccess = useMemo(() => {
         if (!currentUser) return false;
         // Admins, Support, and Accountants (who need to see all financials) get global access.
-        // We check 'manage_all_offices' OR 'plan-contable.view' (Accountant flag)
-        return userPermissions['invoices.manage_all_offices'] || userPermissions['plan-contable.view'];
+        // We explicitly include 'role-accountant' to ensure they see data from ALL offices for the accounting books.
+        return userPermissions['invoices.manage_all_offices'] || 
+               userPermissions['plan-contable.view'] || 
+               currentUser.roleId === 'role-accountant';
     }, [userPermissions, currentUser]);
 
     // 1. Invoices
@@ -117,12 +119,12 @@ const AppContent: React.FC = () => {
     const filteredExpenses = useMemo(() => {
         if (!currentUser) return [];
         
-        if (userPermissions['expenses.manage_all_offices'] || userPermissions['plan-contable.view']) {
+        if (hasGlobalAccess || userPermissions['expenses.manage_all_offices']) {
             return expenses;
         }
         
         return expenses.filter(expense => expense.officeId === currentUser.officeId);
-    }, [expenses, currentUser, userPermissions]);
+    }, [expenses, currentUser, userPermissions, hasGlobalAccess]);
 
     // 3. Inventory
     const filteredInventory = useMemo(() => {

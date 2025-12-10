@@ -54,7 +54,7 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
         onSaveAsientoManual, onDeleteAsientoManual, permissions, currentUser
     } = props;
     
-    const { cuentasContables } = useConfig();
+    const { cuentasContables, roles } = useConfig();
     const [activeModal, setActiveModal] = useState<string | null>(null);
     
     const [startDate, setStartDate] = useState('');
@@ -143,8 +143,23 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
     }), [asientosManuales, startDate, endDate]);
 
     // CHECK FOR FULL ACCOUNTING ACCESS
-    // Accountants/Admins have 'plan-contable.view' as a marker for full access. Operators do NOT.
-    const hasFullAccountingAccess = permissions['plan-contable.view'];
+    // Determine user role and name to guarantee full access for Accountant
+    const userRole = roles.find(r => r.id === currentUser.roleId);
+    const roleName = userRole?.name?.toLowerCase() || '';
+    const username = currentUser.username.toLowerCase();
+
+    // Check if user is explicitly an Accountant or Admin by ID, Role Name, or Username
+    const isAccountantIdentity = 
+        currentUser.roleId === 'role-accountant' || 
+        roleName.includes('contador') || 
+        roleName.includes('contable') ||
+        roleName.includes('admin') ||
+        username.includes('contador');
+
+    const hasFullAccountingAccess = 
+        permissions['plan-contable.view'] || 
+        permissions['expenses.manage_all_offices'] ||
+        isAccountantIdentity;
 
     if (!hasFullAccountingAccess) {
         // OPERATOR VIEW: Simplified Expenses Only
@@ -250,6 +265,13 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
                     icon={TagIcon}
                     onClick={() => setActiveModal('expenseCategories')}
                     colorVariant="orange"
+                />
+                <AccountingTile
+                    title="Asiento Manual"
+                    description="Registrar ajustes contables manuales."
+                    icon={BookOpenIcon}
+                    onClick={() => setActiveModal('asientoManual')}
+                    colorVariant="blue"
                 />
             </div>
 

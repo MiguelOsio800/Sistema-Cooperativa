@@ -271,13 +271,15 @@ const fullAccess: Record<string, boolean> = ALL_PERMISSION_KEYS.reduce((acc, key
 const operatorPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'shipping-guide.view': true, // Crear Factura
-    'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true, 'invoices.void': true,
+    // Facturas: Permitir eliminación
+    'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true, 'invoices.void': true, 'invoices.delete': true,
     'despachos.view': true, 'despachos.create': true, 'despachos.receive': true,
-    'flota.view': true, 'flota.dispatch': true,
-    'remesas.view': true, 'remesas.create': true,
-    'clientes.view': true, 'clientes.create': true, 'clientes.edit': true,
-    'proveedores.view': true, 'proveedores.create': true, 'proveedores.edit': true,
-    'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true, // Solo gastos locales
+    // Flota: Permitir gestión completa para el operador
+    'flota.view': true, 'flota.create': true, 'flota.edit': true, 'flota.delete': true, 'flota.dispatch': true,
+    'remesas.view': true, 'remesas.create': true, 'remesas.delete': true, // Remesas: Permitir eliminar
+    'clientes.view': true, 'clientes.create': true, 'clientes.edit': true, 'clientes.delete': true, // Clientes: Permitir eliminar
+    'proveedores.view': true, 'proveedores.create': true, 'proveedores.edit': true, 'proveedores.delete': true, // Proveedores: Permitir eliminar
+    'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true, 'libro-contable.delete': true, // Gastos: Permitir eliminar
     'reports.view': true,
     // EXCLUIDOS EXPLICITAMENTE:
     'plan-contable.view': false, // No ve libros mayores, diarios, etc.
