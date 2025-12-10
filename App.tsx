@@ -397,8 +397,6 @@ const AppContent: React.FC = () => {
                 asientosManuales={asientosManuales} 
                 onSaveAsientoManual={handleSaveAsientoManual} 
                 onDeleteAsientoManual={handleDeleteAsientoManual} 
-                onSaveCuenta={handleSaveCuentaContable}
-                onDeleteCuenta={handleDeleteCuentaContable}
             />;
             case 'inventario': return <InventarioLandingView permissions={userPermissions} />;
             case 'inventario-envios': return <InventarioView items={filteredInventory} permissions={userPermissions} filter={inventoryFilter} />;

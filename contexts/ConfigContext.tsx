@@ -6,7 +6,7 @@ import { useSystem } from './SystemContext';
 import { useAuth } from './AuthContext';
 import { apiFetch } from '../utils/api';
 import { PLAN_DE_CUENTAS_INICIAL } from '../data/contabilidad';
-import { DEFAULT_ROLE_PERMISSIONS } from '../constants';
+import { DEFAULT_ROLE_PERMISSIONS, ALL_PERMISSION_KEYS } from '../constants';
 
 type ConfigContextType = {
     companyInfo: CompanyInfo;
@@ -201,7 +201,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         // --- PERMISSION RESOLUTION LOGIC ---
-        // Priority 1: DB/State permissions (if configured)
+        // Priority 1: DB/State permissions MERGED with Default Template (to support new features)
         // Priority 2: Name-based Fallback (if role exists but permissions empty)
         // Priority 3: Hardcoded ID Fallback (Legacy)
         
@@ -212,7 +212,23 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             // 1. Check loaded role for explicit permissions
             if (fetchedRole && fetchedRole.permissions && Object.keys(fetchedRole.permissions).length > 0) {
-                resolvedPermissions = fetchedRole.permissions;
+                // CRITICAL FIX: Merge the permissions from the DB with the DEFAULT permissions for this role.
+                // This ensures that if we add NEW permissions (keys) in the code (like 'plan-contable.view'), 
+                // they are picked up automatically from the default template if they don't exist in the DB yet.
+                const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId] || {};
+                
+                // If it's Admin or Tech, we want to be extra sure they get new keys as TRUE.
+                // For other roles, we trust the default template + DB overrides.
+                resolvedPermissions = { ...defaultPerms, ...fetchedRole.permissions };
+                
+                // Safety net: If Admin, ensure ALL defined keys are present and true if missing
+                if (currentUser.roleId === 'role-admin' || currentUser.roleId === 'role-tech') {
+                    ALL_PERMISSION_KEYS.forEach(key => {
+                        if (resolvedPermissions[key] === undefined) {
+                            resolvedPermissions[key] = true;
+                        }
+                    });
+                }
             } 
             // 2. Name-based Fallback: If role exists but has NO permissions (e.g. manually created "Contador"), use default template
             else if (fetchedRole) {
