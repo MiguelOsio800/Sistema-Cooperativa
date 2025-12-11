@@ -1,5 +1,5 @@
 
-const API_BASE_URL = 'https://4wt9b8zl-5000.use2.devtunnels.ms/api';
+const API_BASE_URL = 'http://api.fraternidad.local/api';
 
 interface ApiFetchOptions extends RequestInit {}
 
