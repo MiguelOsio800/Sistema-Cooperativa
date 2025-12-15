@@ -1,5 +1,5 @@
 
-const API_BASE_URL = 'http://api.fraternidad.local/api';
+const API_BASE_URL = 'http://api-asocoop.duckdns.org/api';
 
 interface ApiFetchOptions extends RequestInit {}
 
