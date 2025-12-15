@@ -11,6 +11,7 @@ import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
 import { useData } from '../../contexts/DataContext';
 import QuickStatusModal from './QuickStatusModal';
+import { useConfirm } from '../../contexts/ConfirmationContext';
 
 const paymentStatusOptions: PaymentStatus[] = ['Pendiente', 'Pagada'];
 const shippingStatusOptions: ShippingStatus[] = ['Pendiente para Despacho', 'En Tránsito', 'En Oficina Destino', 'Entregada'];
@@ -43,6 +44,7 @@ const ITEMS_PER_PAGE = 7;
 
 const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categories, userPermissions, onUpdateStatuses, onDeleteInvoice, companyInfo, initialFilter, offices }) => {
     const { handleCreateCreditNote, handleCreateDebitNote } = useData();
+    const { confirm } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isQuickStatusModalOpen, setIsQuickStatusModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -127,6 +129,19 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
     const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const formatInvoiceNumber = (num: string) => num.startsWith('F-') ? num : `F-${num}`;
 
+    const handleVoidClick = async (invoiceId: string) => {
+        const isConfirmed = await confirm({
+            title: 'Anular Factura',
+            message: '¿Está seguro de que desea anular esta factura? Esta acción afectará el libro de ventas y no se puede deshacer.',
+            confirmText: 'Anular Factura',
+            variant: 'danger'
+        });
+
+        if (isConfirmed) {
+            await onDeleteInvoice(invoiceId);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <Card>
@@ -188,7 +203,9 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                                 <ArrowsRightLeftIcon className="w-4 h-4" />
                                             </Button>
                                         )}
-                                        <Button variant="secondary" size="sm" onClick={() => openModal(invoice)} title="Ver Detalles">Ver</Button>
+                                        
+                                        <Button variant="secondary" size="sm" onClick={() => openModal(invoice)} title="Ver Detalles Completa">Detalles</Button>
+                                        
                                         <Button variant="secondary" size="sm" onClick={() => window.location.hash = `inventario-envios/${invoice.id}`} title="Ver en Inventario">
                                             <ArchiveBoxIcon className="w-4 h-4" />
                                         </Button>
@@ -199,11 +216,7 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                             <Button 
                                                 variant="danger" 
                                                 size="sm" 
-                                                onClick={async () => {
-                                                    if(window.confirm('¿Está seguro de que desea anular esta factura?')) {
-                                                        await onDeleteInvoice(invoice.id);
-                                                    }
-                                                }}
+                                                onClick={() => handleVoidClick(invoice.id)}
                                             >
                                                 Anular
                                             </Button>

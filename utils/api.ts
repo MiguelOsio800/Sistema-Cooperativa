@@ -1,5 +1,5 @@
 
-const API_BASE_URL = 'http://api-asocoop.duckdns.org/api';
+const API_BASE_URL = 'https://4wt9b8zl-5000.use2.devtunnels.ms/api';
 
 interface ApiFetchOptions extends RequestInit {}
 

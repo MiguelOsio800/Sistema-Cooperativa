@@ -8,6 +8,7 @@ import { PlusIcon, TrashIcon, EditIcon } from '../icons/Icons';
 import ExpenseFormModal from './ExpenseFormModal';
 import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
+import { useConfirm } from '../../contexts/ConfirmationContext';
 
 const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -51,6 +52,7 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
     isOpen, onClose, transactions, permissions, onSaveExpense, onDeleteExpense, 
     expenseCategories, offices, paymentMethods, currentUser, companyInfo, suppliers, embedded = false 
 }) => {
+    const { confirm } = useConfirm();
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     
@@ -85,7 +87,14 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
     
     const handleDeleteClick = async (e: React.MouseEvent, expenseId: string) => {
         e.stopPropagation();
-        if (window.confirm('¿Está seguro de que desea eliminar este gasto? Esta acción no se puede deshacer.')) {
+        const isConfirmed = await confirm({
+            title: 'Eliminar Gasto',
+            message: '¿Está seguro de que desea eliminar este gasto? Esta acción no se puede deshacer.',
+            confirmText: 'Sí, Eliminar',
+            variant: 'danger'
+        });
+
+        if (isConfirmed) {
             await onDeleteExpense(expenseId);
         }
     };

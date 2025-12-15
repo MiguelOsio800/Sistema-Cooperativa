@@ -149,6 +149,12 @@ export interface Invoice {
     vehicleId?: string;
     remesaId?: string;
     createdByName?: string; // To store "Oficinista" name
+    
+    // New fields for HKA/Reports
+    handlingFee?: number;
+    ipostelFee?: number;
+    insuranceAmount?: number;
+    exchangeRate?: number;
 }
 
 export interface Report {

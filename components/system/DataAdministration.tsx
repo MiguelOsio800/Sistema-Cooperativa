@@ -1,11 +1,14 @@
+
 import React from 'react';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import { DownloadIcon, UploadIcon, DatabaseIcon, ExclamationTriangleIcon } from '../icons/Icons';
 import { useToast } from '../ui/ToastProvider';
+import { useConfirm } from '../../contexts/ConfirmationContext';
 
 const DataAdministration: React.FC = () => {
     const { addToast } = useToast();
+    const { confirm } = useConfirm();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [restoreMode, setRestoreMode] = React.useState<'overwrite' | 'merge'>('merge');
 
@@ -42,7 +45,7 @@ const DataAdministration: React.FC = () => {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             try {
                 const text = event.target?.result;
                 if (typeof text !== 'string') throw new Error("Archivo no válido");
@@ -50,7 +53,14 @@ const DataAdministration: React.FC = () => {
                 if (!dataToRestore.companyInfo || !dataToRestore.users) throw new Error("El archivo de respaldo es inválido o está corrupto.");
 
                 if (restoreMode === 'overwrite') {
-                    if(!window.confirm("ADVERTENCIA: ¿Está seguro de que desea sobrescribir TODOS los datos actuales con los del respaldo? Esta acción no se puede deshacer.")) {
+                    const isConfirmed = await confirm({
+                        title: 'Restaurar y Sobrescribir',
+                        message: 'ADVERTENCIA: ¿Está seguro de que desea sobrescribir TODOS los datos actuales con los del respaldo? Esta acción no se puede deshacer.',
+                        confirmText: 'Sí, Sobrescribir TODO',
+                        variant: 'danger'
+                    });
+
+                    if(!isConfirmed) {
                         if(e.target) e.target.value = ''; // Reset file input even on cancel
                         return;
                     }
@@ -86,9 +96,14 @@ const DataAdministration: React.FC = () => {
                         return;
                     }
 
-                    const confirmationMessage = `Se encontraron ${newItemsCount} registros nuevos para fusionar. Los datos existentes no se modificarán. ¿Desea continuar?`;
+                    const isConfirmed = await confirm({
+                        title: 'Fusionar Datos',
+                        message: `Se encontraron ${newItemsCount} registros nuevos para fusionar. Los datos existentes no se modificarán. ¿Desea continuar?`,
+                        confirmText: 'Fusionar',
+                        variant: 'primary'
+                    });
 
-                    if (window.confirm(confirmationMessage)) {
+                    if (isConfirmed) {
                         // Apply changes
                         keysToMerge.forEach(key => {
                             if (dataToRestore[key]) {

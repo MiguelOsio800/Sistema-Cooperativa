@@ -229,6 +229,14 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         // Capture current user name as Creator
         const creatorName = currentUser.name;
 
+        // Extract financial values for HKA/Reports
+        const financialData = {
+            handlingFee: financials.handling,
+            ipostelFee: financials.ipostel,
+            insuranceAmount: financials.insuranceCost,
+            exchangeRate: companyInfo.bcvRate || 1, // Default to 1 if not set
+        };
+
         if (invoice) { // EDIT MODE
             return {
                 ...invoice,
@@ -238,7 +246,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 totalAmount: financials.total,
                 guide: guide,
                 // Preserve original creator if exists, otherwise use current user (legacy fix)
-                createdByName: invoice.createdByName || creatorName
+                createdByName: invoice.createdByName || creatorName,
+                ...financialData // Add financial breakdown
             };
         } else { // CREATE MODE
             return {
@@ -250,7 +259,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 clientIdNumber: guide.sender.idNumber || 'N/A',
                 totalAmount: financials.total,
                 guide: guide,
-                createdByName: creatorName // Explicitly set current user on creation
+                createdByName: creatorName, // Explicitly set current user on creation
+                ...financialData // Add financial breakdown
             };
         }
     };
