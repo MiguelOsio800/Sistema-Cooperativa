@@ -230,11 +230,15 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         const creatorName = currentUser.name;
 
         // Extract financial values for HKA/Reports
+        // Use exact fields expected by backend: Montomanejo, etc.
         const financialData = {
-            handlingFee: financials.handling,
+            Montomanejo: financials.handling,
             ipostelFee: financials.ipostel,
             insuranceAmount: financials.insuranceCost,
             exchangeRate: companyInfo.bcvRate || 1, // Default to 1 if not set
+            discountAmount: financials.discount,
+            discountPercentage: guide.hasDiscount ? (Number(guide.discountPercentage) || 0) : 0,
+            clientEmail: guide.sender.email || null,
         };
 
         if (invoice) { // EDIT MODE
@@ -243,6 +247,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 date: guide.date,
                 clientName: guide.sender.name || 'N/A',
                 clientIdNumber: guide.sender.idNumber || 'N/A',
+                clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
                 // Preserve original creator if exists, otherwise use current user (legacy fix)
@@ -257,6 +262,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 date: guide.date,
                 clientName: guide.sender.name || 'N/A',
                 clientIdNumber: guide.sender.idNumber || 'N/A',
+                clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
                 createdByName: creatorName, // Explicitly set current user on creation

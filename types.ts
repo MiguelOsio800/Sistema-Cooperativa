@@ -141,6 +141,7 @@ export interface Invoice {
     date: string;
     clientName: string;
     clientIdNumber: string;
+    clientEmail?: string | null; // Nuevo campo Email
     totalAmount: number;
     status: MasterStatus;
     paymentStatus: PaymentStatus;
@@ -150,11 +151,13 @@ export interface Invoice {
     remesaId?: string;
     createdByName?: string; // To store "Oficinista" name
     
-    // New fields for HKA/Reports
-    handlingFee?: number;
+    // Campos Financieros Históricos (Snapshot para HKA/Reportes)
+    Montomanejo?: number; // Exactamente como en backend
     ipostelFee?: number;
     insuranceAmount?: number;
     exchangeRate?: number;
+    discountAmount?: number;
+    discountPercentage?: number;
 }
 
 export interface Report {
