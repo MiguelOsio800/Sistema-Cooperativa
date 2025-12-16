@@ -141,7 +141,6 @@ export interface Invoice {
     date: string;
     clientName: string;
     clientIdNumber: string;
-    clientEmail?: string | null; // Nuevo campo Email
     totalAmount: number;
     status: MasterStatus;
     paymentStatus: PaymentStatus;
@@ -149,17 +148,19 @@ export interface Invoice {
     guide: ShippingGuide;
     vehicleId?: string;
     remesaId?: string;
-    createdByName?: string; // To store "Oficinista" name
     
-    // Campos Financieros Históricos (Snapshot para HKA/Reportes)
-    // Usamos Montomanejo para coincidir con el backend
-    Montomanejo?: number;
-    montoFlete?: number; // Monto Base del Flete
-    ipostelFee?: number;
-    insuranceAmount?: number;
-    exchangeRate?: number;
-    discountAmount?: number;
-    discountPercentage?: number;
+    // Campos mapeados al Backend (Sequelize Model)
+    clientEmail?: string | null;
+    createdByName?: string; 
+    
+    // Campos Financieros
+    montoFlete?: number;        // Monto Base del Flete
+    Montomanejo?: number;       // Monto por manejo
+    ipostelFee?: number;        // Monto Ipostel
+    insuranceAmount?: number;   // Monto Seguro
+    exchangeRate?: number;      // Tasa de cambio (BCV)
+    discountAmount?: number;    // Monto total del descuento
+    discountPercentage?: number;// Porcentaje aplicado
 }
 
 export interface Report {

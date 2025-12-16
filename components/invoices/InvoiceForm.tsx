@@ -248,7 +248,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 date: guide.date,
                 clientName: guide.sender.name || 'N/A',
                 clientIdNumber: guide.sender.idNumber || 'N/A',
-                clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
                 // Preserve original creator if exists, otherwise use current user (legacy fix)
@@ -264,7 +263,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 date: guide.date,
                 clientName: guide.sender.name || 'N/A',
                 clientIdNumber: guide.sender.idNumber || 'N/A',
-                clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
                 createdByName: creatorName, // Explicitly set current user on creation
