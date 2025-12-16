@@ -248,6 +248,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 date: guide.date,
                 clientName: guide.sender.name || 'N/A',
                 clientIdNumber: guide.sender.idNumber || 'N/A',
+                clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
                 // Preserve original creator if exists, otherwise use current user (legacy fix)
@@ -263,6 +264,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 date: guide.date,
                 clientName: guide.sender.name || 'N/A',
                 clientIdNumber: guide.sender.idNumber || 'N/A',
+                clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
                 createdByName: creatorName, // Explicitly set current user on creation
@@ -304,9 +306,24 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             message: `Procesando factura ${invoiceData.invoiceNumber}...`
         });
 
+        // --- CAMBIO CLAVE: ENVIAR EL OBJETO COMPLETO EN EL BODY ---
+        // Se reconstruye el objeto para asegurar que tiene toda la data calculada (montoFlete, etc.)
+        // mezclada con el ID y número de factura generado por la base de datos.
+        const currentFormState = buildInvoiceObject();
+        const invoiceObjectToSend = {
+            ...currentFormState,
+            id: invoiceData.id, 
+            invoiceNumber: invoiceData.invoiceNumber,
+            status: invoiceData.status,
+            paymentStatus: invoiceData.paymentStatus,
+            shippingStatus: invoiceData.shippingStatus
+        };
+
         try {
+            // Se envía el objeto completo en el body
             const result = await apiFetch<{ hkaResponse?: { cufe?: string }, message: string }>(`/invoices/${invoiceData.id}/send-to-hka`, {
                 method: 'POST',
+                body: JSON.stringify(invoiceObjectToSend),
             });
             
             addToast({
