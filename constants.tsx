@@ -271,7 +271,14 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
 // 1. ADMIN & SOPORTE TÉCNICO: Acceso Total
 const fullAccess: Record<string, boolean> = ALL_PERMISSION_KEYS.reduce((acc, key) => { acc[key] = true; return acc; }, {} as Record<string, boolean>);
 
-// 2. OPERADOR: Operaciones diarias + Registrar sus gastos
+// 2. ADMIN 2: Acceso Total EXCEPTO modificar roles
+const admin2Permissions: Record<string, boolean> = {
+    ...fullAccess,
+    'config.roles.manage': false, // BLOQUEADO: No puede crear/editar/eliminar roles
+    'config.roles.view': true,    // PERMITIDO: Puede ver la lista de roles
+};
+
+// 3. OPERADOR: Operaciones diarias + Registrar sus gastos
 const operatorPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'shipping-guide.view': true, // Crear Factura
@@ -296,7 +303,7 @@ const operatorPermissions: Record<string, boolean> = {
     'auditoria.view': false
 };
 
-// 3. ASISTENTE: Operador + Asociados
+// 4. ASISTENTE: Operador + Asociados
 const assistantPermissions: Record<string, boolean> = {
     ...operatorPermissions,
     'asociados.view': true,
@@ -307,7 +314,7 @@ const assistantPermissions: Record<string, boolean> = {
     'config.profile.edit': true
 };
 
-// 4. CONTADOR: Solo Inicio, Reportes y Libro Contable FULL
+// 5. CONTADOR: Solo Inicio, Reportes y Libro Contable FULL
 const accountantPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'reports.view': true,
@@ -340,6 +347,7 @@ const accountantPermissions: Record<string, boolean> = {
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     'role-admin': fullAccess,
+    'role-admin-2': admin2Permissions, // Nuevo rol solicitado
     'role-tech': fullAccess, // Soporte igual a admin
     'role-op': operatorPermissions,
     'role-assistant': assistantPermissions,

@@ -122,6 +122,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     // Ensure system roles exist in the state even if DB is empty/partial
                     const systemRoles: Role[] = [
                         { id: 'role-admin', name: 'Administrador', permissions: DEFAULT_ROLE_PERMISSIONS['role-admin'] },
+                        { id: 'role-admin-2', name: 'Admin2 (Restringido)', permissions: DEFAULT_ROLE_PERMISSIONS['role-admin-2'] },
                         { id: 'role-op', name: 'Operador', permissions: DEFAULT_ROLE_PERMISSIONS['role-op'] },
                         { id: 'role-tech', name: 'Soporte Técnico', permissions: DEFAULT_ROLE_PERMISSIONS['role-tech'] },
                         { id: 'role-assistant', name: 'Asistente', permissions: DEFAULT_ROLE_PERMISSIONS['role-assistant'] },
@@ -323,12 +324,20 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const endpoint = isUpdating ? `/users/${user.id}` : '/users';
             const method = isUpdating ? 'PUT' : 'POST';
 
+            // Clean up the payload
             const userToSend = { ...user };
-            if (!isUpdating) {
-                delete (userToSend as Partial<User>).id;
-            }
-            if (isUpdating && userToSend.password === '') {
-                delete userToSend.password;
+            
+            // Always remove ID from body (it's either in URL or generated)
+            delete (userToSend as Partial<User>).id;
+            
+            // Remove permissions (handled via Role or separate endpoint)
+            delete (userToSend as Partial<User>).permissions;
+
+            // Handle password logic
+            if (isUpdating) {
+                if (!userToSend.password || userToSend.password.trim() === '') {
+                    delete userToSend.password;
+                }
             }
 
             const savedUser = await apiFetch<User>(endpoint, {
@@ -338,8 +347,10 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             if (isUpdating) {
                 setUsers(users.map(u => u.id === savedUser.id ? savedUser : u));
+                // Update current user if self-edit
                 if (currentUser.id === savedUser.id) {
-                    setCurrentUser(savedUser);
+                    // Preserve existing token/session data, just update profile info
+                    setCurrentUser(prev => prev ? { ...prev, ...savedUser } : savedUser);
                 }
             } else {
                 setUsers([...users, savedUser]);
