@@ -1,12 +1,12 @@
 
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
 import { CompanyInfo, User, Role, Office, Category, ShippingType, PaymentMethod, Permissions, ExpenseCategory, CuentaContable } from '../types';
 import { useToast } from '../components/ui/ToastProvider';
 import { useSystem } from './SystemContext';
 import { useAuth } from './AuthContext';
 import { apiFetch } from '../utils/api';
 import { PLAN_DE_CUENTAS_INICIAL } from '../data/contabilidad';
-import { DEFAULT_ROLE_PERMISSIONS, ALL_PERMISSION_KEYS } from '../constants';
+import { DEFAULT_ROLE_PERMISSIONS } from '../constants';
 
 type ConfigContextType = {
     companyInfo: CompanyInfo;
@@ -71,7 +71,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [isLoading, setIsLoading] = useState(true);
 
     // Helper function to safely fetch data that might be restricted (403) or missing (404)
-    const fetchSafe = async <T,>(endpoint: string, fallbackValue: T): Promise<T> => {
+    const fetchSafe = useCallback(async <T,>(endpoint: string, fallbackValue: T): Promise<T> => {
         try {
             return await apiFetch<T>(endpoint);
         } catch (error: any) {
@@ -87,7 +87,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             console.warn(`Error fetching ${endpoint}:`, error.message);
             return fallbackValue;
         }
-    };
+    }, []);
 
     useEffect(() => {
         const fetchConfigData = async () => {
@@ -100,351 +100,243 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     const hasFullAccess = isAdmin || isTech;
 
                     const [
-                        categoriesData, 
-                        officesData, 
-                        shippingTypesData, 
+                        infoData, 
+                        categoriesData,
+                        officesData,
+                        shippingTypesData,
                         paymentMethodsData,
-                        rolesData 
                     ] = await Promise.all([
+                        fetchSafe<CompanyInfo>('/company-info', FALLBACK_COMPANY_INFO),
                         fetchSafe<Category[]>('/categories', []),
                         fetchSafe<Office[]>('/offices', []),
                         fetchSafe<ShippingType[]>('/shipping-types', []),
                         fetchSafe<PaymentMethod[]>('/payment-methods', []),
-                        fetchSafe<Role[]>('/roles', [])
                     ]);
 
+                    setCompanyInfo(infoData);
                     setCategories(categoriesData);
                     setOffices(officesData);
                     setShippingTypes(shippingTypesData);
                     setPaymentMethods(paymentMethodsData);
-                    
-                    // --- ROLE MERGING LOGIC ---
-                    // Ensure system roles exist in the state even if DB is empty/partial
-                    const systemRoles: Role[] = [
-                        { id: 'role-admin', name: 'Administrador', permissions: DEFAULT_ROLE_PERMISSIONS['role-admin'] },
-                        { id: 'role-admin-2', name: 'Admin2 (Restringido)', permissions: DEFAULT_ROLE_PERMISSIONS['role-admin-2'] },
-                        { id: 'role-op', name: 'Operador', permissions: DEFAULT_ROLE_PERMISSIONS['role-op'] },
-                        { id: 'role-tech', name: 'Soporte Técnico', permissions: DEFAULT_ROLE_PERMISSIONS['role-tech'] },
-                        { id: 'role-assistant', name: 'Asistente', permissions: DEFAULT_ROLE_PERMISSIONS['role-assistant'] },
-                        { id: 'role-accountant', name: 'Contador', permissions: DEFAULT_ROLE_PERMISSIONS['role-accountant'] },
-                    ];
 
-                    const mergedRoles = [...rolesData];
-                    // Add system roles if they are not present by ID in the fetched data
-                    systemRoles.forEach(sysRole => {
-                        if (!mergedRoles.find(r => r.id === sysRole.id)) {
-                            // Also check by name to avoid duplicates if ID is different (e.g. auto-generated in DB)
-                            if (!mergedRoles.find(r => r.name.toLowerCase() === sysRole.name.toLowerCase())) {
-                                mergedRoles.push(sysRole);
-                            }
-                        }
-                    });
-                    
-                    setRoles(mergedRoles);
-
-                    const [expenseCategoriesData, cuentasData] = await Promise.all([
-                        fetchSafe<ExpenseCategory[]>('/expense-categories', []),
-                        fetchSafe<CuentaContable[]>('/cuentas-contables', [])
-                    ]);
-
-                    setExpenseCategories(expenseCategoriesData);
-                    
-                    // Determine if we should show accounting plan based on role guess or actual permissions
-                    const roleName = rolesData.find(r => r.id === currentUser.roleId)?.name?.toLowerCase() || '';
-                    const hasAccountingPerm = 
-                        currentUser.permissions?.['libro-contable.view'] || 
-                        roleName.includes('contador') ||
-                        roleName.includes('admin') ||
-                        (rolesData.find(r => r.id === currentUser.roleId)?.permissions['libro-contable.view']);
-
-                    if (cuentasData && cuentasData.length > 0) {
-                        setCuentasContables(cuentasData);
-                    } else if (hasAccountingPerm || hasFullAccess) {
-                         setCuentasContables(PLAN_DE_CUENTAS_INICIAL);
+                    // Fetch Protected Data based on roles
+                    if (hasFullAccess) {
+                        const [usersData, rolesData] = await Promise.all([
+                            fetchSafe<User[]>('/users', []),
+                            fetchSafe<Role[]>('/roles', []),
+                        ]);
+                        setUsers(usersData);
+                        setRoles(rolesData);
                     } else {
-                        setCuentasContables([]);
+                        // For non-admins, ensure current user's role is loaded to check permissions
+                        const myRole = await fetchSafe<Role>(`/roles/${currentUser.roleId}`, { id: currentUser.roleId, name: 'User', permissions: {} });
+                        setRoles([myRole]);
                     }
 
-                    if (hasFullAccess) {
-                        const usersData = await fetchSafe<User[]>('/users', []);
-                        setUsers(usersData);
+                    // Fetch Accounting Data (Available to Admins, Techs, Accountants)
+                    const isAccountant = currentUser.roleId === 'role-accountant';
+                    if (hasFullAccess || isAccountant) {
+                         const [expCatsData, cuentasData] = await Promise.all([
+                            fetchSafe<ExpenseCategory[]>('/expense-categories', []),
+                            fetchSafe<CuentaContable[]>('/cuentas-contables', PLAN_DE_CUENTAS_INICIAL),
+                        ]);
+                        setExpenseCategories(expCatsData);
+                        setCuentasContables(cuentasData);
                     } else {
-                        setUsers([]);
+                        // Regular users need expense categories for petty cash
+                        const expCatsData = await fetchSafe<ExpenseCategory[]>('/expense-categories', []);
+                        setExpenseCategories(expCatsData);
                     }
 
                 } catch (error: any) {
-                    addToast({ type: 'error', title: 'Error de Carga Parcial', message: `Algunos datos de configuración no se pudieron cargar: ${error.message}` });
+                    addToast({ type: 'error', title: 'Error de Configuración', message: `No se pudo cargar la configuración: ${error.message}` });
                 } finally {
                     setIsLoading(false);
                 }
             } else if (!isAuthenticated) {
-                 try {
-                     const companyData = await apiFetch<CompanyInfo>('/company-info');
-                     setCompanyInfo(companyData);
-                 } catch (error: any) {
-                    console.warn("Modo Offline: No se pudo conectar con el servidor de configuración.", error);
+                // Fetch public config (Company Info for login screen)
+                try {
+                    const infoData = await fetchSafe<CompanyInfo>('/company-info', FALLBACK_COMPANY_INFO);
+                    setCompanyInfo(infoData);
+                } catch(e) {
                     setCompanyInfo(FALLBACK_COMPANY_INFO);
-                 } finally {
-                     setIsLoading(false);
-                 }
+                }
+                setIsLoading(false);
             }
         };
+
         fetchConfigData();
-    }, [isAuthenticated, currentUser, addToast]);
+    }, [isAuthenticated, currentUser, fetchSafe, addToast]);
 
-     useEffect(() => {
-        if (isAuthenticated) {
-            apiFetch<CompanyInfo>('/company-info')
-                .then(data => setCompanyInfo(data))
-                .catch(err => console.warn("Background fetch company info failed", err));
-        }
-    }, [isAuthenticated]);
-
+    // Calculate permissions whenever roles or current user changes
     useEffect(() => {
-        // --- PERMISSION RESOLUTION LOGIC ---
-        // Priority 1: DB/State permissions MERGED with Default Template (to support new features)
-        // Priority 2: Name-based Fallback (if role exists but permissions empty)
-        // Priority 3: Hardcoded ID Fallback (Legacy)
-        
-        if (currentUser) {
-            const fetchedRole = roles.find(r => r.id === currentUser.roleId);
-            
-            let resolvedPermissions: Permissions = {};
-
-            // 1. Check loaded role for explicit permissions
-            if (fetchedRole && fetchedRole.permissions && Object.keys(fetchedRole.permissions).length > 0) {
-                // CRITICAL FIX: Merge the permissions from the DB with the DEFAULT permissions for this role.
-                // This ensures that if we add NEW permissions (keys) in the code (like 'plan-contable.view'), 
-                // they are picked up automatically from the default template if they don't exist in the DB yet.
-                const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId] || {};
-                
-                // If it's Admin or Tech, we want to be extra sure they get new keys as TRUE.
-                // For other roles, we trust the default template + DB overrides.
-                resolvedPermissions = { ...defaultPerms, ...fetchedRole.permissions };
-                
-                // Safety net: If Admin, ensure ALL defined keys are present and true if missing
-                if (currentUser.roleId === 'role-admin' || currentUser.roleId === 'role-tech') {
-                    ALL_PERMISSION_KEYS.forEach(key => {
-                        if (resolvedPermissions[key] === undefined) {
-                            resolvedPermissions[key] = true;
-                        }
-                    });
-                }
-            } 
-            // 2. Name-based Fallback: If role exists but has NO permissions (e.g. manually created "Contador"), use default template
-            else if (fetchedRole) {
-                const roleNameLower = fetchedRole.name.toLowerCase();
-                if (roleNameLower.includes('admin')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-admin'];
-                else if (roleNameLower.includes('operador')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-op'];
-                else if (roleNameLower.includes('asistente')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-assistant'];
-                else if (roleNameLower.includes('contador')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-accountant'];
-                else if (roleNameLower.includes('soporte')) resolvedPermissions = DEFAULT_ROLE_PERMISSIONS['role-tech'];
+        if (currentUser && roles.length > 0) {
+            const userRole = roles.find(r => r.id === currentUser.roleId);
+            if (userRole) {
+                // If role exists in DB, use its permissions
+                setUserPermissions(userRole.permissions);
+            } else if (DEFAULT_ROLE_PERMISSIONS[currentUser.roleId]) {
+                // Fallback to hardcoded permissions if role not found in DB (e.g. initial setup)
+                setUserPermissions(DEFAULT_ROLE_PERMISSIONS[currentUser.roleId]);
+            } else {
+                setUserPermissions({});
             }
-
-            // 3. ID-based Fallback: Check hardcoded IDs
-            if (Object.keys(resolvedPermissions).length === 0) {
-                 resolvedPermissions = DEFAULT_ROLE_PERMISSIONS[currentUser.roleId] || {};
-            }
-            
-            // 4. User Object Fallback: Last resort, use permissions attached to user at login
-            if (Object.keys(resolvedPermissions).length === 0 && currentUser.permissions) {
-                resolvedPermissions = currentUser.permissions;
-            }
-
-            setUserPermissions(resolvedPermissions);
         } else {
             setUserPermissions({});
         }
     }, [currentUser, roles]);
 
-    useEffect(() => {
-        document.title = companyInfo.name || 'Facturación';
-    }, [companyInfo]);
 
     const handleLogin = async (username: string, password: string, rememberMe: boolean) => {
         try {
-            const { user, accessToken, refreshToken } = await apiFetch<{ user: User; accessToken: string; refreshToken: string; }>('/auth/login', {
+            const data = await apiFetch<{ accessToken: string, refreshToken: string, user: User }>('/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({ username, password }),
             });
-    
-            if (user && accessToken && refreshToken) {
-                localStorage.setItem('accessToken', accessToken);
-                localStorage.setItem('refreshToken', refreshToken);
-    
-                if (rememberMe) localStorage.setItem('rememberedUser', user.username);
-                else localStorage.removeItem('rememberedUser');
+
+            if (data.accessToken && data.user) {
+                localStorage.setItem('accessToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken);
+                if (rememberMe) {
+                    localStorage.setItem('rememberedUser', username);
+                } else {
+                    localStorage.removeItem('rememberedUser');
+                }
                 
-                setCurrentUser(user);
+                setCurrentUser(data.user);
                 setIsAuthenticated(true);
-                window.location.hash = 'dashboard';
-                addToast({ type: 'success', title: '¡Bienvenido!', message: `Ha iniciado sesión como ${user.name}.` });
-                logAction(user, 'INICIO_SESION', `El usuario '${user.name}' inició sesión.`);
-            } else { throw new Error('Respuesta de autenticación inválida'); }
+                addToast({ type: 'success', title: 'Bienvenido', message: `Has iniciado sesión como ${data.user.name}` });
+            } else {
+                throw new Error('Respuesta inválida del servidor');
+            }
         } catch (error: any) {
-            addToast({ type: 'error', title: 'Error de Autenticación', message: error.message || 'Usuario o contraseña incorrectos o servidor no disponible.' });
+            addToast({ type: 'error', title: 'Error de Autenticación', message: error.message || 'Credenciales inválidas' });
+            throw error; // Re-throw to let the LoginView handle UI state
         }
     };
-    
+
     const handleLogout = async () => {
         try {
-            if (currentUser) {
-                await logAction(currentUser, 'CIERRE_SESION', `El usuario '${currentUser.name}' cerró sesión.`);
-            }
-            await apiFetch('/auth/logout', { method: 'POST' });
-            addToast({ type: 'info', title: 'Sesión Cerrada', message: 'Ha cerrado sesión exitosamente.' });
-        } catch (error: any) {
-            console.error('Logout failed:', error);
+            // Optional: Call logout endpoint if backend invalidates tokens
+            await apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
         } finally {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
             setIsAuthenticated(false);
             setCurrentUser(null);
+            setUserPermissions({});
             window.location.hash = '';
         }
     };
 
-    const handleCompanyInfoSave = async (info: CompanyInfo) => {
-        try {
-            const updatedInfo = await apiFetch<CompanyInfo>('/company-info', {
-                method: 'PUT',
-                body: JSON.stringify(info)
-            });
-            setCompanyInfo(updatedInfo);
-            addToast({ type: 'success', title: 'Configuración Guardada', message: 'La información de la empresa ha sido actualizada.' });
-        } catch (error: any) {
-            addToast({ type: 'error', title: 'Error al Guardar', message: error.message });
-        }
-    };
+    // --- Generic CRUD Handlers ---
 
-    const handleSaveUser = async (user: User) => {
-        if (!currentUser) return;
-        try {
-            const isUpdating = !!user.id;
-            const endpoint = isUpdating ? `/users/${user.id}` : '/users';
-            const method = isUpdating ? 'PUT' : 'POST';
-
-            // Clean up the payload
-            const userToSend = { ...user };
-            
-            // Always remove ID from body (it's either in URL or generated)
-            delete (userToSend as Partial<User>).id;
-            
-            // Remove permissions (handled via Role or separate endpoint)
-            delete (userToSend as Partial<User>).permissions;
-
-            // Handle password logic
-            if (isUpdating) {
-                if (!userToSend.password || userToSend.password.trim() === '') {
-                    delete userToSend.password;
-                }
-            }
-
-            const savedUser = await apiFetch<User>(endpoint, {
-                method,
-                body: JSON.stringify(userToSend),
-            });
-
-            if (isUpdating) {
-                setUsers(users.map(u => u.id === savedUser.id ? savedUser : u));
-                // Update current user if self-edit
-                if (currentUser.id === savedUser.id) {
-                    // Preserve existing token/session data, just update profile info
-                    setCurrentUser(prev => prev ? { ...prev, ...savedUser } : savedUser);
-                }
-            } else {
-                setUsers([...users, savedUser]);
-            }
-            logAction(currentUser, isUpdating ? 'ACTUALIZAR_USUARIO' : 'CREAR_USUARIO', `Guardó al usuario ${savedUser.name}.`, savedUser.id);
-            addToast({ type: 'success', title: 'Usuario Guardado', message: `El usuario ${savedUser.name} ha sido guardado.` });
-        } catch (error: any) {
-            addToast({ type: 'error', title: 'Error al Guardar Usuario', message: error.message });
-        }
-    };
-
-    const onDeleteUser = async (userId: string) => {
-        if (!currentUser) return;
-        try {
-            const userName = users.find(u => u.id === userId)?.name;
-            await apiFetch(`/users/${userId}`, { method: 'DELETE' });
-            setUsers(users.filter(u => u.id !== userId));
-            logAction(currentUser, 'ELIMINAR_USUARIO', `Eliminó al usuario ${userName}.`, userId);
-            addToast({ type: 'success', title: 'Usuario Eliminado', message: 'El usuario ha sido eliminado.' });
-        } catch (error: any) {
-            addToast({ type: 'error', title: 'Error al Eliminar', message: error.message });
-        }
-    };
-    
-    const handleGenericSave = async <T extends { id?: string }>(item: T, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<T[]>>, itemType: string) => {
+    const handleGenericSave = async <T extends { id?: string }>(item: T, endpoint: string, setter: React.Dispatch<React.SetStateAction<T[]>>, itemType: string) => {
         const isUpdating = !!item.id;
         const url = isUpdating ? `${endpoint}/${item.id}` : endpoint;
         const method = isUpdating ? 'PUT' : 'POST';
-
+        
+        // Remove ID from body for creation if it's empty
         const bodyToSend = { ...item };
-        if (!isUpdating) {
-            delete (bodyToSend as Partial<T>).id;
-        }
+        if (!isUpdating) delete (bodyToSend as any).id;
 
         try {
-            const savedItem = await apiFetch<T>(url, {
-                method,
-                body: JSON.stringify(bodyToSend),
-            });
-            stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === (savedItem as any).id ? savedItem : i) : [...prev, savedItem]);
-            addToast({ type: 'success', title: `${itemType} Guardado`, message: `'${(item as any).name || (item as any).nombre}' se ha guardado.` });
-        } catch (error: any) { addToast({ type: 'error', title: `Error al Guardar ${itemType}`, message: error.message }); }
+            const savedItem = await apiFetch<T>(url, { method, body: JSON.stringify(bodyToSend) });
+            setter(prev => isUpdating ? prev.map(i => i.id === savedItem.id ? savedItem : i) : [...prev, savedItem]);
+            
+            if (currentUser) logAction(currentUser, isUpdating ? `ACTUALIZAR_${itemType.toUpperCase()}` : `CREAR_${itemType.toUpperCase()}`, `${itemType} guardado: ${(item as any).name || 'Item'}`, savedItem.id);
+            addToast({ type: 'success', title: 'Guardado', message: `${itemType} guardado exitosamente.` });
+        } catch (error: any) {
+            addToast({ type: 'error', title: 'Error', message: error.message });
+        }
     };
-    
-    const handleGenericDelete = async (id: string, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<any[]>>, itemType: string) => {
+
+    const handleGenericDelete = async (id: string, endpoint: string, setter: React.Dispatch<React.SetStateAction<any[]>>, itemType: string) => {
         try {
             await apiFetch(`${endpoint}/${id}`, { method: 'DELETE' });
-            stateSetter(prev => prev.filter(item => item.id !== id));
-            addToast({ type: 'success', title: `${itemType} Eliminado`, message: `El elemento ha sido eliminado.` });
-        } catch (error: any) { addToast({ type: 'error', title: `Error al Eliminar ${itemType}`, message: error.message }); }
+            setter(prev => prev.filter(i => i.id !== id));
+            if (currentUser) logAction(currentUser, `ELIMINAR_${itemType.toUpperCase()}`, `${itemType} eliminado (ID: ${id})`, id);
+            addToast({ type: 'success', title: 'Eliminado', message: `${itemType} eliminado exitosamente.` });
+        } catch (error: any) {
+            addToast({ type: 'error', title: 'Error', message: error.message });
+        }
     };
 
-    const handleSaveRole = async (role: Role) => { await handleGenericSave(role, '/roles', setRoles, 'Rol'); };
-    const onDeleteRole = async (roleId: string) => { await handleGenericDelete(roleId, '/roles', setRoles, 'Rol'); };
+    // Specific Handlers utilizing Generic Handlers
+    const handleCompanyInfoSave = async (info: CompanyInfo) => {
+        try {
+            const savedInfo = await apiFetch<CompanyInfo>('/company-info', { method: 'PUT', body: JSON.stringify(info) });
+            setCompanyInfo(savedInfo);
+            if (currentUser) logAction(currentUser, 'CONFIG_EMPRESA', 'Actualizó información de la empresa');
+            addToast({ type: 'success', title: 'Empresa', message: 'Información actualizada.' });
+        } catch (error: any) {
+            addToast({ type: 'error', title: 'Error', message: error.message });
+        }
+    };
+
+    const handleSaveUser = (user: User) => handleGenericSave(user, '/users', setUsers, 'Usuario');
+    const onDeleteUser = (id: string) => handleGenericDelete(id, '/users', setUsers, 'Usuario');
+    
+    const handleSaveRole = (role: Role) => handleGenericSave(role, '/roles', setRoles, 'Rol');
+    const onDeleteRole = (id: string) => handleGenericDelete(id, '/roles', setRoles, 'Rol');
+    
     const onUpdateRolePermissions = async (roleId: string, permissions: Permissions) => {
         try {
-            const updatedRole = await apiFetch<Role>(`/roles/${roleId}/permissions`, {
-                method: 'PUT',
-                body: JSON.stringify({ permissions }),
-            });
-            setRoles(roles.map(r => r.id === roleId ? updatedRole : r));
-            addToast({ type: 'success', title: 'Permisos Actualizados', message: 'Los permisos del rol han sido actualizados.' });
-        } catch (error: any) { addToast({ type: 'error', title: `Error al Guardar Permisos`, message: error.message }); }
+            const updatedRole = await apiFetch<Role>(`/roles/${roleId}/permissions`, { method: 'PUT', body: JSON.stringify({ permissions }) });
+            setRoles(prev => prev.map(r => r.id === roleId ? updatedRole : r));
+            
+            // If updating current user's role, update local permissions immediately
+            if (currentUser && currentUser.roleId === roleId) {
+                setUserPermissions(updatedRole.permissions);
+            }
+            if (currentUser) logAction(currentUser, 'ACTUALIZAR_PERMISOS', `Actualizó permisos del rol ${updatedRole.name}`, roleId);
+            addToast({ type: 'success', title: 'Permisos', message: 'Permisos actualizados correctamente.' });
+        } catch (error: any) {
+            addToast({ type: 'error', title: 'Error', message: error.message });
+        }
     };
 
-    const handleSaveCategory = async (category: Category) => { await handleGenericSave(category, '/categories', setCategories, 'Categoría'); };
-    const onDeleteCategory = async (id: string) => { await handleGenericDelete(id, '/categories', setCategories, 'Categoría'); };
-    const handleSaveOffice = async (office: Office) => { await handleGenericSave(office, '/offices', setOffices, 'Oficina'); };
-    const onDeleteOffice = async (id: string) => { await handleGenericDelete(id, '/offices', setOffices, 'Oficina'); };
-    const handleSaveShippingType = async (st: ShippingType) => { await handleGenericSave(st, '/shipping-types', setShippingTypes, 'Tipo de Envío'); };
-    const onDeleteShippingType = async (id: string) => { await handleGenericDelete(id, '/shipping-types', setShippingTypes, 'Tipo de Envío'); };
-    const handleSavePaymentMethod = async (pm: PaymentMethod) => { await handleGenericSave(pm, '/payment-methods', setPaymentMethods, 'Forma de Pago'); };
-    const onDeletePaymentMethod = async (id: string) => { await handleGenericDelete(id, '/payment-methods', setPaymentMethods, 'Forma de Pago'); };
-    const handleSaveExpenseCategory = async (cat: ExpenseCategory) => { await handleGenericSave(cat, '/expense-categories', setExpenseCategories, 'Categoría de Gasto'); };
-    const onDeleteExpenseCategory = async (id: string) => { await handleGenericDelete(id, '/expense-categories', setExpenseCategories, 'Categoría de Gasto'); };
-    const handleSaveCuentaContable = async (cuenta: CuentaContable) => { await handleGenericSave(cuenta, '/cuentas-contables', setCuentasContables, 'Cuenta Contable'); };
-    const handleDeleteCuentaContable = async (id: string) => { await handleGenericDelete(id, '/cuentas-contables', setCuentasContables, 'Cuenta Contable'); };
+    const handleSaveCategory = (category: Category) => handleGenericSave(category, '/categories', setCategories, 'Categoría');
+    const onDeleteCategory = (id: string) => handleGenericDelete(id, '/categories', setCategories, 'Categoría');
+    
+    const handleSaveOffice = (office: Office) => handleGenericSave(office, '/offices', setOffices, 'Oficina');
+    const onDeleteOffice = (id: string) => handleGenericDelete(id, '/offices', setOffices, 'Oficina');
+    
+    const handleSaveShippingType = (st: ShippingType) => handleGenericSave(st, '/shipping-types', setShippingTypes, 'Tipo Envío');
+    const onDeleteShippingType = (id: string) => handleGenericDelete(id, '/shipping-types', setShippingTypes, 'Tipo Envío');
+    
+    const handleSavePaymentMethod = (pm: PaymentMethod) => handleGenericSave(pm, '/payment-methods', setPaymentMethods, 'Forma Pago');
+    const onDeletePaymentMethod = (id: string) => handleGenericDelete(id, '/payment-methods', setPaymentMethods, 'Forma Pago');
+    
+    const handleSaveExpenseCategory = (ec: ExpenseCategory) => handleGenericSave(ec, '/expense-categories', setExpenseCategories, 'Cat. Gasto');
+    const onDeleteExpenseCategory = (id: string) => handleGenericDelete(id, '/expense-categories', setExpenseCategories, 'Cat. Gasto');
 
-    const value: ConfigContextType = {
-        companyInfo, categories, users, roles, offices, shippingTypes, paymentMethods, 
-        expenseCategories, cuentasContables, userPermissions, isLoading, handleLogin, handleLogout, handleCompanyInfoSave, 
-        handleSaveUser, onDeleteUser, handleSaveRole, onDeleteRole, onUpdateRolePermissions, 
-        handleSaveCategory, onDeleteCategory,
-        handleSaveOffice, onDeleteOffice, 
-        handleSaveShippingType, onDeleteShippingType, handleSavePaymentMethod, 
-        onDeletePaymentMethod, handleSaveExpenseCategory, onDeleteExpenseCategory,
-        handleSaveCuentaContable, handleDeleteCuentaContable
-    };
+    const handleSaveCuentaContable = (cuenta: CuentaContable) => handleGenericSave(cuenta, '/cuentas-contables', setCuentasContables, 'Cuenta Contable');
+    const handleDeleteCuentaContable = (id: string) => handleGenericDelete(id, '/cuentas-contables', setCuentasContables, 'Cuenta Contable');
 
-    return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
+    return (
+        <ConfigContext.Provider value={{
+            companyInfo, categories, users, roles, offices, shippingTypes, paymentMethods, expenseCategories, cuentasContables,
+            userPermissions, isLoading,
+            handleLogin, handleLogout, handleCompanyInfoSave,
+            handleSaveUser, onDeleteUser,
+            handleSaveRole, onDeleteRole, onUpdateRolePermissions,
+            handleSaveCategory, onDeleteCategory,
+            handleSaveOffice, onDeleteOffice,
+            handleSaveShippingType, onDeleteShippingType,
+            handleSavePaymentMethod, onDeletePaymentMethod,
+            handleSaveExpenseCategory, onDeleteExpenseCategory,
+            handleSaveCuentaContable, handleDeleteCuentaContable
+        }}>
+            {children}
+        </ConfigContext.Provider>
+    );
 };
 
-export const useConfig = (): ConfigContextType => {
+export const useConfig = () => {
     const context = useContext(ConfigContext);
-    if (!context) throw new Error('useConfig must be used within a ConfigProvider');
+    if (!context) {
+        throw new Error('useConfig must be used within a ConfigProvider');
+    }
     return context;
 };
