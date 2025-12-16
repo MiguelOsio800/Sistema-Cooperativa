@@ -152,7 +152,9 @@ export interface Invoice {
     createdByName?: string; // To store "Oficinista" name
     
     // Campos Financieros Históricos (Snapshot para HKA/Reportes)
-    Montomanejo?: number; // Exactamente como en backend
+    // Usamos Montomanejo para coincidir con el backend
+    Montomanejo?: number;
+    montoFlete?: number; // Monto Base del Flete
     ipostelFee?: number;
     insuranceAmount?: number;
     exchangeRate?: number;

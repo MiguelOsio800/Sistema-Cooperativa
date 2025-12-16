@@ -229,16 +229,17 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         // Capture current user name as Creator
         const creatorName = currentUser.name;
 
-        // Extract financial values for HKA/Reports
-        // Use exact fields expected by backend: Montomanejo, etc.
+        // --- EXTRACT ALL FINANCIAL DATA FOR BACKEND MODEL ---
+        // Ensure specific field names match Backend Sequelize model exactly
         const financialData = {
-            Montomanejo: financials.handling,
+            Montomanejo: financials.handling,  // Mapped from 'handling'
+            montoFlete: financials.freight, // <--- Nuevo campo para el monto base del flete
             ipostelFee: financials.ipostel,
             insuranceAmount: financials.insuranceCost,
-            exchangeRate: companyInfo.bcvRate || 1, // Default to 1 if not set
+            exchangeRate: companyInfo.bcvRate || 1, // Snapshot of current BCV Rate
             discountAmount: financials.discount,
             discountPercentage: guide.hasDiscount ? (Number(guide.discountPercentage) || 0) : 0,
-            clientEmail: guide.sender.email || null,
+            clientEmail: guide.sender.email || null, // Capture sender email
         };
 
         if (invoice) { // EDIT MODE
@@ -252,7 +253,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 guide: guide,
                 // Preserve original creator if exists, otherwise use current user (legacy fix)
                 createdByName: invoice.createdByName || creatorName,
-                ...financialData // Add financial breakdown
+                // Spread financial snapshot data
+                ...financialData 
             };
         } else { // CREATE MODE
             return {
@@ -266,7 +268,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 totalAmount: financials.total,
                 guide: guide,
                 createdByName: creatorName, // Explicitly set current user on creation
-                ...financialData // Add financial breakdown
+                // Spread financial snapshot data
+                ...financialData 
             };
         }
     };
