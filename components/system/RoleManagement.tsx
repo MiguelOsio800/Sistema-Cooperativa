@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User, Role, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
-import { PlusIcon, EditIcon, TrashIcon, ShieldCheckIcon } from '../icons/Icons';
+import { PlusIcon, EditIcon, TrashIcon, ShieldCheckIcon, EyeIcon } from '../icons/Icons';
 import RolePermissionModal from '../configuracion/RolePermissionModal';
 import RoleFormModal from '../configuracion/RoleFormModal';
 
@@ -13,11 +13,13 @@ interface RoleManagementProps {
     onSaveRole: (role: Role) => Promise<void>;
     onDeleteRole: (roleId: string) => Promise<void>;
     onUpdateRolePermissions: (roleId: string, permissions: Permissions) => Promise<void>;
+    canManage?: boolean; // New prop to control editability
 }
 
-const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRole, onDeleteRole, onUpdateRolePermissions }) => {
+const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRole, onDeleteRole, onUpdateRolePermissions, canManage = true }) => {
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
+    const [isViewOnlyPermissions, setIsViewOnlyPermissions] = useState(false);
     
     const [isRoleFormModalOpen, setIsRoleFormModalOpen] = useState(false);
     const [editingRoleEntity, setEditingRoleEntity] = useState<Role | null>(null);
@@ -32,8 +34,9 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRol
         setIsRoleFormModalOpen(false);
     };
 
-    const handleOpenRolePermissionModal = (role: Role) => {
+    const handleOpenRolePermissionModal = (role: Role, viewOnly: boolean) => {
         setEditingRole(role);
+        setIsViewOnlyPermissions(viewOnly);
         setIsRoleModalOpen(true);
     };
 
@@ -54,9 +57,11 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRol
                             <ShieldCheckIcon className="w-6 h-6 mr-3 text-primary-500" />
                             <CardTitle>Roles del Sistema</CardTitle>
                         </div>
-                        <Button onClick={() => handleOpenRoleFormModal(null)}>
-                            <PlusIcon className="w-4 h-4 mr-2" /> Nuevo Rol
-                        </Button>
+                        {canManage && (
+                            <Button onClick={() => handleOpenRoleFormModal(null)}>
+                                <PlusIcon className="w-4 h-4 mr-2" /> Nuevo Rol
+                            </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <div className="space-y-2">
@@ -64,24 +69,28 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRol
                         <div key={role.id} className="p-3 rounded-md bg-gray-100 dark:bg-gray-800/50 flex justify-between items-center gap-2">
                             <span className="font-medium text-sm text-gray-700 dark:text-gray-200 truncate">{role.name}</span>
                             <div className="flex items-center gap-1 shrink-0">
-                                <Button size="sm" variant="secondary" onClick={() => handleOpenRolePermissionModal(role)} title="Editar Permisos">
-                                    <ShieldCheckIcon className="w-4 h-4" />
+                                <Button size="sm" variant="secondary" onClick={() => handleOpenRolePermissionModal(role, !canManage)} title={canManage ? "Editar Permisos" : "Ver Permisos"}>
+                                    {canManage ? <ShieldCheckIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                                 </Button>
-                                <Button size="sm" variant="secondary" onClick={() => handleOpenRoleFormModal(role)} title="Editar Nombre del Rol">
-                                    <EditIcon className="w-4 h-4" />
-                                </Button>
-                                <Button 
-                                    size="sm" 
-                                    variant="danger" 
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        await onDeleteRole(role.id);
-                                    }} 
-                                    disabled={isRoleInUse(role.id)} 
-                                    title={isRoleInUse(role.id) ? 'Rol en uso, no se puede eliminar' : 'Eliminar rol'}
-                                >
-                                    <TrashIcon className="w-4 h-4" />
-                                </Button>
+                                {canManage && (
+                                    <>
+                                        <Button size="sm" variant="secondary" onClick={() => handleOpenRoleFormModal(role)} title="Editar Nombre del Rol">
+                                            <EditIcon className="w-4 h-4" />
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            variant="danger" 
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                await onDeleteRole(role.id);
+                                            }} 
+                                            disabled={isRoleInUse(role.id)} 
+                                            title={isRoleInUse(role.id) ? 'Rol en uso, no se puede eliminar' : 'Eliminar rol'}
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -89,12 +98,14 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRol
             </Card>
 
             {/* Modals */}
-            <RoleFormModal
-                isOpen={isRoleFormModalOpen}
-                onClose={() => setIsRoleFormModalOpen(false)}
-                onSave={handleSaveRoleEntity}
-                role={editingRoleEntity}
-            />
+            {canManage && (
+                <RoleFormModal
+                    isOpen={isRoleFormModalOpen}
+                    onClose={() => setIsRoleFormModalOpen(false)}
+                    onSave={handleSaveRoleEntity}
+                    role={editingRoleEntity}
+                />
+            )}
 
             {editingRole && (
                  <RolePermissionModal
@@ -102,6 +113,9 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ users, roles, onSaveRol
                     onClose={() => setIsRoleModalOpen(false)}
                     onSave={handleSaveRolePermissions}
                     role={editingRole}
+                    // You might need to update RolePermissionModal to accept a readOnly prop if strictly required,
+                    // otherwise just don't save if user can't manage. 
+                    // However, for UI clarity, 'canManage' logic helps.
                 />
             )}
         </>

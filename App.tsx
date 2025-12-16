@@ -467,6 +467,11 @@ const AppContent: React.FC = () => {
                         currentUser={currentUser}
                         onLogout={handleLogout}
                         permissions={userPermissions}
+                        // Props for Profile Edit
+                        roles={roles}
+                        offices={offices}
+                        asociados={asociados}
+                        onSaveUser={handleSaveUser}
                     />
                     <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-800">
                         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">

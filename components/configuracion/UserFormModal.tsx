@@ -16,9 +16,10 @@ interface UserFormModalProps {
     offices: Office[];
     currentUser: User;
     asociados: Asociado[];
+    isProfileMode?: boolean; // New prop to indicate self-edit mode
 }
 
-const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, user, roles, offices, currentUser, asociados }) => {
+const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, user, roles, offices, currentUser, asociados, isProfileMode = false }) => {
     const [formData, setFormData] = useState<Partial<User>>({});
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -66,8 +67,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         }
     };
 
+    const modalTitle = isProfileMode ? 'Editar Mi Perfil' : (user ? 'Editar Usuario' : 'Nuevo Usuario');
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={user ? 'Editar Usuario' : 'Nuevo Usuario'}>
+        <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <Input name="name" label="Nombre Completo" value={formData.name || ''} onChange={handleChange} required error={errors.name} />
                 <Input name="username" label="Usuario (para iniciar sesión)" value={formData.username || ''} onChange={handleChange} required autoComplete="username" error={errors.username}/>
@@ -101,25 +104,31 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                     {errors.password && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.password}</p>}
                 </div>
 
-                <Select name="roleId" label="Rol" value={formData.roleId || ''} onChange={handleChange} required>
-                    {availableRoles.map(role => (
-                        <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
-                </Select>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select name="officeId" label="Oficina Asignada (Opcional)" value={formData.officeId || ''} onChange={handleChange}>
-                        <option value="">Ninguna (Acceso Global)</option>
-                        {offices.map(office => (
-                            <option key={office.id} value={office.id}>{office.name}</option>
-                        ))}
-                    </Select>
-                    <Select name="asociadoId" label="Enlazar con Asociado (Dueño de Flota)" value={formData.asociadoId || ''} onChange={handleChange}>
-                        <option value="">Ninguno (Usuario Interno)</option>
-                        {asociados.map(asoc => (
-                            <option key={asoc.id} value={asoc.id}>{asoc.nombre}</option>
-                        ))}
-                    </Select>
-                </div>
+                {/* Hide Sensitive Fields in Profile Mode */}
+                {!isProfileMode && (
+                    <>
+                        <Select name="roleId" label="Rol" value={formData.roleId || ''} onChange={handleChange} required>
+                            {availableRoles.map(role => (
+                                <option key={role.id} value={role.id}>{role.name}</option>
+                            ))}
+                        </Select>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Select name="officeId" label="Oficina Asignada (Opcional)" value={formData.officeId || ''} onChange={handleChange}>
+                                <option value="">Ninguna (Acceso Global)</option>
+                                {offices.map(office => (
+                                    <option key={office.id} value={office.id}>{office.name}</option>
+                                ))}
+                            </Select>
+                            <Select name="asociadoId" label="Enlazar con Asociado (Dueño de Flota)" value={formData.asociadoId || ''} onChange={handleChange}>
+                                <option value="">Ninguno (Usuario Interno)</option>
+                                {asociados.map(asoc => (
+                                    <option key={asoc.id} value={asoc.id}>{asoc.nombre}</option>
+                                ))}
+                            </Select>
+                        </div>
+                    </>
+                )}
+                
                 <div className="flex justify-end space-x-2 pt-4">
                     <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
                     <Button type="submit">Guardar</Button>

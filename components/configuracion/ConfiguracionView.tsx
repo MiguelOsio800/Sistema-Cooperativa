@@ -270,13 +270,15 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = (props) => {
                 />
             )}
 
-            {permissions['config.roles.manage'] && (
+            {/* Mostrar RoleManagement si se tiene permiso de VER o GESTIONAR */}
+            {(permissions['config.roles.manage'] || permissions['config.roles.view']) && (
                 <RoleManagement
                     roles={roles}
                     users={users}
                     onSaveRole={onSaveRole}
                     onDeleteRole={onDeleteRole}
                     onUpdateRolePermissions={onUpdateRolePermissions}
+                    canManage={!!permissions['config.roles.manage']}
                 />
             )}
 

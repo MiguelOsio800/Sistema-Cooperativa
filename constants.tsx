@@ -155,12 +155,14 @@ export const ALL_PERMISSION_KEYS: string[] = [
     'reports.associates.view',
     // Auditoría (1)
     'auditoria.view',
-    // Configuración General (6)
+    // Configuración General (8)
     'configuracion.view',
     'config.company.edit',
     'config.users.manage',
     'config.users.edit_protected',
     'config.users.manage_tech_users',
+    'config.profile.edit', // NUEVO: Editar perfil propio
+    'config.roles.view',   // NUEVO: Ver roles sin editar
     'config.roles.manage',
     // Configuración: Tablas Auxiliares (16)
     'categories.view',
@@ -243,7 +245,9 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'config.users.manage': 'Gestionar Usuarios',
     'config.users.edit_protected': 'Editar Usuarios Protegidos (Sistema)',
     'config.users.manage_tech_users': 'Gestionar Usuarios de Soporte',
-    'config.roles.manage': 'Gestionar Roles y Permisos',
+    'config.profile.edit': 'Editar Perfil Propio (Cabecera)',
+    'config.roles.view': 'Ver Roles del Sistema',
+    'config.roles.manage': 'Gestionar (Crear/Editar/Borrar) Roles',
     'categories.view': 'Ver Categorías de Mercancía',
     'categories.create': 'Crear Categorías',
     'categories.edit': 'Editar Categorías',
@@ -281,6 +285,7 @@ const operatorPermissions: Record<string, boolean> = {
     'proveedores.view': true, 'proveedores.create': true, 'proveedores.edit': true, 'proveedores.delete': true, // Proveedores: Permitir eliminar
     'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true, 'libro-contable.delete': true, // Gastos: Permitir eliminar
     'reports.view': true,
+    'config.profile.edit': true, // Permitir al operador cambiar su clave
     // EXCLUIDOS EXPLICITAMENTE:
     'plan-contable.view': false, // No ve libros mayores, diarios, etc.
     'invoices.manage_all_offices': false,
@@ -298,7 +303,8 @@ const assistantPermissions: Record<string, boolean> = {
     'asociados.create': true,
     'asociados.edit': true,
     'asociados.delete': false,
-    'reports.associates.view': true
+    'reports.associates.view': true,
+    'config.profile.edit': true
 };
 
 // 4. CONTADOR: Solo Inicio, Reportes y Libro Contable FULL
@@ -314,6 +320,7 @@ const accountantPermissions: Record<string, boolean> = {
     'plan-contable.create': true,
     'plan-contable.edit': true,
     'plan-contable.delete': true,
+    'config.profile.edit': true, // Contador puede cambiar su clave
     // Permisos de "Solo Lectura/Data" para que los reportes funcionen globalmente
     'invoices.manage_all_offices': true, // Para ver data de todas las oficinas en reportes
     'expenses.manage_all_offices': true,
