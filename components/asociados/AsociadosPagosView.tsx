@@ -3,7 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { Asociado, PagoAsociado, ReciboPagoAsociado, CompanyInfo, Permissions, Invoice } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
-import { PlusIcon, ReceiptIcon, ArrowLeftIcon, UserIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, EyeIcon, TrashIcon } from '../icons/Icons';
+// Added CheckCircleIcon to the imports
+import { PlusIcon, ReceiptIcon, ArrowLeftIcon, UserIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, EyeIcon, TrashIcon, CheckCircleIcon } from '../icons/Icons';
 import PagoAsociadoFormModal from './PagoAsociadoFormModal';
 import RegistrarPagoModal from './RegistrarPagoModal';
 import Select from '../ui/Select';
@@ -52,10 +53,21 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
         if (!selectedAsociadoId) {
             return { pagosPendientes: [], recibosAsociado: [], totalDeuda: 0 };
         }
+        // Filtramos estrictamente por asociado y estado 'Pendiente'
         const misPagos = pagos.filter(p => p.asociadoId === selectedAsociadoId);
-        const pendientes = misPagos.filter(p => p.status === 'Pendiente').sort((a,b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime());
-        const misRecibos = recibos.filter(r => r.asociadoId === selectedAsociadoId).sort((a,b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
-        const deuda = pendientes.reduce((sum, p) => sum + p.montoBs, 0);
+        
+        // REGLA: Solo lo que está en 'Pendiente' va a la lista de deudas y al saldo deudor
+        const pendientes = misPagos
+            .filter(p => p.status === 'Pendiente')
+            .sort((a,b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime());
+        
+        const misRecibos = recibos
+            .filter(r => r.asociadoId === selectedAsociadoId)
+            .sort((a,b) => new Date(r.fechaPago).getTime() - new Date(a.fechaPago).getTime());
+        
+        // El saldo deudor total ahora solo suma los montos de pagos que siguen como 'Pendiente'
+        const deuda = pendientes.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
+        
         return { 
             pagosPendientes: pendientes, 
             recibosAsociado: misRecibos,
@@ -194,7 +206,10 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                                         </div>
                                     )
                                 }) : (
-                                    <p className="text-center py-8 text-gray-500 dark:text-gray-400">El asociado está solvente.</p>
+                                    <div className="text-center py-12">
+                                        <CheckCircleIcon className="mx-auto h-12 w-12 text-green-500 mb-2" />
+                                        <p className="text-gray-500 dark:text-gray-400">El asociado está al día con sus pagos.</p>
+                                    </div>
                                 )}
                             </div>
                         </Card>
@@ -206,7 +221,7 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                             </CardHeader>
                             <div className="space-y-3 max-h-[29rem] overflow-y-auto pr-2">
                                 {recibosAsociado.length > 0 ? recibosAsociado.map(r => (
-                                    <div key={r.id} className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-md block">
+                                    <div key={r.id} className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-md block border-l-4 border-green-500">
                                         <div className="flex justify-between items-center text-sm">
                                             <div>
                                                 <p className="font-semibold">Recibo N°: {r.comprobanteNumero}</p>
