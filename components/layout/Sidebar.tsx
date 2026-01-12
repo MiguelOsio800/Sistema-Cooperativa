@@ -45,9 +45,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, permissions, isSidebarOp
 
     const visibleNavItems = NAV_ITEMS.filter(item => {
        const key = item.permissionKey;
-       // PURE PERMISSION CHECK:
-       // The visibility of the menu item depends ONLY on whether the user has the 'view' permission.
-       return permissions[key];
+       
+       // ADMIN BYPASS: role-admin y role-tech ven todo
+       if (['role-admin', 'role-tech'].includes(currentUser.roleId)) {
+           return true;
+       }
+
+       // Para otros roles, verificar el objeto de permisos
+       return permissions && permissions[key] === true;
     });
 
     return (

@@ -14,21 +14,8 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
         return { freight: 0, insuranceCost: 0, handling: 0, discount: 0, subtotal: 0, ipostel: 0, iva: 0, igtf: 0, total: 0 };
     }
 
-    const costPerKg = parseFloat(String(companyInfo.costPerKg)) || 0;
-
-    // Calculate total chargeable weight (max of real vs. volumetric)
-    const totalWeight = guide.merchandise.reduce((acc, item) => {
-        const realWeight = parseFloat(String(item.weight)) || 0;
-        const length = parseFloat(String(item.length)) || 0;
-        const width = parseFloat(String(item.width)) || 0;
-        const height = parseFloat(String(item.height)) || 0;
-        const quantity = parseFloat(String(item.quantity)) || 1;
-
-        const volumetricWeight = (length * width * height) / 5000;
-        return acc + Math.max(realWeight, volumetricWeight) * quantity;
-    }, 0);
-
-    const freight = totalWeight * costPerKg;
+    // NUEVO: Flete es el monto manual ingresado
+    const freight = parseFloat(String(guide.baseFreightAmount)) || 0;
 
     // Calculate discount from freight value
     const discountPercentage = parseFloat(String(guide.discountPercentage)) || 0;
@@ -43,28 +30,25 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
     const insurancePercentage = parseFloat(String(guide.insurancePercentage)) || 0;
     const insuranceCost = guide.hasInsurance ? declaredValue * (insurancePercentage / 100) : 0;
     
-    const handling = totalWeight > 0 ? 10 : 0; // A fixed handling fee
+    // NUEVO: El campo costPerKg ahora se usa como cargo fijo por Manejo/Guía
+    const handling = parseFloat(String(companyInfo.costPerKg)) || 0;
 
     const subtotal = freightAfterDiscount + insuranceCost + handling;
     
-    // IPOSTEL is calculated based on the freight value for packages under a certain weight.
-    const freightForIpostel = guide.merchandise.reduce((acc, item) => {
-        const realWeight = parseFloat(String(item.weight)) || 0;
-        const length = parseFloat(String(item.length)) || 0;
-        const width = parseFloat(String(item.width)) || 0;
-        const height = parseFloat(String(item.height)) || 0;
-        const quantity = parseFloat(String(item.quantity)) || 1;
-
-        const volumetricWeight = (length * width * height) / 5000;
-        const chargeableWeightPerUnit = Math.max(realWeight, volumetricWeight);
-
-        // Logic adjusted: Calculate Ipostel for everything, or revert to weight limit if needed.
-        // Assuming user wants 6% on freight regardless of weight based on latest instructions.
-        const itemFreight = (chargeableWeightPerUnit * costPerKg) * quantity;
-        return acc + itemFreight;
+    // Cálculo del Peso Total
+    const totalWeight = guide.merchandise.reduce((acc, item) => {
+        return acc + (parseFloat(String(item.weight)) || 0) * (parseFloat(String(item.quantity)) || 1);
     }, 0);
 
-    const ipostel = freightForIpostel * 0.06;
+    /**
+     * REGLA REFINADA DE IPOSTEL:
+     * - Si el peso es 0: No se calcula (valor mínimo).
+     * - Si el peso está entre 0.1 y 30.99 kg: Se calcula el 6% del flete.
+     * - Si el peso es 31 kg o más: No se calcula (valor mínimo).
+     */
+    const ipostel = (totalWeight >= 0.1 && totalWeight <= 30.99) 
+        ? (freight * 0.06) 
+        : 0.000001;
     
     // IVA is now 0 as per cooperative rules
     const iva = 0;
@@ -148,7 +132,6 @@ export const calculateDetailedRemesaFinancials = (invoices: Invoice[], companyIn
         // Business Logic for Distribution:
         // Cooperativa gets 25% of Freight
         // Asociado gets 75% of Freight MINUS deductions (Ipostel, Seguro, Manejo, IVA)
-        // This matches the image logic: (45000 - 11250 - 2700 - 10 = 31040)
         
         const coopShare = fin.freight * 0.25;
         const deductions = fin.ipostel + fin.insuranceCost + fin.handling + fin.iva;

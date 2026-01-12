@@ -13,7 +13,7 @@ import RoleManagement from '../system/RoleManagement';
 import { apiFetch } from '../../utils/api';
 import { useConfig } from '../../contexts/ConfigContext';
 
-
+/* FIX: Added missing ConfiguracionViewProps interface */
 interface ConfiguracionViewProps {
     companyInfo: CompanyInfo;
     onCompanyInfoSave: (info: CompanyInfo) => Promise<void>;
@@ -29,7 +29,6 @@ interface ConfiguracionViewProps {
     onUpdateRolePermissions: (roleId: string, permissions: Permissions) => Promise<void>;
     asociados: Asociado[];
 }
-
 
 const CompanyInfoSettings: React.FC<{ info: CompanyInfo; onSave: (info: CompanyInfo) => Promise<void>; canEdit: boolean }> = ({ info, onSave, canEdit }) => {
     const [formData, setFormData] = React.useState(info);
@@ -104,7 +103,8 @@ const CompanyInfoSettings: React.FC<{ info: CompanyInfo; onSave: (info: CompanyI
                         <Input label="Código de Habilitación Postal" name="postalLicense" value={formData.postalLicense || ''} onChange={handleChange} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Costo por Kg (Bs.)" name="costPerKg" type="number" value={formData.costPerKg || ''} onChange={handleChange} required step="0.01"/>
+                        {/* ACTUALIZADO: Etiqueta de Costo por Manejo/Guía */}
+                        <Input label="Costo por Manejo/Guía (Bs.)" name="costPerKg" type="number" value={formData.costPerKg || ''} onChange={handleChange} required step="0.01"/>
                          <div>
                             <label htmlFor="bcvRate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Tasa Dólar BCV (Bs.)
@@ -239,8 +239,6 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = (props) => {
         asociados
     } = props;
 
-    // Se elimina el uso de products, handleSaveProduct y onDeleteProduct del contexto
-
     if (!permissions['configuracion.view']) {
         return <Card><CardTitle>Acceso Denegado</CardTitle><p>No tienes permiso para ver esta sección.</p></Card>;
     }
@@ -270,7 +268,6 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = (props) => {
                 />
             )}
 
-            {/* Mostrar RoleManagement si se tiene permiso de VER o GESTIONAR */}
             {(permissions['config.roles.manage'] || permissions['config.roles.view']) && (
                 <RoleManagement
                     roles={roles}

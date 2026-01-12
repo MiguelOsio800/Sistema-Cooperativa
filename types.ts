@@ -28,7 +28,7 @@ export interface CompanyInfo {
     phone: string;
     logoUrl?: string;
     loginImageUrl?: string;
-    costPerKg?: number;
+    costPerKg?: number; // Ahora usado como Costo por Manejo/Guía
     bcvRate?: number;
     postalLicense?: string;
 }
@@ -112,7 +112,7 @@ export interface ShippingGuide {
     paymentCurrency: 'VES' | 'USD';
     hasDiscount: boolean;
     discountPercentage: number;
-    // New fields
+    baseFreightAmount: number; // Nuevo: Monto manual del flete
     pickupOrder?: string;
     isTransbordo?: boolean;
     receivedBy?: string;
@@ -154,7 +154,7 @@ export interface Invoice {
     createdByName?: string; 
     
     // Campos Financieros
-    montoFlete?: number;        // Monto Base del Flete
+    montoFlete?: number;        // Monto Base del Flete (baseFreightAmount)
     Montomanejo?: number;       // Monto por manejo
     ipostelFee?: number;        // Monto Ipostel
     insuranceAmount?: number;   // Monto Seguro

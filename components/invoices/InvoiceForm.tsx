@@ -72,6 +72,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             paymentCurrency: 'VES',
             hasDiscount: false,
             discountPercentage: 0,
+            baseFreightAmount: 0,
             pickupOrder: '',
             isTransbordo: false,
             receivedBy: '',
@@ -114,18 +115,12 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         setFinancials(newFinancials);
     }, [guide, companyInfo]);
     
+    // Sincronizar Valor Declarado con el Flete si el usuario no ingresa uno manual
     useEffect(() => {
-        const totalWeight = guide.merchandise.reduce((acc, item) => {
-            const realWeight = Number(item.weight) || 0;
-            const volumetricWeight = (Number(item.length) * Number(item.width) * Number(item.height)) / 5000;
-            return acc + Math.max(realWeight, volumetricWeight) * (Number(item.quantity) || 1);
-        }, 0);
-        const freight = totalWeight * (companyInfo.costPerKg || 0);
-
-        if (guide.declaredValue !== freight) {
-            setGuide(g => ({...g, declaredValue: freight}));
+        if (guide.declaredValue !== guide.baseFreightAmount && !guide.hasInsurance) {
+            setGuide(g => ({...g, declaredValue: g.baseFreightAmount}));
         }
-    }, [guide.merchandise, companyInfo.costPerKg]);
+    }, [guide.baseFreightAmount, guide.hasInsurance]);
 
 
     const handleClientChange = (party: 'sender' | 'receiver', field: keyof Client, value: string) => {
@@ -206,6 +201,12 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             newErrors.destinationOfficeId = 'El destino no puede ser igual al origen.';
             isValid = false;
         }
+
+        // Validate Freight
+        if (guide.baseFreightAmount <= 0) {
+            newErrors.baseFreightAmount = 'El monto del flete debe ser mayor a 0.';
+            isValid = false;
+        }
     
         // Validate Merchandise
         guide.merchandise.forEach((item, index) => {
@@ -230,10 +231,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         const creatorName = currentUser.name;
 
         // --- EXTRACT ALL FINANCIAL DATA FOR BACKEND MODEL ---
-        // Ensure specific field names match Backend Sequelize model exactly
         const financialData = {
             Montomanejo: financials.handling,  // Mapped from 'handling'
-            montoFlete: financials.freight, // <--- Nuevo campo para el monto base del flete
+            montoFlete: financials.freight, // Monto Base del Flete
             ipostelFee: financials.ipostel,
             insuranceAmount: financials.insuranceCost,
             exchangeRate: companyInfo.bcvRate || 1, // Snapshot of current BCV Rate
@@ -251,24 +251,21 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
-                // Preserve original creator if exists, otherwise use current user (legacy fix)
                 createdByName: invoice.createdByName || creatorName,
-                // Spread financial snapshot data
                 ...financialData 
             };
         } else { // CREATE MODE
             return {
                 id: `INV-${Date.now()}`,
                 invoiceNumber: `F-${String(Date.now()).slice(-6)}`,
-                controlNumber: `C-${String(Date.now()).slice(-8)}`,
+                controlNumber: `C-${String(Date.now()).slice(-6)}`,
                 date: guide.date,
                 clientName: guide.sender.name || 'N/A',
                 clientIdNumber: guide.sender.idNumber || 'N/A',
                 clientEmail: guide.sender.email || null,
                 totalAmount: financials.total,
                 guide: guide,
-                createdByName: creatorName, // Explicitly set current user on creation
-                // Spread financial snapshot data
+                createdByName: creatorName,
                 ...financialData 
             };
         }
@@ -306,9 +303,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             message: `Procesando factura ${invoiceData.invoiceNumber}...`
         });
 
-        // --- CAMBIO CLAVE: ENVIAR EL OBJETO COMPLETO EN EL BODY ---
-        // Se reconstruye el objeto para asegurar que tiene toda la data calculada (montoFlete, etc.)
-        // mezclada con el ID y número de factura generado por la base de datos.
         const currentFormState = buildInvoiceObject();
         const invoiceObjectToSend = {
             ...currentFormState,
@@ -320,7 +314,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         };
 
         try {
-            // Se envía el objeto completo en el body
             const result = await apiFetch<{ hkaResponse?: { cufe?: string }, message: string }>(`/invoices/${invoiceData.id}/send-to-hka`, {
                 method: 'POST',
                 body: JSON.stringify(invoiceObjectToSend),
@@ -512,7 +505,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                     </div>
                                     {guide.hasInsurance && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <Input label="Valor Declarado" type="number" value={guide.declaredValue} disabled readOnly />
+                                            <Input label="Valor Declarado" type="number" value={guide.declaredValue} onChange={e => setGuide(g => ({...g, declaredValue: parseFloat(e.target.value) || 0}))} />
                                             <Input label="Seguro (%)" type="number" value={guide.insurancePercentage} onChange={e => setGuide(g => ({...g, insurancePercentage: Number(e.target.value)}))} />
                                         </div>
                                     )}
@@ -539,6 +532,27 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                             />
                                         </div>
                                     )}
+                                </div>
+
+                                {/* CAMPO MONTO FLETE MOVIDO AL FINAL CON DISEÑO MEJORADO */}
+                                <div className="pt-4 border-t border-primary-100 dark:border-gray-700">
+                                    <div className="relative group">
+                                        <Input 
+                                            label="Monto Flete (Bs.)" 
+                                            type="number" 
+                                            step="0.01" 
+                                            placeholder="0,00"
+                                            value={guide.baseFreightAmount || ''} 
+                                            onChange={e => setGuide(g => ({...g, baseFreightAmount: parseFloat(e.target.value) || 0}))} 
+                                            required 
+                                            error={errors.baseFreightAmount}
+                                            className="text-xl font-bold !bg-white dark:!bg-gray-700 border-2 border-primary-500 focus:border-primary-600 focus:ring-primary-500 transition-all text-primary-700 dark:text-primary-400"
+                                        />
+                                        <div className="absolute top-0 right-0 h-full flex items-center pr-3 pointer-events-none mt-3">
+                                            <span className="text-primary-300 dark:text-primary-600 font-bold text-lg">Bs.</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1 italic">Este valor es la base para los cálculos de IPOSTEL e IGTF.</p>
                                 </div>
                             </div>
                         </Card>

@@ -68,7 +68,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { addToast } = useToast();
     const { isAuthenticated, currentUser } = useAuth();
-    const dataLoadedRef = useRef(false);
+    const dataLoadedForUserRef = useRef<string | null>(null);
 
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -97,23 +97,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     useEffect(() => {
         if (!isAuthenticated) {
-            dataLoadedRef.current = false;
+            dataLoadedForUserRef.current = null;
             setIsLoading(false);
             return;
         }
 
-        if (dataLoadedRef.current || !currentUser) return;
+        if (dataLoadedForUserRef.current === currentUser?.id || !currentUser) return;
 
         const fetchData = async () => {
             try {
                 setIsLoading(true);
-                dataLoadedRef.current = true;
+                dataLoadedForUserRef.current = currentUser?.id || 'authed';
                 
                 const isAdmin = ['role-admin', 'role-tech'].includes(currentUser.roleId);
-                const perms = currentUser.permissions || {};
+                const perms = (currentUser as any).Role?.permissions || currentUser.permissions || {};
                 const promises: Promise<any>[] = [];
 
-                // Carga condicional basada en permisos para evitar 403
                 if (isAdmin || perms['invoices.view']) promises.push(fetchSafe<Invoice[]>('/invoices', []).then(d => { setInvoices(d); setInventory(deriveInventoryFromInvoices(d)); }));
                 if (isAdmin || perms['clientes.view']) promises.push(fetchSafe<Client[]>('/clients', []).then(setClients));
                 if (isAdmin || perms['proveedores.view']) promises.push(fetchSafe<Supplier[]>('/suppliers', []).then(setSuppliers));

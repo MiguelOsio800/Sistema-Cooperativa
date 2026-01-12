@@ -52,8 +52,9 @@ const FALLBACK_COMPANY_INFO: CompanyInfo = {
 
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { addToast } = useToast();
-    const { isAuthenticated, currentUser, setIsAuthenticated, setCurrentUser, refreshUser } = useAuth();
-    const hasLoadedRef = useRef(false);
+    // Fix: Added setIsAuthenticated from useAuth() to resolve the errors in handleLogin and handleLogout
+    const { isAuthenticated, currentUser, setCurrentUser, setIsAuthenticated, refreshUser } = useAuth();
+    const loadOnceRef = useRef<string | null>(null);
 
     const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({ name: 'Cargando...', rif: '', address: '', phone: '' });
     const [categories, setCategories] = useState<Category[]>([]);
@@ -75,26 +76,36 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     }, []);
 
+    // Sincronización Directa de Permisos desde el Usuario
+    useEffect(() => {
+        if (currentUser) {
+            // El backend envía el objeto Role con permisos dentro del usuario
+            const perms = (currentUser as any).Role?.permissions || currentUser.permissions || {};
+            setUserPermissions(perms);
+        } else {
+            setUserPermissions({});
+        }
+    }, [currentUser?.id, (currentUser as any)?.Role?.updatedAt]);
+
     useEffect(() => {
         if (!isAuthenticated) {
-            hasLoadedRef.current = false;
+            loadOnceRef.current = null;
             fetchSafe<CompanyInfo>('/company-info', FALLBACK_COMPANY_INFO).then(setCompanyInfo);
             setIsLoading(false);
             return;
         }
 
-        // Si ya cargamos para este usuario, no repetir para evitar bucles
-        if (hasLoadedRef.current || !currentUser) return;
+        if (loadOnceRef.current === currentUser?.id) return;
 
         const fetchConfigData = async () => {
             try {
                 setIsLoading(true);
-                hasLoadedRef.current = true;
+                loadOnceRef.current = currentUser?.id || 'authed';
                 
-                const isAdmin = ['role-admin', 'role-tech'].includes(currentUser.roleId);
-                const perms = currentUser.permissions || {};
+                const isAdmin = ['role-admin', 'role-tech'].includes(currentUser?.roleId || '');
+                const perms = (currentUser as any)?.Role?.permissions || currentUser?.permissions || {};
 
-                // 1. Carga de datos base (Empresa y Oficinas)
+                // Carga de datos base
                 const [infoData, officesData] = await Promise.all([
                     fetchSafe<CompanyInfo>('/company-info', FALLBACK_COMPANY_INFO),
                     fetchSafe<Office[]>('/offices', [])
@@ -102,7 +113,6 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 setCompanyInfo(infoData);
                 setOffices(officesData);
 
-                // 2. Carga condicional por permisos (Evita 403)
                 const promises: Promise<any>[] = [];
 
                 if (isAdmin || perms['categories.view']) promises.push(fetchSafe('/categories', []).then(setCategories));
@@ -110,11 +120,14 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 if (isAdmin || perms['payment-methods.view']) promises.push(fetchSafe('/payment-methods', []).then(setPaymentMethods));
                 if (isAdmin || perms['config.users.manage']) promises.push(fetchSafe('/users', []).then(setUsers));
 
-                // Gestión de roles (Usa /roles/me si no es admin)
+                // Gestión de roles: Solo admin carga lista completa, otros obtienen /me
                 if (isAdmin || perms['config.roles.manage'] || perms['config.roles.view']) {
                     promises.push(fetchSafe<Role[]>('/roles', []).then(setRoles));
                 } else {
-                    promises.push(fetchSafe<Role>('/roles/me', { id: currentUser.roleId, name: 'Mi Rol', permissions: perms } as Role).then(r => setRoles([r])));
+                    // Eliminamos el fetch a /api/roles/:id individual para evitar 403
+                    if ((currentUser as any)?.Role) {
+                        setRoles([(currentUser as any).Role]);
+                    }
                 }
 
                 if (isAdmin || perms['plan-contable.view']) {
@@ -129,14 +142,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         };
 
         fetchConfigData();
-    }, [isAuthenticated, currentUser?.id, fetchSafe]); // Solo re-ejecutar si cambia el ID del usuario o el estado de auth
-
-    useEffect(() => {
-        if (currentUser) {
-            const role = roles.find(r => r.id === currentUser.roleId);
-            setUserPermissions(role?.permissions || currentUser.permissions || {});
-        }
-    }, [currentUser, roles]);
+    }, [isAuthenticated, currentUser?.id, fetchSafe]);
 
     const handleLogin = async (username: string, password: string, rememberMe: boolean) => {
         const data = await apiFetch<{ accessToken: string, refreshToken: string, user: User }>('/auth/login', {
@@ -146,9 +152,9 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (data.accessToken) {
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
+            loadOnceRef.current = null; // Reset para forzar carga fresca
             setCurrentUser(data.user);
             setIsAuthenticated(true);
-            hasLoadedRef.current = false; // Reset ref para nueva carga
         }
     };
 
@@ -157,7 +163,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         localStorage.removeItem('refreshToken');
         setIsAuthenticated(false);
         setCurrentUser(null);
-        hasLoadedRef.current = false;
+        loadOnceRef.current = null;
         window.location.hash = '';
     };
 
@@ -179,7 +185,6 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         addToast({ type: 'success', title: 'Permisos', message: 'Rol actualizado.' });
     };
 
-    // Funciones auxiliares simplificadas
     const handleAuxSave = async <T extends {id?: string}>(item: T, path: string, setter: any) => {
         const isUpdating = !!item.id;
         const saved = await apiFetch<T>(isUpdating ? `${path}/${item.id}` : path, { 

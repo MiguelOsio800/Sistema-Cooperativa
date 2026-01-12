@@ -13,7 +13,6 @@ interface NavItem {
 }
 
 // 1. Menú Lateral (Sidebar)
-// Solo se listan los módulos principales que requieren permisos .view
 export const NAV_ITEMS: NavItem[] = [
     { id: 'dashboard', label: 'Inicio', icon: HomeIcon, permissionKey: 'dashboard.view' },
     { id: 'shipping-guide', label: 'Crear Factura', icon: FilePlusIcon, permissionKey: 'shipping-guide.view' },
@@ -161,8 +160,8 @@ export const ALL_PERMISSION_KEYS: string[] = [
     'config.users.manage',
     'config.users.edit_protected',
     'config.users.manage_tech_users',
-    'config.profile.edit', // NUEVO: Editar perfil propio
-    'config.roles.view',   // NUEVO: Ver roles sin editar
+    'config.profile.edit',
+    'config.roles.view',
     'config.roles.manage',
     // Configuración: Tablas Auxiliares (16)
     'categories.view',
@@ -267,43 +266,35 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
 };
 
 // --- DEFINICIÓN EXACTA DE ROLES ---
-
-// 1. ADMIN & SOPORTE TÉCNICO: Acceso Total
 const fullAccess: Record<string, boolean> = ALL_PERMISSION_KEYS.reduce((acc, key) => { acc[key] = true; return acc; }, {} as Record<string, boolean>);
 
-// 2. ADMIN 2: Acceso Total EXCEPTO modificar roles
 const admin2Permissions: Record<string, boolean> = {
     ...fullAccess,
-    'config.roles.manage': false, // BLOQUEADO: No puede crear/editar/eliminar roles
-    'config.roles.view': true,    // PERMITIDO: Puede ver la lista de roles
+    'config.roles.manage': false,
+    'config.roles.view': true,
 };
 
-// 3. OPERADOR: Operaciones diarias + Registrar sus gastos
 const operatorPermissions: Record<string, boolean> = {
     'dashboard.view': true,
-    'shipping-guide.view': true, // Crear Factura
-    // Facturas: Permitir eliminación
+    'shipping-guide.view': true,
     'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true, 'invoices.void': true, 'invoices.delete': true,
     'despachos.view': true, 'despachos.create': true, 'despachos.receive': true,
-    // Flota: Permitir gestión completa para el operador
     'flota.view': true, 'flota.create': true, 'flota.edit': true, 'flota.delete': true, 'flota.dispatch': true,
-    'remesas.view': true, 'remesas.create': true, 'remesas.delete': true, // Remesas: Permitir eliminar
-    'clientes.view': true, 'clientes.create': true, 'clientes.edit': true, 'clientes.delete': true, // Clientes: Permitir eliminar
-    'proveedores.view': true, 'proveedores.create': true, 'proveedores.edit': true, 'proveedores.delete': true, // Proveedores: Permitir eliminar
-    'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true, 'libro-contable.delete': true, // Gastos: Permitir eliminar
+    'remesas.view': true, 'remesas.create': true, 'remesas.delete': true,
+    'clientes.view': true, 'clientes.create': true, 'clientes.edit': true, 'clientes.delete': true,
+    'proveedores.view': true, 'proveedores.create': true, 'proveedores.edit': true, 'proveedores.delete': true,
+    'libro-contable.view': true, 'libro-contable.create': true, 'libro-contable.edit': true, 'libro-contable.delete': true,
     'reports.view': true,
-    'config.profile.edit': true, // Permitir al operador cambiar su clave
-    // EXCLUIDOS EXPLICITAMENTE:
-    'plan-contable.view': false, // No ve libros mayores, diarios, etc.
+    'config.profile.edit': true,
+    'plan-contable.view': false,
     'invoices.manage_all_offices': false,
     'expenses.manage_all_offices': false,
-    'asociados.view': false, // Operador no ve asociados
+    'asociados.view': false,
     'inventario.view': false,
     'configuracion.view': false,
     'auditoria.view': false
 };
 
-// 4. ASISTENTE: Operador + Asociados
 const assistantPermissions: Record<string, boolean> = {
     ...operatorPermissions,
     'asociados.view': true,
@@ -314,7 +305,6 @@ const assistantPermissions: Record<string, boolean> = {
     'config.profile.edit': true
 };
 
-// 5. CONTADOR: Solo Inicio, Reportes y Libro Contable FULL
 const accountantPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'reports.view': true,
@@ -323,23 +313,21 @@ const accountantPermissions: Record<string, boolean> = {
     'libro-contable.create': true,
     'libro-contable.edit': true,
     'libro-contable.delete': true,
-    'plan-contable.view': true, // Activa la vista completa contable
+    'plan-contable.view': true,
     'plan-contable.create': true,
     'plan-contable.edit': true,
     'plan-contable.delete': true,
-    'config.profile.edit': true, // Contador puede cambiar su clave
-    // Permisos de "Solo Lectura/Data" para que los reportes funcionen globalmente
-    'invoices.manage_all_offices': true, // Para ver data de todas las oficinas en reportes
+    'config.profile.edit': true,
+    'invoices.manage_all_offices': true,
     'expenses.manage_all_offices': true,
-    // El resto apagado para limpiar el menú
     'shipping-guide.view': false,
-    'invoices.view': false, // No ve el menú facturas, pero accede a la data
+    'invoices.view': false,
     'despachos.view': false,
     'flota.view': false,
     'remesas.view': false,
     'asociados.view': false,
     'clientes.view': false,
-    'proveedores.view': false, // Quizás necesite ver proveedores para cuentas por pagar? Lo dejaremos off según pedido.
+    'proveedores.view': false,
     'inventario.view': false,
     'configuracion.view': false,
     'auditoria.view': false
@@ -347,8 +335,8 @@ const accountantPermissions: Record<string, boolean> = {
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     'role-admin': fullAccess,
-    'role-admin-2': admin2Permissions, // Nuevo rol solicitado
-    'role-tech': fullAccess, // Soporte igual a admin
+    'role-admin-2': admin2Permissions,
+    'role-tech': fullAccess,
     'role-op': operatorPermissions,
     'role-assistant': assistantPermissions,
     'role-accountant': accountantPermissions,
