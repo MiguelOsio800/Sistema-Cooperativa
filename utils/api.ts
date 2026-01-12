@@ -32,8 +32,6 @@ const refreshToken = async (): Promise<string | null> => {
         // Clear tokens if refresh fails
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        // Do NOT reload page here. Let the AuthContext detect the missing/invalid token and handle the logout state UI.
-        // window.location.reload(); 
         return null;
     }
 };
@@ -63,9 +61,6 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
         headers,
     };
 
-    // Debug Log
-    // console.log(`📡 API Request: ${options.method || 'GET'} ${endpoint}`);
-
     try {
         let response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
 
@@ -73,14 +68,10 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
         if (response.status === 429 && retries > 0) {
             console.warn(`⚠️ 429 Rate Limited on ${endpoint}. Reintentando en ${backoff}ms...`);
             await sleep(backoff);
-            // Recursive call with decremented retries and doubled backoff
             return apiFetch<T>(endpoint, options, retries - 1, backoff * 2);
         }
 
         if (response.status === 401) {
-            // CRITICAL FIX: If the 401 comes from the login endpoint itself, 
-            // it means invalid credentials, NOT an expired token.
-            // We must NOT try to refresh the token in this case.
             if (endpoint.includes('/auth/login')) {
                 const errorBody = await response.json().catch(() => ({}));
                 throw new Error(errorBody.message || 'Usuario o contraseña incorrectos.');
@@ -97,12 +88,10 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
             refreshPromise = null;
 
             if (newAccessToken) {
-                // Retry the original request with the new token
                 headers.set('Authorization', `Bearer ${newAccessToken}`);
                 const retryOptions: ApiFetchOptions = { ...fetchOptions, headers };
                 response = await fetch(`${API_BASE_URL}${endpoint}`, retryOptions);
             } else {
-                 // If refresh fails, we will have been redirected, but throw to stop current execution
                 throw new Error("Session expired. Please log in again.");
             }
         }
@@ -117,11 +106,9 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
                     errorMessage = errorBody;
                 }
             } catch (e) {
-                // The response might not be JSON, keep the default error message
+                // Not JSON
             }
             
-            // Only log error if it's not a 404 (Not Found) or 403 (Forbidden)
-            // Also suppress logging if the message explicitly mentions permissions or generic fetch errors
             if (
                 response.status !== 404 && 
                 response.status !== 403 && 
@@ -134,7 +121,6 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
             throw new Error(errorMessage);
         }
         
-        // Handle 204 No Content
         if (response.status === 204) {
             return {} as T;
         }
@@ -148,12 +134,10 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
         return {} as T;
     } catch (error: any) {
         let msg = error.message;
-        // Check for common network errors including the custom one we might have set before
         if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Connection refused')) {
             msg = 'No se pudo conectar al servidor. Verifique la URL del backend y su conexión a internet.';
         }
         
-        // If it's a 403/permission error thrown above, suppress the warning log to keep console clean
         if (!msg.includes('403') && !msg.includes('404') && !msg.includes('No tiene los permisos') && !msg.includes('Error al obtener')) {
              console.warn(`🔥 Network/Fetch Error en ${endpoint}:`, msg);
         }
