@@ -63,7 +63,8 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
         
         const misRecibos = recibos
             .filter(r => r.asociadoId === selectedAsociadoId)
-            .sort((a,b) => new Date(r.fechaPago).getTime() - new Date(a.fechaPago).getTime());
+            // Fix: Corrected sort to use mapped elements 'a' and 'b' instead of undefined 'r'
+            .sort((a,b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
         
         // El saldo deudor total ahora solo suma los montos de pagos que siguen como 'Pendiente'
         const deuda = pendientes.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);

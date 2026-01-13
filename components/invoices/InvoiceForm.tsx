@@ -60,6 +60,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             date: localDateString,
             originOfficeId: userOfficeId,
             destinationOfficeId: offices.find(o => o.id !== userOfficeId)?.id || offices[1]?.id || '',
+            destinoRuta: '',
             sender: initialClientState,
             receiver: initialClientState,
             merchandise: [{ ...initialMerchandise, categoryId: categories[0]?.id || '' }],
@@ -100,6 +101,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 ...g,
                 originOfficeId: g.originOfficeId || (!canManageAllOffices && currentUser.officeId ? currentUser.officeId : offices[0]?.id || ''),
                 destinationOfficeId: g.destinationOfficeId || offices[1]?.id || '',
+                destinoRuta: g.destinoRuta || '',
                 shippingTypeId: g.shippingTypeId || shippingTypes[0]?.id || '',
                 paymentMethodId: g.paymentMethodId || paymentMethods[0]?.id || '',
                 merchandise: g.merchandise.map(m => ({...m, categoryId: m.categoryId || categories[0]?.id || ''})),
@@ -464,9 +466,17 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                 <Select label="Oficina de Origen" value={guide.originOfficeId} onChange={e => setGuide(g => ({...g, originOfficeId: e.target.value}))} disabled={!canManageAllOffices && !!currentUser.officeId}>
                                     {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
                                 </Select>
-                                <Select label="Oficina de Destino" value={guide.destinationOfficeId} onChange={e => setGuide(g => ({...g, destinationOfficeId: e.target.value}))} error={errors.destinationOfficeId}>
-                                    {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
-                                </Select>
+                                <div className="space-y-4">
+                                    <Select label="Oficina de Destino" value={guide.destinationOfficeId} onChange={e => setGuide(g => ({...g, destinationOfficeId: e.target.value}))} error={errors.destinationOfficeId}>
+                                        {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
+                                    </Select>
+                                    <Input 
+                                        label="Destino Específico / Ruta" 
+                                        placeholder="Ej: Entrega en domicilio, San Agustín..." 
+                                        value={guide.destinoRuta || ''} 
+                                        onChange={e => setGuide(g => ({...g, destinoRuta: e.target.value}))} 
+                                    />
+                                </div>
                                 <Select label="Tipo de Envío" value={guide.shippingTypeId} onChange={e => setGuide(g => ({...g, shippingTypeId: e.target.value as any}))}>
                                     {shippingTypes.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
                                 </Select>
