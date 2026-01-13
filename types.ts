@@ -100,7 +100,7 @@ export interface ShippingGuide {
     date: string;
     originOfficeId: string;
     destinationOfficeId: string;
-    destinoRuta?: string; // Nuevo: Destino específico de entrega
+    specificDestination?: string; // Renombrado para Backend: Destino específico de entrega
     sender: Partial<Client>;
     receiver: Partial<Client>;
     merchandise: Merchandise[];
@@ -162,6 +162,7 @@ export interface Invoice {
     exchangeRate?: number;      // Tasa de cambio (BCV)
     discountAmount?: number;    // Monto total del descuento
     discountPercentage?: number;// Porcentaje aplicado
+    specificDestination?: string; // Mapeo directo para persistencia en base de datos
 }
 
 export interface Report {

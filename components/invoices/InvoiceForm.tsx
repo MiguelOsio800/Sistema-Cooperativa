@@ -60,7 +60,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             date: localDateString,
             originOfficeId: userOfficeId,
             destinationOfficeId: offices.find(o => o.id !== userOfficeId)?.id || offices[1]?.id || '',
-            destinoRuta: '',
+            specificDestination: '',
             sender: initialClientState,
             receiver: initialClientState,
             merchandise: [{ ...initialMerchandise, categoryId: categories[0]?.id || '' }],
@@ -101,7 +101,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 ...g,
                 originOfficeId: g.originOfficeId || (!canManageAllOffices && currentUser.officeId ? currentUser.officeId : offices[0]?.id || ''),
                 destinationOfficeId: g.destinationOfficeId || offices[1]?.id || '',
-                destinoRuta: g.destinoRuta || '',
+                specificDestination: g.specificDestination || '',
                 shippingTypeId: g.shippingTypeId || shippingTypes[0]?.id || '',
                 paymentMethodId: g.paymentMethodId || paymentMethods[0]?.id || '',
                 merchandise: g.merchandise.map(m => ({...m, categoryId: m.categoryId || categories[0]?.id || ''})),
@@ -242,6 +242,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             discountAmount: financials.discount,
             discountPercentage: guide.hasDiscount ? (Number(guide.discountPercentage) || 0) : 0,
             clientEmail: guide.sender.email || null, // Capture sender email
+            specificDestination: guide.specificDestination || null, // Mapped to backend model
         };
 
         if (invoice) { // EDIT MODE
@@ -473,8 +474,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                     <Input 
                                         label="Destino Específico / Ruta" 
                                         placeholder="Ej: Entrega en domicilio, San Agustín..." 
-                                        value={guide.destinoRuta || ''} 
-                                        onChange={e => setGuide(g => ({...g, destinoRuta: e.target.value}))} 
+                                        value={guide.specificDestination || ''} 
+                                        onChange={e => setGuide(g => ({...g, specificDestination: e.target.value}))} 
                                     />
                                 </div>
                                 <Select label="Tipo de Envío" value={guide.shippingTypeId} onChange={e => setGuide(g => ({...g, shippingTypeId: e.target.value as any}))}>
