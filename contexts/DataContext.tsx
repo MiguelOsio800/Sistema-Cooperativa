@@ -119,7 +119,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (isAdmin || perms['flota.view']) promises.push(fetchSafe<Vehicle[]>('/vehicles', []).then(setVehicles));
                 if (isAdmin || perms['remesas.view']) promises.push(fetchSafe<Remesa[]>('/remesas', []).then(setRemesas));
                 if (isAdmin || perms['despachos.view']) promises.push(fetchSafe<Dispatch[]>('/dispatches', []).then(setDispatches));
-                if (isAdmin || perms['libro-contable.view']) promises.push(fetchSafe<Expense[]>('/expenses', []).then(setExpenses));
+                if (isAdmin || perms['libro-contable.view']) {
+                    promises.push(fetchSafe<Expense[]>('/expenses', []).then(setExpenses));
+                    promises.push(fetchSafe<AsientoManual[]>('/asientos-manuales', []).then(setAsientosManuales));
+                }
                 
                 if (isAdmin || perms['inventario-bienes.view']) {
                     promises.push(fetchSafe<Asset[]>('/assets', []).then(setAssets));
@@ -222,8 +225,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleDeletePagoAsociado: (id) => apiFetch(`/asociados/pagos/${id}`, { method: 'DELETE' }).then(() => setPagosAsociados(p => p.filter(i => i.id !== id))),
             handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados),
             handleDeleteRemesa: (id) => apiFetch(`/remesas/${id}`, { method: 'DELETE' }).then(() => setRemesas(p => p.filter(i => i.id !== id))),
-            handleSaveAsientoManual: async (a) => { setAsientosManuales(p => [...p, {...a, id: `m-${Date.now()}`}]); },
-            handleDeleteAsientoManual: async (id) => { setAsientosManuales(p => p.filter(a => a.id !== id)); },
+            handleSaveAsientoManual: async (a) => {
+                const body = {
+                    date: a.fecha,
+                    description: a.descripcion,
+                    entries: a.entries.map(e => ({
+                        cuentaContableId: e.cuentaId,
+                        debe: e.debe,
+                        haber: e.haber
+                    }))
+                };
+                const saved = await apiFetch<AsientoManual>('/asientos-manuales', { method: 'POST', body: JSON.stringify(body) });
+                setAsientosManuales(p => [saved, ...p]);
+                addToast({ type: 'success', title: 'Asiento Guardado', message: 'El asiento contable se sincronizó con el backend.' });
+            },
+            handleDeleteAsientoManual: async (id) => { 
+                await apiFetch(`/asientos-manuales/${id}`, { method: 'DELETE' });
+                setAsientosManuales(p => p.filter(a => a.id !== id)); 
+            },
             handleCreateDispatch: async (ids, vId, dId) => {
                 const resp = await apiFetch<{dispatch: Dispatch, updatedInvoices: Invoice[]}>('/dispatches', { method: 'POST', body: JSON.stringify({invoiceIds: ids, vehicleId: vId, destinationOfficeId: dId, originOfficeId: currentUser?.officeId}) });
                 const map = new Map(resp.updatedInvoices.map(i => [i.id, i]));

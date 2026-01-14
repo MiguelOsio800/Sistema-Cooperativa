@@ -9,6 +9,7 @@ interface SystemContextType {
     appErrors: AppError[];
     logAction: (user: User, actionType: string, details: string, targetId?: string) => Promise<void>;
     setAppErrors: React.Dispatch<React.SetStateAction<AppError[]>>;
+    reportErrorToBackend: (errorInfo: Partial<AppError>) => Promise<void>;
 }
 
 const SystemContext = createContext<SystemContextType | undefined>(undefined);
@@ -24,14 +25,11 @@ export const SystemProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 const isAdmin = currentUser.roleId === 'role-admin';
                 const isTech = currentUser.roleId === 'role-tech';
                 
-                // Only Admins and Tech support can see audit logs. 
-                // This prevents 403 errors for Operators.
                 if (isAdmin || isTech) {
                     try {
                         const logs = await apiFetch<AuditLog[]>('/audit-logs');
                         setAuditLog(logs);
                     } catch (error: any) {
-                        // Similar to other contexts, silence permission errors
                         if (error.message && (
                             error.message.includes('403') || 
                             error.message.includes('401') ||
@@ -45,7 +43,7 @@ export const SystemProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     setAuditLog([]);
                 }
             } else {
-                setAuditLog([]); // Clear logs on logout
+                setAuditLog([]);
             }
         };
         fetchLogs();
@@ -67,23 +65,40 @@ export const SystemProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'POST',
                 body: JSON.stringify(newLogEntry),
             });
-            // Only update state if we have logs already (implies we have permission to see them)
             if (auditLog.length > 0) {
                 setAuditLog(prev => [savedLog, ...prev]);
             }
         } catch (error: any) {
-            // Suppress "Session expired" errors during logging (common during logout)
             if (error.message && (error.message.includes('Session expired') || error.message.includes('401'))) {
-                // Silent fail for session expiry during logging
                 return;
             }
             console.error("Failed to save audit log to server:", error);
         }
     }, [auditLog]);
 
+    const reportErrorToBackend = useCallback(async (errorInfo: Partial<AppError>) => {
+        try {
+            await apiFetch('/audit-logs/report-error', {
+                method: 'POST',
+                body: JSON.stringify({
+                    message: errorInfo.message,
+                    source: errorInfo.source,
+                    lineno: errorInfo.lineno,
+                    colno: errorInfo.colno,
+                    error: errorInfo.error,
+                    timestamp: new Date().toISOString(),
+                    userId: currentUser?.id,
+                    userName: currentUser?.name
+                })
+            });
+        } catch (e) {
+            console.warn("Failed to persist error in backend:", e);
+        }
+    }, [currentUser]);
+
     useEffect(() => {
         const handleError = (message: Event | string, source?: string, lineno?: number, colno?: number, error?: Error) => {
-            const newError: AppError = {
+            const errorData: AppError = {
                 id: `err-${Date.now()}`,
                 message: typeof message === 'string' ? message : (message as ErrorEvent).message,
                 source: source || 'unknown',
@@ -92,14 +107,15 @@ export const SystemProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 error: error ? error.stack || error.toString() : 'N/A',
                 timestamp: new Date().toISOString(),
             };
-            setAppErrors(prev => [newError, ...prev.slice(0, 99)]);
+            setAppErrors(prev => [errorData, ...prev.slice(0, 99)]);
+            reportErrorToBackend(errorData);
         };
         window.onerror = handleError;
         return () => { window.onerror = null; };
-    }, [setAppErrors]);
+    }, [setAppErrors, reportErrorToBackend]);
 
     return (
-        <SystemContext.Provider value={{ auditLog, appErrors, logAction, setAppErrors }}>
+        <SystemContext.Provider value={{ auditLog, appErrors, logAction, setAppErrors, reportErrorToBackend }}>
             {children}
         </SystemContext.Provider>
     );
