@@ -3,12 +3,11 @@ import React, { useState, useMemo } from 'react';
 import { User, Role, Office, Permissions, Asociado } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
-import { PlusIcon, EditIcon, TrashIcon, UsersIcon, SearchIcon } from '../icons/Icons';
+import { PlusIcon, EditIcon, TrashIcon, UsersIcon, SearchIcon, BuildingOfficeIcon } from '../icons/Icons';
 import UserFormModal from './UserFormModal';
 import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
 import Input from '../ui/Input';
-
 
 interface UserManagementProps {
     users: User[];
@@ -21,7 +20,7 @@ interface UserManagementProps {
     asociados: Asociado[];
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 8; // Ajustado para el nuevo diseño de grid
 
 const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, onSaveUser, onDeleteUser, currentUser, userPermissions, asociados }) => {
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -45,7 +44,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, 
         totalItems,
     } = usePagination(filteredUsers, ITEMS_PER_PAGE);
 
-
     const handleOpenUserModal = (user: User | null) => {
         setEditingUser(user);
         setIsUserModalOpen(true);
@@ -56,16 +54,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, 
         setIsUserModalOpen(false);
     };
 
-    const getRoleName = (roleId: string) => roles.find(r => r.id === roleId)?.name || 'N/A';
-    const getOfficeName = (officeId?: string) => offices.find(o => o.id === officeId)?.name || 'Sin Asignar';
-    const getAsociadoName = (asociadoId?: string) => asociados.find(a => a.id === asociadoId)?.nombre || 'Ninguno';
+    const getOfficeName = (officeId?: string) => offices.find(o => o.id === officeId)?.name || 'Acceso Global';
 
     const canEditUser = (target: User): boolean => {
         const targetUsername = target.username;
         if (['tecnologia', 'cooperativa'].includes(targetUsername) && !userPermissions['config.users.edit_protected']) {
             return false;
         }
-
         const techRoleId = roles.find(r => r.name === 'Soporte Técnico')?.id;
         if (target.roleId === techRoleId && !userPermissions['config.users.manage_tech_users']) {
             return false;
@@ -83,10 +78,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, 
         return true;
     };
 
-
     return (
         <div className="space-y-6">
-            {/* User List Card */}
             <Card>
                 <CardHeader>
                     <div className="flex flex-wrap justify-between items-center gap-4">
@@ -98,7 +91,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, 
                              <Input 
                                 label=""
                                 id="search-users" 
-                                placeholder="Buscar por nombre o usuario..." 
+                                placeholder="Buscar usuarios..." 
                                 value={searchTerm} 
                                 onChange={e => setSearchTerm(e.target.value)} 
                                 icon={<SearchIcon className="w-4 h-4 text-gray-400"/>} 
@@ -109,45 +102,60 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, roles, offices, 
                         </Button>
                     </div>
                 </CardHeader>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre Completo</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Usuario</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rol</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Oficina</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dueño Flota</th>
-                                <th className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {paginatedData.map(user => {
-                                const isEditable = canEditUser(user);
-                                const isDeletable = canDeleteUser(user);
-                                return (
-                                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-gray-200">{user.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{user.username}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getRoleName(user.roleId)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getOfficeName(user.officeId)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getAsociadoName(user.asociadoId)}</td>
-                                    <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                                        <Button variant="secondary" size="sm" onClick={() => handleOpenUserModal(user)} disabled={!isEditable}><EditIcon className="w-4 h-4"/></Button>
-                                        <Button variant="danger" size="sm" onClick={async (e) => {
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {paginatedData.map(user => {
+                        const isEditable = canEditUser(user);
+                        const isDeletable = canDeleteUser(user);
+                        return (
+                            <div key={user.id} className="p-3 rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center gap-2 hover:border-primary-400 transition-colors">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded-full shrink-0">
+                                        <UsersIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                                    </div>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="font-bold text-sm text-gray-800 dark:text-gray-200 truncate">{user.name}</span>
+                                        <div className="flex items-center text-[10px] text-gray-500 uppercase tracking-wider truncate">
+                                            <BuildingOfficeIcon className="w-3 h-3 mr-1" />
+                                            {getOfficeName(user.officeId)}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Button 
+                                        variant="secondary" 
+                                        size="sm" 
+                                        onClick={() => handleOpenUserModal(user)} 
+                                        disabled={!isEditable}
+                                        title="Editar Usuario"
+                                        className="!p-2"
+                                    >
+                                        <EditIcon className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                        variant="danger" 
+                                        size="sm" 
+                                        onClick={async (e) => {
                                             e.stopPropagation();
                                             await onDeleteUser(user.id);
-                                        }} disabled={!isDeletable}><TrashIcon className="w-4 h-4"/></Button>
-                                    </td>
-                                </tr>
-                            )})}
-                        </tbody>
-                    </table>
-                    {paginatedData.length === 0 && (
-                        <p className="text-center py-10 text-gray-500 dark:text-gray-400">No se encontraron usuarios.</p>
-                    )}
+                                        }} 
+                                        disabled={!isDeletable}
+                                        title="Eliminar Usuario"
+                                        className="!p-2"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
-                 <PaginationControls
+
+                {paginatedData.length === 0 && (
+                    <p className="text-center py-10 text-gray-500 dark:text-gray-400">No se encontraron usuarios.</p>
+                )}
+
+                <PaginationControls
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={setCurrentPage}
