@@ -5,7 +5,7 @@ import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import { PlusIcon, EditIcon, TrashIcon, SaveIcon, ArrowLeftIcon, ChevronUpIcon, ChevronDownIcon } from '../icons/Icons';
+import { PlusIcon, EditIcon, TrashIcon, SaveIcon, ArrowLeftIcon, ChevronDownIcon } from '../icons/Icons';
 import CertificadoFormModal from './CertificadoFormModal';
 import { useToast } from '../ui/ToastProvider';
 
@@ -20,59 +20,14 @@ interface CertificadoVehiculoTabProps {
 }
 
 const emptyVehicle: Partial<Vehicle> = {
+    tipo: '',
+    uso: '', // Usaremos este campo para "Ruta" internamente si no hay uno específico
     placa: '',
     modelo: '',
     ano: new Date().getFullYear(),
-    color: '',
-    serialCarroceria: '',
-    serialMotor: '',
-    tipo: '',
-    uso: '',
-    servicio: '',
-    nroPuestos: 0,
-    nroEjes: 0,
-    tara: 0,
-    capacidadCarga: 0,
-    clase: '',
+    driver: '',
     actividadVehiculo: 'Carga',
 };
-
-const AccordionItem: React.FC<{
-    title: string;
-    id: string;
-    openId: string | null;
-    setOpenId: React.Dispatch<React.SetStateAction<string | null>>;
-    children: React.ReactNode;
-}> = ({ title, id, openId, setOpenId, children }) => {
-    const isOpen = openId === id;
-    return (
-        <div className="border dark:border-gray-700 rounded-lg overflow-hidden">
-            <button
-                type="button"
-                className="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
-                onClick={() => setOpenId(isOpen ? null : id)}
-                aria-expanded={isOpen}
-                aria-controls={`accordion-content-${id}`}
-            >
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
-                 <div className={`transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-                    <ChevronDownIcon className="w-5 h-5" />
-                </div>
-            </button>
-            <div
-                id={`accordion-content-${id}`}
-                className={`grid transition-all duration-500 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
-            >
-                <div className="overflow-hidden">
-                    <div className="p-4 bg-white dark:bg-gray-800">
-                        {children}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) => {
     const { 
@@ -86,10 +41,9 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
     const [isCertModalOpen, setIsCertModalOpen] = useState(false);
     const [editingCertificado, setEditingCertificado] = useState<Certificado | null>(null);
     const [vehicleIdForCertModal, setVehicleIdForCertModal] = useState<string | null>(null);
-    const [openAccordion, setOpenAccordion] = useState<string | null>('principal');
-
 
     const associateVehicles = useMemo(() => vehicles.filter(v => v.asociadoId === asociadoId), [vehicles, asociadoId]);
+    
     const vehicleCertificados = useMemo(() => {
         if (!selectedVehicle || !selectedVehicle.id) return [];
         return certificados.filter(c => c.vehiculoId === selectedVehicle.id);
@@ -98,13 +52,11 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
     const handleSelectVehicle = (vehicle: Vehicle) => {
         setSelectedVehicle(vehicle);
         setViewMode('form');
-        setOpenAccordion('principal');
     };
 
     const handleNewVehicle = () => {
         setSelectedVehicle({ ...emptyVehicle, asociadoId });
         setViewMode('form');
-        setOpenAccordion('principal');
     };
 
     const handleBackToList = () => {
@@ -125,12 +77,6 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
         }
     };
     
-    const handleCertificateStatusChange = async (cert: Certificado, newStatus: Certificado['status']) => {
-        const updatedCert = { ...cert, status: newStatus };
-        await onSaveCertificado(updatedCert);
-        addToast({ type: 'info', title: 'Estado Actualizado', message: `El estado del certificado se cambió a ${newStatus}.`});
-    };
-
     const handleOpenCertModal = (vehicleId: string, cert: Certificado | null) => {
         setVehicleIdForCertModal(vehicleId);
         setEditingCertificado(cert);
@@ -155,21 +101,20 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                             <div className="p-4">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="font-bold text-lg text-primary-600 dark:text-primary-400">{v.modelo}</p>
+                                        <p className="font-bold text-lg text-primary-600 dark:text-primary-400">{v.modelo} ({v.ano})</p>
                                         <p className="text-sm font-mono bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded inline-block">{v.placa}</p>
                                     </div>
                                     <div className="flex gap-2">
                                         <Button variant="secondary" size="sm" onClick={() => handleSelectVehicle(v)}><EditIcon className="w-4 h-4" /></Button>
                                         <Button variant="danger" size="sm" onClick={async () => {
-                                            await onDeleteVehicle(v.id);
+                                            if(window.confirm('¿Eliminar este vehículo?')) await onDeleteVehicle(v.id);
                                         }}><TrashIcon className="w-4 h-4" /></Button>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3 text-sm">
-                                    <span><strong>Año:</strong> {v.ano}</span>
-                                    <span><strong>Actividad:</strong> {v.actividadVehiculo}</span>
-                                    <span><strong>Capacidad:</strong> {v.capacidadCarga} Kg</span>
-                                    <span><strong>Color:</strong> {v.color}</span>
+                                <div className="grid grid-cols-1 gap-1 mt-3 text-sm">
+                                    <p><strong>Tipo:</strong> {v.tipo || 'N/A'}</p>
+                                    <p><strong>Ruta:</strong> {v.uso || 'N/A'}</p>
+                                    <p><strong>Conductor:</strong> {v.driver || 'N/A'}</p>
                                 </div>
                             </div>
                             <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-grow">
@@ -182,22 +127,13 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                 {vehicleCerts.length > 0 ? (
                                     <ul className="space-y-2 text-xs">
                                         {vehicleCerts.map(cert => (
-                                            <li key={cert.id} className="p-2 rounded-md bg-white dark:bg-gray-900/50 flex justify-between items-center text-gray-600 dark:text-gray-300">
-                                                <div>
-                                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{cert.descripcion}</p>
-                                                    <p>Inicio: {cert.fechaInicio}</p>
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded-full font-medium ${
-                                                    cert.status === 'Activo' ? 'bg-green-100 text-green-800 dark:bg-green-800/50 dark:text-green-300' : 
-                                                    cert.status === 'Suspendido' ? 'bg-red-100 text-red-800 dark:bg-red-800/50 dark:text-red-300' :
-                                                    cert.status === 'Excluido' ? 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800/50 dark:text-yellow-300'}`
-                                                }>{cert.status}</span>
+                                            <li key={cert.id} className="p-2 rounded-md bg-white dark:bg-gray-900/50 flex justify-between items-center">
+                                                <span>{cert.descripcion}</span>
+                                                <span className="text-gray-400">{cert.status}</span>
                                             </li>
                                         ))}
                                     </ul>
-                                ) : (
-                                    <p className="text-xs text-center text-gray-500 py-2">Sin certificados.</p>
-                                )}
+                                ) : <p className="text-xs text-center text-gray-500 py-2">Sin certificados.</p>}
                             </div>
                         </Card>
                     )
@@ -211,101 +147,67 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
         selectedVehicle && (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">{selectedVehicle.id ? 'Editando Vehículo' : 'Nuevo Vehículo'}</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{selectedVehicle.id ? 'Editando Vehículo' : 'Nuevo Vehículo'}</h3>
                 <Button variant="secondary" onClick={handleBackToList}><ArrowLeftIcon className="w-4 h-4 mr-2" />Volver a la Lista</Button>
             </div>
             
-            <form onSubmit={handleVehicleFormSubmit} className="space-y-4">
-                 <AccordionItem title="Identificación Principal" id="principal" openId={openAccordion} setOpenId={setOpenAccordion}>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Input label="Modelo Vehículo" name="modelo" value={selectedVehicle.modelo || ''} onChange={handleVehicleFormChange} required />
-                        <Input label="Placa" name="placa" value={selectedVehicle.placa || ''} onChange={handleVehicleFormChange} required />
+            <form onSubmit={handleVehicleFormSubmit} className="space-y-6">
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl border dark:border-gray-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Input label="Tipo de Vehículo" name="tipo" value={selectedVehicle.tipo || ''} onChange={handleVehicleFormChange} required placeholder="Ej. Camioneta, Autobús..." />
+                        <Input label="Ruta" name="uso" value={selectedVehicle.uso || ''} onChange={handleVehicleFormChange} required placeholder="Ej. Caracas - Valencia" />
+                        <Input label="Placa" name="placa" value={selectedVehicle.placa || ''} onChange={handleVehicleFormChange} required placeholder="ABC-123" />
+                        <Input label="Modelo" name="modelo" value={selectedVehicle.modelo || ''} onChange={handleVehicleFormChange} required placeholder="Ej. Toyota Dyna" />
                         <Input label="Año" name="ano" type="number" value={selectedVehicle.ano || ''} onChange={handleVehicleFormChange} required />
+                        <Input label="Conductor" name="driver" value={selectedVehicle.driver || ''} onChange={handleVehicleFormChange} required placeholder="Nombre completo" />
                     </div>
-                </AccordionItem>
-                
-                <AccordionItem title="Detalles de Identificación" id="detalles" openId={openAccordion} setOpenId={setOpenAccordion}>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <Input label="Serial Carrocería" name="serialCarroceria" value={selectedVehicle.serialCarroceria || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Serial Motor" name="serialMotor" value={selectedVehicle.serialMotor || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Color" name="color" value={selectedVehicle.color || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Clase" name="clase" value={selectedVehicle.clase || ''} onChange={handleVehicleFormChange} />
-                    </div>
-                </AccordionItem>
+                </div>
 
-                <AccordionItem title="Especificaciones de Operación" id="operacion" openId={openAccordion} setOpenId={setOpenAccordion}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <Input label="Tipo" name="tipo" value={selectedVehicle.tipo || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Uso" name="uso" value={selectedVehicle.uso || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Servicio" name="servicio" value={selectedVehicle.servicio || ''} onChange={handleVehicleFormChange} />
-                        <Select label="Actividad Vehículo" name="actividadVehiculo" value={selectedVehicle.actividadVehiculo || 'Carga'} onChange={handleVehicleFormChange} required>
-                            <option value="Carga">Carga</option>
-                            <option value="Pasajero">Pasajero</option>
-                        </Select>
-                    </div>
-                </AccordionItem>
-
-                <AccordionItem title="Capacidad" id="capacidad" openId={openAccordion} setOpenId={setOpenAccordion}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <Input label="Nº Puestos" name="nroPuestos" type="number" value={selectedVehicle.nroPuestos || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Nº Ejes" name="nroEjes" type="number" value={selectedVehicle.nroEjes || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Tara (Kg)" name="tara" type="number" value={selectedVehicle.tara || ''} onChange={handleVehicleFormChange} />
-                        <Input label="Cap. Carga (Kg)" name="capacidadCarga" type="number" value={selectedVehicle.capacidadCarga || ''} onChange={handleVehicleFormChange} />
-                    </div>
-                </AccordionItem>
-                
-                {/* Certificate Management for this vehicle */}
                 {selectedVehicle.id && (
-                    <AccordionItem title={`Certificados (${vehicleCertificados.length})`} id="certificados" openId={openAccordion} setOpenId={setOpenAccordion}>
-                        <div className="flex justify-end items-center mb-4">
-                            <Button type="button" onClick={() => handleOpenCertModal(selectedVehicle.id as string, null)}><PlusIcon className="w-4 h-4 mr-2" />Nuevo Certificado</Button>
+                    <div className="p-6 border dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
+                         <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-bold text-gray-800 dark:text-white uppercase tracking-wider">Certificados del Vehículo</h4>
+                            <Button type="button" size="sm" onClick={() => handleOpenCertModal(selectedVehicle.id as string, null)}><PlusIcon className="w-4 h-4 mr-2" />Nuevo Certificado</Button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <thead>
                                     <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Descripción</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Fecha Inicio</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Estado</th>
-                                        <th className="relative px-4 py-2"><span className="sr-only">Actions</span></th>
+                                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Descripción</th>
+                                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Fecha</th>
+                                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Estado</th>
+                                        <th className="relative px-4 py-2"></th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                <tbody>
                                     {vehicleCertificados.map(c => (
                                         <tr key={c.id}>
-                                            <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{c.descripcion}</td>
-                                            <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{c.fechaInicio}</td>
-                                            <td className="px-4 py-2">
-                                                <Select label="" value={c.status} onChange={async (e) => await handleCertificateStatusChange(c, e.target.value as Certificado['status'])}>
-                                                    <option value="Activo">Activo</option>
-                                                    <option value="Inactivo">Inactivo</option>
-                                                    <option value="Suspendido">Suspendido</option>
-                                                    <option value="Excluido">Excluido</option>
-                                                </Select>
-                                            </td>
-                                            <td className="px-4 py-2 text-right space-x-2">
-                                                <Button variant="secondary" size="sm" type="button" onClick={() => handleOpenCertModal(selectedVehicle.id!, c)}><EditIcon className="w-4 h-4" /></Button>
-                                                <Button variant="danger" size="sm" type="button" onClick={async () => {
-                                                    await onDeleteCertificado(c.id);
-                                                }}><TrashIcon className="w-4 h-4" /></Button>
+                                            <td className="px-4 py-2 text-sm">{c.descripcion}</td>
+                                            <td className="px-4 py-2 text-sm">{c.fechaInicio}</td>
+                                            <td className="px-4 py-2 text-sm font-semibold">{c.status}</td>
+                                            <td className="px-4 py-2 text-right">
+                                                <Button variant="danger" size="sm" type="button" onClick={() => onDeleteCertificado(c.id)}><TrashIcon className="w-4 h-4" /></Button>
                                             </td>
                                         </tr>
                                     ))}
-                                    {vehicleCertificados.length === 0 && (
-                                        <tr><td colSpan={4} className="text-center py-4 text-gray-500">No hay certificados para este vehículo.</td></tr>
-                                    )}
                                 </tbody>
                             </table>
                         </div>
-                    </AccordionItem>
+                    </div>
                 )}
-                <div className="flex justify-end pt-4"><Button type="submit"><SaveIcon className="w-4 h-4 mr-2" />Guardar Vehículo</Button></div>
+                
+                <div className="flex justify-end pt-4">
+                    <Button type="submit" size="lg">
+                        <SaveIcon className="w-5 h-5 mr-2" />
+                        {selectedVehicle.id ? 'Actualizar Vehículo' : 'Registrar Vehículo'}
+                    </Button>
+                </div>
             </form>
         </div>
     ));
 
     return (
-        <Card>
+        <div className="min-h-[400px]">
             {viewMode === 'list' ? renderListView() : renderFormView()}
             {isCertModalOpen && vehicleIdForCertModal && (
                  <CertificadoFormModal
@@ -316,7 +218,7 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                     vehiculoId={vehicleIdForCertModal}
                 />
             )}
-        </Card>
+        </div>
     );
 };
 

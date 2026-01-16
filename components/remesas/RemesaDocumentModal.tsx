@@ -135,34 +135,40 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                         {vehicle && <p className="text-black"><strong>CHOFER:</strong> {vehicle.driver}, <strong>Vehículo:</strong> {vehicle.modelo}, <strong>Color:</strong> {vehicle.color}, <strong>Placa:</strong> {vehicle.placa}</p>}
                     </div>
 
-                    {/* Invoices Table - FIXED LAYOUT */}
-                    <table className="w-full border-collapse mb-2 text-black table-fixed text-[11px]">
+                    {/* Invoices Table - UPDATED WITH RECEIVER AND TP LOGIC */}
+                    <table className="w-full border-collapse mb-2 text-black table-fixed text-[10px]">
                         <thead className="border-t-2 border-b-2 border-black">
                             <tr>
-                                <th className="text-left py-1 text-black w-[12%]">FACTURA</th>
-                                <th className="text-left py-1 text-black w-[14%]">ORIGEN</th>
-                                <th className="text-center py-1 text-black w-[5%]">TP</th>
-                                <th className="text-center py-1 text-black w-[6%]">Pzas</th>
-                                <th className="text-left pl-2 py-1 text-black w-[27%]">Encomienda</th>
-                                <th className="text-right py-1 text-black w-[12%]">Pagado</th>
-                                <th className="text-right py-1 text-black w-[12%]">Credito</th>
-                                <th className="text-right py-1 text-black w-[12%]">Destino</th>
+                                <th className="text-left py-1 text-black w-[10%]">FACTURA</th>
+                                <th className="text-left py-1 text-black w-[12%]">ORIGEN</th>
+                                <th className="text-center py-1 text-black w-[4%]">TP</th>
+                                <th className="text-left py-1 text-black w-[18%] pl-1">DESTINATARIO</th>
+                                <th className="text-center py-1 text-black w-[5%]">Pzas</th>
+                                <th className="text-left pl-2 py-1 text-black w-[21%]">ENCOMIENDA</th>
+                                <th className="text-right py-1 text-black w-[10%]">PAGADO</th>
+                                <th className="text-right py-1 text-black w-[10%]">CREDITO</th>
+                                <th className="text-right py-1 text-black w-[10%]">DESTINO</th>
                             </tr>
                         </thead>
                         <tbody className="text-black">
                             {remesaInvoices.map(inv => {
                                 const totalPackages = inv.guide.merchandise.reduce((sum, m) => sum + m.quantity, 0);
                                 const desc = inv.guide.merchandise[0]?.description || 'PAQUETE';
+                                const receiverName = inv.guide.receiver?.name || 'N/A';
                                 const amount = inv.totalAmount;
+                                
+                                // TP Logic: 01=Pagado, 02=Destino, 03=Credito (si aplica)
                                 const isPagado = inv.guide.paymentType === 'flete-pagado';
+                                const tpCode = isPagado ? '01' : '02';
                                 
                                 return (
-                                    <tr key={inv.id} className="text-black">
+                                    <tr key={inv.id} className="text-black border-b border-gray-100 last:border-0">
                                         <td className="py-1 text-black font-mono">{inv.invoiceNumber.replace('F-','')}</td>
-                                        <td className="py-1 text-black truncate pr-1">{getOfficeName(inv.guide.originOfficeId)}</td>
-                                        <td className="py-1 text-center text-black">01</td>
-                                        <td className="py-1 text-center text-black font-bold">{totalPackages}</td>
-                                        <td className="py-1 text-black pl-2 truncate">{desc}</td>
+                                        <td className="py-1 text-black truncate pr-1">{getOfficeName(inv.guide.originOfficeId).split(' ')[0]}</td>
+                                        <td className="py-1 text-center text-black font-bold">{tpCode}</td>
+                                        <td className="py-1 text-black truncate pl-1 uppercase" style={{ fontSize: '9px' }}>{receiverName}</td>
+                                        <td className="py-1 text-center text-black">{totalPackages}</td>
+                                        <td className="py-1 text-black pl-2 truncate uppercase" style={{ fontSize: '9px' }}>{desc}</td>
                                         <td className="py-1 text-right text-black">{isPagado ? formatCurrency(amount) : '0.00'}</td>
                                         <td className="py-1 text-right text-black">0.00</td>
                                         <td className="py-1 text-right text-black">{!isPagado ? formatCurrency(amount) : '0.00'}</td>
@@ -172,7 +178,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                         </tbody>
                         <tfoot className="border-t border-black font-bold text-black">
                             <tr>
-                                <td colSpan={3} className="py-1 text-right text-black pr-2">Total piezas</td>
+                                <td colSpan={4} className="py-1 text-right text-black pr-2">Total piezas</td>
                                 <td className="py-1 text-center text-black">{topTableTotals.pza}</td>
                                 <td className="py-1"></td>
                                 <td className="py-1 text-right text-black">{formatCurrency(financials.pagado.flete + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva)}</td>
@@ -300,7 +306,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
 
                     <div className="mt-8 mb-16 text-black text-[10px]">
                         <p className="font-bold text-black">OBSERVACIONES:</p>
-                        <p className="text-black">Tp:01=Pagado 02=Cobro a destino 03=Credito</p>
+                        <p className="text-black">Tp: 01=Pagado 02=Cobro a destino 03=Credito</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-16 mt-8 text-black text-[10px]">
@@ -309,8 +315,8 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                             <p className="text-[9px] text-gray-600">Firma y Cédula</p>
                         </div>
                         <div className="border-t border-black text-center pt-2">
-                            <p className="font-bold text-black">EGLET REYNA</p>
-                            <p className="text-black">Oficinista</p>
+                            <p className="font-bold text-black">ADMINISTRACIÓN</p>
+                            <p className="text-black">Firma Autorizada</p>
                         </div>
                     </div>
 

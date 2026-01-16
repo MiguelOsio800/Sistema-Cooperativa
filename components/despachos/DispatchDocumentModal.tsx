@@ -111,41 +111,42 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                         Manifiesto de Carga Inter-Oficina
                     </div>
 
-                    {/* Transport Info */}
-                    <div className="mb-4 text-black p-2 border border-black rounded-sm">
-                        <div className="grid grid-cols-2 gap-4">
-                            <p className="text-black"><strong>Conductor:</strong> {vehicle.driver}</p>
-                            <p className="text-black"><strong>Asociado:</strong> {asociado.nombre} ({asociado.codigo})</p>
-                            <p className="text-black"><strong>Vehículo:</strong> {vehicle.modelo} - {vehicle.color}</p>
-                            <p className="text-black"><strong>Placa:</strong> {vehicle.placa}</p>
-                        </div>
+                    {/* Transport Info - Modified: Simplified to only show SOCIO */}
+                    <div className="mb-4 text-black p-3 border border-black rounded-sm">
+                        <p className="text-black text-sm uppercase"><strong>SOCIO:</strong> {asociado.nombre} ({asociado.codigo})</p>
                     </div>
 
-                    {/* Main Table - Fixed Layout */}
-                    <table className="w-full border-collapse mb-6 text-[11px] text-black table-fixed">
+                    {/* Main Table - Fixed Layout with Financials */}
+                    <table className="w-full border-collapse mb-6 text-[10px] text-black table-fixed">
                         <thead className="border-t-2 border-b-2 border-black">
                             <tr>
-                                <th className="text-left py-1 text-black w-[15%]">Nº Factura</th>
-                                <th className="text-left py-1 text-black w-[15%]">Nº Control</th>
-                                <th className="text-left py-1 text-black w-[25%] pl-2">Destinatario</th>
-                                <th className="text-left py-1 text-black w-[20%]">Oficina Destino</th>
-                                <th className="text-center py-1 text-black w-[8%]">Pzas</th>
-                                <th className="text-right py-1 text-black w-[17%]">Monto Total</th>
+                                <th className="text-left py-1 text-black w-[10%]">Nº Fact.</th>
+                                <th className="text-center py-1 text-black w-[4%]">TP</th>
+                                <th className="text-left py-1 text-black w-[20%] pl-1">Destinatario</th>
+                                <th className="text-left py-1 text-black w-[15%]">Destino</th>
+                                <th className="text-center py-1 text-black w-[5%]">Pzas</th>
+                                <th className="text-right py-1 text-black w-[12%]">Pagado</th>
+                                <th className="text-right py-1 text-black w-[12%]">Credito</th>
+                                <th className="text-right py-1 text-black w-[12%]">Destino</th>
                             </tr>
                         </thead>
                         <tbody className="text-black">
                             {sortedInvoices.map((inv) => {
                                 const piezas = inv.guide.merchandise.reduce((sum, m) => sum + m.quantity, 0);
                                 const destOfficeName = offices.find(o => o.id === inv.guide.destinationOfficeId)?.name || 'N/A';
+                                const isPagado = inv.guide.paymentType === 'flete-pagado';
+                                const tpCode = isPagado ? '01' : '02';
                                 
                                 return (
-                                    <tr key={inv.id} className="border-b border-gray-300 text-black">
-                                        <td className="py-1 text-black font-mono">{inv.invoiceNumber}</td>
-                                        <td className="py-1 text-black">{inv.controlNumber}</td>
-                                        <td className="py-1 text-black truncate pl-2">{inv.guide.receiver.name}</td>
-                                        <td className="py-1 text-black truncate">{destOfficeName}</td>
+                                    <tr key={inv.id} className="border-b border-gray-200 text-black">
+                                        <td className="py-1 text-black font-mono">{inv.invoiceNumber.replace('F-','')}</td>
+                                        <td className="py-1 text-center text-black font-bold">{tpCode}</td>
+                                        <td className="py-1 text-black truncate pl-1 uppercase">{inv.guide.receiver.name}</td>
+                                        <td className="py-1 text-black truncate">{destOfficeName.split(' ')[0]}</td>
                                         <td className="py-1 text-center text-black">{piezas}</td>
-                                        <td className="py-1 text-right text-black">{formatCurrency(inv.totalAmount)}</td>
+                                        <td className="py-1 text-right text-black">{isPagado ? formatCurrency(inv.totalAmount).replace('Bs. ','') : '0.00'}</td>
+                                        <td className="py-1 text-right text-black">0.00</td>
+                                        <td className="py-1 text-right text-black">{!isPagado ? formatCurrency(inv.totalAmount).replace('Bs. ','') : '0.00'}</td>
                                     </tr>
                                 );
                             })}
@@ -154,7 +155,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                             <tr>
                                 <td colSpan={4} className="py-1 text-right uppercase text-black pr-2">Total General</td>
                                 <td className="py-1 text-center text-black">{totalPackages}</td>
-                                <td className="py-1 text-right text-black">{formatCurrency(totalAmount)}</td>
+                                <td className="py-1 text-right text-black" colSpan={3}>{formatCurrency(totalAmount)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -162,6 +163,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                     <div className="flex justify-between text-[10px] mb-8 font-bold border-t border-black pt-2">
                          <span>Total Peso Carga: {totalWeight.toFixed(2)} Kg</span>
                          <span>Total Facturas: {sortedInvoices.length}</span>
+                         <span>TP: 01=Pagado 02=Destino</span>
                     </div>
 
                     {/* Signatures */}

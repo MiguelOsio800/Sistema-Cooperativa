@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Invoice, Asociado, Vehicle, Office, CompanyInfo, Client, Category, Remesa, Dispatch, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
-import { SendIcon, TruckIcon, CheckCircleIcon, ClipboardListIcon, ArchiveBoxIcon, PrinterIcon, ArrowsRightLeftIcon } from '../icons/Icons';
+import { SendIcon, TruckIcon, CheckCircleIcon, ClipboardListIcon, ArchiveBoxIcon, PrinterIcon, ArrowsRightLeftIcon, ClockIcon, ExclamationTriangleIcon, EyeIcon } from '../icons/Icons';
 import { calculateInvoiceChargeableWeight } from '../../utils/financials';
 import { useToast } from '../ui/ToastProvider';
 import Modal from '../ui/Modal';
@@ -25,7 +25,7 @@ interface DespachosViewProps {
     permissions: Permissions;
 }
 
-type Tab = 'salidas' | 'entradas' | 'historial';
+type Tab = 'salidas' | 'entradas' | 'seguimiento' | 'historial';
 
 const DespachosView: React.FC<DespachosViewProps> = (props) => {
     const { 
@@ -48,6 +48,9 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
     const [dispatchToVerify, setDispatchToVerify] = useState<Dispatch | null>(null);
     const [verifiedInvoiceIds, setVerifiedInvoiceIds] = useState<string[]>([]);
 
+    // SEGUIMIENTO State
+    const [selectedTraceDispatch, setSelectedTraceDispatch] = useState<Dispatch | null>(null);
+
     // SHARED / PDF State
     const [showDocumentDispatch, setShowDocumentDispatch] = useState<Dispatch | null>(null);
 
@@ -55,9 +58,7 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
 
     const getOfficeName = (id: string) => offices.find(o => o.id === id)?.name || 'Desconocida';
 
-    // 1. SALIDAS: Invoices pending dispatch from CURRENT office
-    // FIX: Removed strict check 'inv.guide.originOfficeId === currentUser.officeId' because App.tsx already filters invoices by permission.
-    // This allows Admins (who have no officeId) to see pending invoices.
+    // 1. SALIDAS: Invoices pending dispatch
     const pendingOutboundInvoices = useMemo(() => {
         return invoices.filter(inv => 
             inv.shippingStatus === 'Pendiente para Despacho' && 
@@ -65,31 +66,35 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
         );
     }, [invoices]);
 
-    // 2. ENTRADAS: Dispatches coming TO current office with status 'En Tránsito'
+    // 2. ENTRADAS: Dispatches coming TO current office
     const pendingInboundDispatches = useMemo(() => {
-        // If user is admin, show all inbound dispatches regardless of destination? 
-        // Or strictly strictly stick to logic. Usually reception is strictly local.
-        // Keeping strict check here for safety, but if Admin needs to receive anything, we might relax it.
         const userOfficeId = currentUser.officeId;
-        
         return dispatches.filter(d => 
             d.status === 'En Tránsito' &&
-            (!userOfficeId || d.destinationOfficeId === userOfficeId) // Admin sees all, Operator sees only theirs
+            (!userOfficeId || d.destinationOfficeId === userOfficeId)
         );
     }, [dispatches, currentUser.officeId]);
 
-    // 3. HISTORIAL: All dispatches involved with current office
+    // 3. SEGUIMIENTO: Dispatches SENT BY current office
+    const mySentDispatches = useMemo(() => {
+        const userOfficeId = currentUser.officeId;
+        return dispatches.filter(d => 
+            !userOfficeId || d.originOfficeId === userOfficeId
+        ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [dispatches, currentUser.officeId]);
+
+    // 4. HISTORIAL: All dispatches
     const dispatchHistory = useMemo(() => {
         const userOfficeId = currentUser.officeId;
         return dispatches.filter(d => 
-            !userOfficeId || // Admin sees all
+            !userOfficeId || 
             d.originOfficeId === userOfficeId || 
             d.destinationOfficeId === userOfficeId
         ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [dispatches, currentUser.officeId]);
 
 
-    // --- HANDLERS: SALIDAS ---
+    // --- HANDLERS ---
 
     const handleSelectAll = () => {
         if (selectedInvoiceIds.length === pendingOutboundInvoices.length) {
@@ -110,21 +115,19 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
         if (newDispatch) {
             setIsDispatchFormOpen(false);
             setSelectedInvoiceIds([]);
-            setShowDocumentDispatch(newDispatch); // Show PDF immediately
+            setShowDocumentDispatch(newDispatch);
         }
     };
 
-    // --- HANDLERS: ENTRADAS ---
-
     const handleOpenVerification = (dispatch: Dispatch) => {
         setDispatchToVerify(dispatch);
-        setVerifiedInvoiceIds([]); // Start clean
+        setVerifiedInvoiceIds([]);
         setIsVerificationModalOpen(true);
     };
 
-    const handleToggleVerifyInvoice = (invoiceId: string) => {
+    const handleToggleVerifyInvoice = (id: string) => {
         setVerifiedInvoiceIds(prev => 
-            prev.includes(invoiceId) ? prev.filter(id => id !== invoiceId) : [...prev, invoiceId]
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
         );
     };
 
@@ -135,7 +138,7 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
         setDispatchToVerify(null);
     };
 
-    // --- RENDER ---
+    // --- RENDER HELPERS ---
 
     const TabButton: React.FC<{ id: Tab, label: string, icon: React.ElementType, count?: number }> = ({ id, label, icon: Icon, count }) => (
         <button
@@ -158,177 +161,187 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
 
     return (
         <div className="space-y-6">
-            {/* Tabs Navigation */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden flex border-b dark:border-gray-700">
-                <TabButton id="salidas" label="Salidas (Por Enviar)" icon={SendIcon} count={pendingOutboundInvoices.length} />
-                <TabButton id="entradas" label="Entradas (Por Recibir)" icon={ClipboardListIcon} count={pendingInboundDispatches.length} />
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden flex flex-wrap border-b dark:border-gray-700">
+                <TabButton id="salidas" label="Por Enviar" icon={SendIcon} count={pendingOutboundInvoices.length} />
+                <TabButton id="entradas" label="Por Recibir" icon={ClipboardListIcon} count={pendingInboundDispatches.length} />
+                <TabButton id="seguimiento" label="Seguimiento Envíos" icon={TruckIcon} />
                 <TabButton id="historial" label="Historial Global" icon={ArchiveBoxIcon} />
             </div>
 
-            {/* --- TAB: SALIDAS --- */}
+            {/* TAB: SALIDAS */}
             {activeTab === 'salidas' && (
                 <Card>
                     <CardHeader>
                         <div className="flex justify-between items-center">
-                            <CardTitle>Generar Nuevo Despacho</CardTitle>
+                            <CardTitle>Facturas para Despacho</CardTitle>
                             {permissions['despachos.create'] && (
-                                <Button 
-                                    onClick={() => setIsDispatchFormOpen(true)} 
-                                    disabled={selectedInvoiceIds.length === 0}
-                                >
-                                    <TruckIcon className="w-4 h-4 mr-2" />
-                                    Procesar Despacho ({selectedInvoiceIds.length})
+                                <Button onClick={() => setIsDispatchFormOpen(true)} disabled={selectedInvoiceIds.length === 0}>
+                                    <TruckIcon className="w-4 h-4 mr-2" /> Generar Despacho ({selectedInvoiceIds.length})
                                 </Button>
                             )}
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">Seleccione las facturas y procese el despacho. La oficina de destino se selecciona al final.</p>
                     </CardHeader>
-                    
                     <div className="overflow-x-auto mt-4">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left">
-                                        <input 
-                                            type="checkbox" 
-                                            onChange={handleSelectAll} 
-                                            checked={pendingOutboundInvoices.length > 0 && selectedInvoiceIds.length === pendingOutboundInvoices.length}
-                                            className="h-4 w-4 rounded text-primary-600 focus:ring-primary-500"
-                                        />
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Factura</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Destino (Factura)</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Fecha</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Peso</th>
+                                    <th className="px-6 py-3 text-left"><input type="checkbox" onChange={handleSelectAll} checked={pendingOutboundInvoices.length > 0 && selectedInvoiceIds.length === pendingOutboundInvoices.length} /></th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Factura</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Cliente</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Destino</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Peso</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {pendingOutboundInvoices.map(inv => (
                                     <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="px-6 py-4">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedInvoiceIds.includes(inv.id)}
-                                                onChange={() => handleToggleInvoice(inv.id)}
-                                                className="h-4 w-4 rounded text-primary-600 focus:ring-primary-500"
-                                            />
-                                        </td>
-                                        {/* Added text-gray-900 for explicit black in light mode */}
-                                        <td className="px-6 py-4 font-mono text-sm font-medium text-gray-900 dark:text-white">{inv.invoiceNumber}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{inv.clientName}</td>
-                                        <td className="px-6 py-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                            {getOfficeName(inv.guide.destinationOfficeId)}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-400">{inv.date}</td>
-                                        <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white">{calculateInvoiceChargeableWeight(inv).toFixed(2)} Kg</td>
+                                        <td className="px-6 py-4"><input type="checkbox" checked={selectedInvoiceIds.includes(inv.id)} onChange={() => handleToggleInvoice(inv.id)} /></td>
+                                        <td className="px-6 py-4 font-mono font-medium text-gray-900 dark:text-white">{inv.invoiceNumber}</td>
+                                        <td className="px-6 py-4 text-gray-900 dark:text-white">{inv.clientName}</td>
+                                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{getOfficeName(inv.guide.destinationOfficeId)}</td>
+                                        <td className="px-6 py-4 text-right text-gray-900 dark:text-white font-mono">{calculateInvoiceChargeableWeight(inv).toFixed(2)} Kg</td>
                                     </tr>
                                 ))}
-                                {pendingOutboundInvoices.length === 0 && (
-                                    <tr><td colSpan={6} className="text-center py-8 text-gray-500">No hay facturas pendientes para despacho.</td></tr>
-                                )}
+                                {pendingOutboundInvoices.length === 0 && (<tr><td colSpan={5} className="text-center py-8 text-gray-500">No hay facturas pendientes.</td></tr>)}
                             </tbody>
                         </table>
                     </div>
                 </Card>
             )}
 
-            {/* --- TAB: ENTRADAS --- */}
+            {/* TAB: ENTRADAS */}
             {activeTab === 'entradas' && (
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <CardTitle>Recepción y Verificación de Carga</CardTitle>
-                                <p className="text-sm text-gray-500">Confirme la llegada física de la mercancía enviada desde otras sucursales.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {pendingInboundDispatches.length > 0 ? pendingInboundDispatches.map(dispatch => (
+                        <div key={dispatch.id} className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm border-l-4 border-blue-500">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="font-mono font-bold text-lg text-gray-900 dark:text-white">{dispatch.dispatchNumber}</span>
+                                <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">En Tránsito</span>
                             </div>
-                            <Button variant="secondary" size="sm" onClick={() => window.location.reload()} title="Actualizar Datos">
-                                <ArrowsRightLeftIcon className="w-4 h-4" />
-                            </Button>
+                            <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Desde:</strong> {getOfficeName(dispatch.originOfficeId)}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Fecha:</strong> {new Date(dispatch.date).toLocaleDateString()}</p>
+                            <div className="mt-4">
+                                <Button onClick={() => handleOpenVerification(dispatch)} className="w-full">
+                                    <ClipboardListIcon className="w-4 h-4 mr-2" /> Verificar y Recibir
+                                </Button>
+                            </div>
                         </div>
-                    </CardHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                        {pendingInboundDispatches.length > 0 ? pendingInboundDispatches.map(dispatch => {
-                            const vehicle = vehicles.find(v => v.id === dispatch.vehicleId);
-                            const invoiceCount = dispatch.invoiceIds.length;
-                            
-                            return (
-                                <div key={dispatch.id} className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="font-mono font-bold text-lg">{dispatch.dispatchNumber}</span>
-                                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">En Tránsito</span>
-                                        </div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                                            <strong>Origen:</strong> {getOfficeName(dispatch.originOfficeId)}
-                                        </p>
-                                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                                            <strong>Fecha:</strong> {new Date(dispatch.date).toLocaleDateString()}
-                                        </p>
-                                        <div className="my-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded text-sm">
-                                            <p><strong>Vehículo:</strong> {vehicle ? `${vehicle.modelo} (${vehicle.placa})` : 'N/A'}</p>
-                                            <p><strong>Conductor:</strong> {vehicle?.driver || 'N/A'}</p>
-                                            <p className="mt-1 font-semibold">{invoiceCount} Encomiendas</p>
-                                        </div>
-                                    </div>
-                                    {permissions['despachos.receive'] && (
-                                        <Button onClick={() => handleOpenVerification(dispatch)} className="w-full mt-2">
-                                            <ClipboardListIcon className="w-4 h-4 mr-2" />
-                                            Verificar Carga
-                                        </Button>
-                                    )}
-                                </div>
-                            )
-                        }) : (
-                            <div className="col-span-full text-center py-10 text-gray-500">
-                                <CheckCircleIcon className="w-12 h-12 mx-auto text-gray-300 mb-2" />
-                                <p>No hay despachos en tránsito hacia esta oficina.</p>
-                            </div>
-                        )}
-                    </div>
-                </Card>
+                    )) : (
+                        <div className="col-span-full text-center py-20 text-gray-500">No hay despachos por recibir.</div>
+                    )}
+                </div>
             )}
 
-            {/* --- TAB: HISTORIAL --- */}
+            {/* TAB: SEGUIMIENTO */}
+            {activeTab === 'seguimiento' && (
+                <div className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Rastreo de Despachos Enviados</CardTitle>
+                            <p className="text-sm text-gray-500">Verifique si las oficinas de destino han recibido la mercancía que usted envió.</p>
+                        </CardHeader>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Control</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Destino</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Progreso</th>
+                                        <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado Confirmación</th>
+                                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    {mySentDispatches.map(d => {
+                                        const isReceived = d.status === 'Recibido';
+                                        const hasNovelty = isReceived && d.receivedBy?.includes('CONVEDAD'); 
+
+                                        return (
+                                            <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">{d.dispatchNumber}</td>
+                                                <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">{getOfficeName(d.destinationOfficeId)}</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-3 h-3 rounded-full ${isReceived ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></div>
+                                                        <div className="flex-1 h-1 bg-gray-200 rounded-full w-20 relative">
+                                                            <div className={`absolute top-0 left-0 h-1 rounded-full ${isReceived ? 'bg-green-500 w-full' : 'bg-blue-500 w-1/2'}`}></div>
+                                                        </div>
+                                                        <div className={`w-3 h-3 rounded-full ${isReceived ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    {!isReceived ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                            <ClockIcon className="w-3 h-3 mr-1" /> Pendiente en Destino
+                                                        </span>
+                                                    ) : hasNovelty ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">
+                                                            <ExclamationTriangleIcon className="w-3 h-3 mr-1" /> Recibido con Novedad
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">
+                                                            <CheckCircleIcon className="w-3 h-3 mr-1" /> Confirmado Conforme
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <Button variant="secondary" size="sm" onClick={() => setSelectedTraceDispatch(d)} title="Ver Detalle de Seguimiento">
+                                                        <EyeIcon className="w-4 h-4" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* TAB: HISTORIAL - FIXED TEXT VISIBILITY */}
             {activeTab === 'historial' && (
                 <Card>
-                    <CardHeader><CardTitle>Historial de Despachos</CardTitle></CardHeader>
-                    <div className="overflow-x-auto">
+                    <CardHeader><CardTitle>Historial Global de Despachos</CardTitle></CardHeader>
+                    <div className="overflow-x-auto mt-2">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Control</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Fecha</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Origen</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase font-bold">Destino</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-black uppercase font-bold">Estado</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-black uppercase font-bold">Acción</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Control</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Ruta</th>
+                                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Acción</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {dispatchHistory.map(d => (
-                                    <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="px-6 py-4 font-mono text-sm font-bold text-black dark:text-white">{d.dispatchNumber}</td>
-                                        <td className="px-6 py-4 text-sm font-bold text-black dark:text-white">{new Date(d.date).toLocaleDateString()}</td>
-                                        <td className="px-6 py-4 text-sm font-bold text-black dark:text-white">{getOfficeName(d.originOfficeId)}</td>
-                                        <td className="px-6 py-4 text-sm font-bold text-black dark:text-white">{getOfficeName(d.destinationOfficeId)}</td>
+                                    <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                                        <td className="px-6 py-4 font-mono font-bold text-primary-700 dark:text-primary-400">{d.dispatchNumber}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-200 font-medium">{new Date(d.date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 text-xs font-semibold text-gray-800 dark:text-gray-100">
+                                            <span className="uppercase">{getOfficeName(d.originOfficeId)}</span> 
+                                            <span className="mx-2 text-gray-400">➔</span> 
+                                            <span className="uppercase">{getOfficeName(d.destinationOfficeId)}</span>
+                                        </td>
                                         <td className="px-6 py-4 text-center">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                                d.status === 'Recibido' ? 'bg-green-100 text-green-800' : 
-                                                d.status === 'Anulado' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                                            }`}>
-                                                {d.status}
-                                            </span>
+                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm border ${
+                                                d.status === 'Recibido' 
+                                                ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800' 
+                                                : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                                            }`}>{d.status}</span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <Button size="sm" variant="secondary" onClick={() => setShowDocumentDispatch(d)}>
+                                            <Button size="sm" variant="secondary" onClick={() => setShowDocumentDispatch(d)} className="hover:text-primary-600 shadow-sm border border-gray-200 dark:border-gray-600">
                                                 <PrinterIcon className="w-4 h-4" />
                                             </Button>
                                         </td>
                                     </tr>
                                 ))}
                                 {dispatchHistory.length === 0 && (
-                                    <tr><td colSpan={6} className="text-center py-8 text-gray-500">Sin historial registrado.</td></tr>
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500 italic">No hay registros históricos disponibles.</td>
+                                    </tr>
                                 )}
                             </tbody>
                         </table>
@@ -336,7 +349,61 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                 </Card>
             )}
 
-            {/* MODAL 1: Generate Dispatch (Salidas) */}
+            {/* MODALS remain unchanged */}
+            {selectedTraceDispatch && (
+                <Modal isOpen={!!selectedTraceDispatch} onClose={() => setSelectedTraceDispatch(null)} title="Detalle de Rastreo Logístico" size="lg">
+                    <div className="space-y-6 text-gray-900 dark:text-gray-100">
+                        <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border dark:border-gray-700">
+                            <div>
+                                <h4 className="font-bold text-lg text-primary-600 dark:text-primary-400">{selectedTraceDispatch.dispatchNumber}</h4>
+                                <p className="text-xs text-gray-500 uppercase font-semibold">Envío Inter-Oficina</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-bold">{getOfficeName(selectedTraceDispatch.destinationOfficeId)}</p>
+                                <p className="text-xs text-gray-500">Oficina de Destino</p>
+                            </div>
+                        </div>
+
+                        <div className="relative pl-8 border-l-2 border-primary-100 dark:border-gray-700 space-y-8">
+                            <div className="relative">
+                                <div className="absolute -left-[41px] bg-green-500 text-white p-1 rounded-full ring-4 ring-white dark:ring-gray-800"><CheckCircleIcon className="w-4 h-4"/></div>
+                                <p className="font-bold text-sm">Salida de Oficina</p>
+                                <p className="text-xs text-gray-500">{new Date(selectedTraceDispatch.date).toLocaleString()}</p>
+                                <p className="text-xs mt-1 text-gray-700 dark:text-gray-300">Mercancía despachada correctamente desde {getOfficeName(selectedTraceDispatch.originOfficeId)}.</p>
+                            </div>
+                            <div className="relative">
+                                <div className={`absolute -left-[41px] p-1 rounded-full ring-4 ring-white dark:ring-gray-800 ${selectedTraceDispatch.status === 'Recibido' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white animate-bounce'}`}>
+                                    <TruckIcon className="w-4 h-4"/>
+                                </div>
+                                <p className="font-bold text-sm">En Tránsito</p>
+                                <p className="text-xs text-gray-500">Camino al destino...</p>
+                            </div>
+                            <div className="relative">
+                                <div className={`absolute -left-[41px] p-1 rounded-full ring-4 ring-white dark:ring-gray-800 ${selectedTraceDispatch.status === 'Recibido' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                    <CheckCircleIcon className="w-4 h-4"/>
+                                </div>
+                                <p className="font-bold text-sm">Recepción en Destino</p>
+                                {selectedTraceDispatch.status === 'Recibido' ? (
+                                    <>
+                                        <p className="text-xs text-gray-500">{new Date(selectedTraceDispatch.receivedDate || '').toLocaleString()}</p>
+                                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg">
+                                            <p className="text-xs font-bold text-green-800 dark:text-green-300">RECIBIDO POR: {selectedTraceDispatch.receivedBy?.split('(')[0]}</p>
+                                            <p className="text-xs mt-1 text-green-700 dark:text-green-400">La oficina de destino ha confirmado la llegada de la carga.</p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-xs text-gray-400 italic">Pendiente por procesar en la oficina receptora.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <Button variant="secondary" onClick={() => setSelectedTraceDispatch(null)}>Cerrar Rastreo</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
             {isDispatchFormOpen && (
                 <DispatchFormModal
                     isOpen={isDispatchFormOpen}
@@ -349,53 +416,29 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                 />
             )}
 
-            {/* MODAL 2: Verify Reception (Entradas) */}
             {isVerificationModalOpen && dispatchToVerify && (
                 <Modal isOpen={isVerificationModalOpen} onClose={() => setIsVerificationModalOpen(false)} title={`Verificar Despacho ${dispatchToVerify.dispatchNumber}`} size="lg">
                     <div className="space-y-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                            Marque las facturas que ha recibido físicamente y están en buen estado.
-                        </p>
-                        <div className="max-h-96 overflow-y-auto border rounded-lg divide-y dark:border-gray-700">
-                            {invoices.filter(inv => dispatchToVerify.invoiceIds.includes(inv.id)).length > 0 ? (
-                                invoices.filter(inv => dispatchToVerify.invoiceIds.includes(inv.id)).map(inv => (
-                                    <div key={inv.id} className="p-3 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => handleToggleVerifyInvoice(inv.id)}>
-                                        <input 
-                                            type="checkbox" 
-                                            checked={verifiedInvoiceIds.includes(inv.id)}
-                                            readOnly
-                                            className="h-5 w-5 text-green-600 rounded focus:ring-green-500 mr-4"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="flex justify-between">
-                                                <span className="font-bold text-black dark:text-white">{inv.invoiceNumber}</span>
-                                                <span className="text-sm font-semibold text-black dark:text-white">{inv.guide.merchandise.reduce((s,m)=>s+m.quantity,0)} Pzas</span>
-                                            </div>
-                                            <p className="text-sm text-gray-800 dark:text-gray-300 font-medium">{inv.clientName}</p>
-                                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Marque las facturas recibidas físicamente.</p>
+                        <div className="max-h-60 overflow-y-auto border rounded-lg divide-y dark:border-gray-700">
+                            {invoices.filter(inv => dispatchToVerify.invoiceIds.includes(inv.id)).map(inv => (
+                                <div key={inv.id} className="p-3 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => handleToggleVerifyInvoice(inv.id)}>
+                                    <input type="checkbox" checked={verifiedInvoiceIds.includes(inv.id)} readOnly className="h-5 w-5 text-green-600 rounded mr-4" />
+                                    <div className="flex-1">
+                                        <p className="font-bold text-gray-900 dark:text-white">{inv.invoiceNumber}</p>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400">{inv.clientName}</p>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="p-6 text-center text-gray-500">
-                                    <p>No se encontraron las facturas asociadas a este despacho en la carga local.</p>
-                                    <p className="text-xs mt-2">Intente sincronizar o contacte a soporte.</p>
                                 </div>
-                            )}
-                        </div>
-                        <div className="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
-                            <p><strong>Nota:</strong> Las facturas NO marcadas se reportarán como "Faltantes".</p>
+                            ))}
                         </div>
                         <div className="flex justify-end gap-2 pt-4">
                             <Button variant="secondary" onClick={() => setIsVerificationModalOpen(false)}>Cancelar</Button>
-                            <Button onClick={handleConfirmReception} disabled={verifiedInvoiceIds.length === 0}>
-                                Confirmar Recepción ({verifiedInvoiceIds.length})
-                            </Button>
+                            <Button onClick={handleConfirmReception} disabled={verifiedInvoiceIds.length === 0}>Finalizar Recepción</Button>
                         </div>
                     </div>
                 </Modal>
             )}
 
-            {/* MODAL 3: PDF Document */}
             {showDocumentDispatch && (
                 <DispatchDocumentModal
                     isOpen={!!showDocumentDispatch}

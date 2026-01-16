@@ -129,11 +129,11 @@ export const calculateDetailedRemesaFinancials = (invoices: Invoice[], companyIn
         target.manejo += fin.handling;
         target.iva += fin.iva;
         
-        // Business Logic for Distribution:
-        // Cooperativa gets 25% of Freight
-        // Asociado gets 75% of Freight MINUS deductions (Ipostel, Seguro, Manejo, IVA)
+        // Business Logic for Distribution (ACTUALIZADO):
+        // Cooperativa gets 30% of Freight (Anteriormente 25%)
+        // Asociado gets 70% of Freight MINUS deductions (Ipostel, Seguro, Manejo, IVA)
         
-        const coopShare = fin.freight * 0.25;
+        const coopShare = fin.freight * 0.30;
         const deductions = fin.ipostel + fin.insuranceCost + fin.handling + fin.iva;
         const associateShare = fin.freight - coopShare - deductions;
 

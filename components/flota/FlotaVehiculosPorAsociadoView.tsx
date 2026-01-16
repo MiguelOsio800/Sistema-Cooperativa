@@ -79,7 +79,6 @@ const FlotaVehiculosPorAsociadoView: React.FC<FlotaVehiculosPorAsociadoViewProps
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <CardTitle>Flota de {asociado.nombre}</CardTitle>
-                        
                     </div>
                 </CardHeader>
                 <div className="flex overflow-x-auto space-x-6 pb-4">
@@ -148,20 +147,10 @@ const FlotaVehiculosPorAsociadoView: React.FC<FlotaVehiculosPorAsociadoViewProps
                                             )}
                                         </div>
                                         <div className="flex flex-wrap justify-end items-center gap-2 pt-2 border-t dark:border-gray-700">
-                                            {vehicle.status === 'Disponible' && (
-                                                <>
-                                                    {permissions['flota.edit'] && <Button size="sm" variant="secondary" onClick={() => handleOpenVehicleModal(vehicle)} title="Editar Vehículo"><EditIcon className="w-4 h-4" /></Button>}
-                                                    {permissions['flota.delete'] && <Button size="sm" variant="danger" onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        if (window.confirm(`¿Está seguro de que desea eliminar el vehículo '${vehicle.modelo} - ${vehicle.placa}'? Esta acción no se puede deshacer.`)) {
-                                                            await onDeleteVehicle(vehicle.id);
-                                                        }
-                                                    }} title="Eliminar Vehículo"><TrashIcon className="w-4 h-4" /></Button>}
-                                                </>
-                                            )}
+                                            {/* Removidos los botones de editar y eliminar según solicitud del usuario */}
                                             
                                             <Button size="sm" variant="secondary" onClick={() => handleOpenManifestModal(vehicle)} disabled={assignedInvoices.length === 0} title="Generar Remesa/Manifiesto">
-                                                <FileTextIcon className="w-4 h-4" />
+                                                <FileTextIcon className="w-4 h-4 mr-2" /> Ver Manifiesto
                                             </Button>
                                         </div>
                                     </div>
