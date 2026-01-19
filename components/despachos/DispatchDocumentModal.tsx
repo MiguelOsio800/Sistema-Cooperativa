@@ -22,7 +22,7 @@ interface DispatchDocumentModalProps {
 const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
-    isOpen, onClose, dispatch, invoices, vehicle, asociado, companyInfo, offices
+    isOpen, onClose, dispatch, invoices, asociado, companyInfo, offices
 }) => {
 
     const originOffice = offices.find(o => o.id === dispatch.originOfficeId);
@@ -38,15 +38,14 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
         const input = document.getElementById('dispatch-to-print');
         if (!input) return;
 
-        // Use standard A4 dimensions at 96 DPI approx
         const a4Width = 794; 
         
         html2canvas(input, { 
             scale: 2, 
             useCORS: true, 
             backgroundColor: '#ffffff',
-            width: a4Width, // Force the canvas width
-            windowWidth: 1200, // Simulate a desktop browser width
+            width: a4Width,
+            windowWidth: 1200,
             x: 0,
             y: 0
         }).then(canvas => {
@@ -64,7 +63,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
             heightLeft -= pdfHeight;
 
             while (heightLeft > 0) {
-                position = heightLeft - imgHeight; // Fix for multipage
+                position = heightLeft - imgHeight;
                 pdf.addPage();
                 pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
                 heightLeft -= pdfHeight;
@@ -78,9 +77,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Guía de Despacho # ${dispatch.dispatchNumber}`} size="4xl">
-            {/* Wrapper to handle scrolling for the fixed-width document */}
             <div className="flex justify-center bg-gray-100 dark:bg-gray-800 py-4 rounded-lg overflow-auto max-h-[75vh]">
-                {/* Fixed A4 Size Container */}
                 <div 
                     id="dispatch-to-print" 
                     className="bg-white text-black font-mono text-[11px] leading-tight printable-area shadow-xl"
@@ -91,7 +88,6 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                         boxSizing: 'border-box'
                     }}
                 >
-                    
                     {/* Header */}
                     <div className="flex justify-between items-start mb-6 text-black">
                         <div className="w-1/2">
@@ -111,12 +107,12 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                         Manifiesto de Carga Inter-Oficina
                     </div>
 
-                    {/* Transport Info - Modified: Simplified to only show SOCIO */}
+                    {/* Transport Info - Simplified as requested: ONLY SOCIO */}
                     <div className="mb-4 text-black p-3 border border-black rounded-sm">
-                        <p className="text-black text-sm uppercase"><strong>SOCIO:</strong> {asociado.nombre} ({asociado.codigo})</p>
+                        <p className="text-black text-sm uppercase"><strong>SOCIO:</strong> {asociado?.nombre || 'N/A'} ({asociado?.codigo || 'N/A'})</p>
                     </div>
 
-                    {/* Main Table - Fixed Layout with Financials */}
+                    {/* Main Table - Distinguishing Pagado and Destino */}
                     <table className="w-full border-collapse mb-6 text-[10px] text-black table-fixed">
                         <thead className="border-t-2 border-b-2 border-black">
                             <tr>
@@ -171,7 +167,7 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                         <div className="text-center text-black">
                             <div className="border-b border-black mb-2"></div>
                             <p className="font-bold text-black">DESPACHADO POR</p>
-                            <p className="text-[9px] text-black">{originOffice?.name}</p>
+                            <p className="text-[9px] text-black uppercase">{originOffice?.name}</p>
                         </div>
                         <div className="text-center text-black">
                             <div className="border-b border-black mb-2"></div>
@@ -183,7 +179,6 @@ const DispatchDocumentModal: React.FC<DispatchDocumentModalProps> = ({
                     <div className="mt-12 text-center text-[9px] text-gray-500">
                         <p className="text-black">Este documento certifica la transferencia de custodia de la mercancía listada.</p>
                     </div>
-
                 </div>
             </div>
             <div className="flex justify-end space-x-3 p-4 border-t dark:border-gray-700">
