@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShippingGuide, Client, Merchandise, Financials, Category, Invoice, Office, ShippingType, PaymentMethod, CompanyInfo, User, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
@@ -243,6 +242,13 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             discountPercentage: guide.hasDiscount ? (Number(guide.discountPercentage) || 0) : 0,
             clientEmail: guide.sender.email || null, // Capture sender email
             specificDestination: guide.specificDestination || null, // Mapped to backend model
+            
+            // --- DETAILED RECEIVER DATA FOR BACKEND ---
+            receiverName: guide.receiver.name || null,
+            receiverIdNumber: guide.receiver.idNumber || null,
+            receiverAddress: guide.receiver.address || null,
+            receiverPhone: guide.receiver.phone || null,
+            receiverEmail: guide.receiver.email || null,
         };
 
         if (invoice) { // EDIT MODE
