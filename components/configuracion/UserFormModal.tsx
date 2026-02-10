@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Role, Office, Asociado } from '../../types';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
-import { EyeIcon, EyeOffIcon } from '../icons/Icons';
+import { EyeIcon, EyeOffIcon, BuildingOfficeIcon, TagIcon } from '../icons/Icons';
 
 interface UserFormModalProps {
     isOpen: boolean;
@@ -31,6 +30,14 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         }
         return roles;
     }, [roles, currentUser]);
+
+    const assignedOffice = useMemo(() => {
+        return offices.find(o => o.id === formData.officeId);
+    }, [offices, formData.officeId]);
+
+    const assignedAsociado = useMemo(() => {
+        return asociados.find(a => a.id === formData.asociadoId);
+    }, [asociados, formData.asociadoId]);
 
 
     useEffect(() => {
@@ -67,18 +74,47 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         }
     };
 
-    const modalTitle = isProfileMode ? 'Editar Mi Perfil' : (user ? 'Editar Usuario' : 'Nuevo Usuario');
+    const modalTitle = isProfileMode ? 'Mi Perfil de Usuario' : (user ? 'Editar Usuario' : 'Nuevo Usuario');
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
             <form onSubmit={handleSubmit} className="space-y-4">
-                <Input name="name" label="Nombre Completo" value={formData.name || ''} onChange={handleChange} required error={errors.name} />
-                <Input name="username" label="Usuario (para iniciar sesión)" value={formData.username || ''} onChange={handleChange} required autoComplete="username" error={errors.username}/>
-                <Input name="email" label="Correo Electrónico (Opcional)" type="email" value={formData.email || ''} onChange={handleChange} error={errors.email} />
+                {/* Information block for Profile Mode */}
+                {isProfileMode && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 rounded-xl mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm text-primary-600">
+                                <BuildingOfficeIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] uppercase font-bold text-primary-700 dark:text-primary-400 tracking-wider">Oficina Asignada</p>
+                                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{assignedOffice ? assignedOffice.name : 'Acceso Global'}</p>
+                            </div>
+                        </div>
+                        {assignedAsociado && (
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm text-primary-600">
+                                    <TagIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold text-primary-700 dark:text-primary-400 tracking-wider">Código Asociado</p>
+                                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{assignedAsociado.codigo} - {assignedAsociado.nombre}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input name="name" label="Nombre Completo" value={formData.name || ''} onChange={handleChange} required error={errors.name} />
+                    <Input name="username" label="Usuario de Acceso" value={formData.username || ''} onChange={handleChange} required autoComplete="username" error={errors.username} disabled={isProfileMode} />
+                </div>
                 
-                <div>
+                <Input name="email" label="Correo Electrónico" type="email" value={formData.email || ''} onChange={handleChange} error={errors.email} />
+                
+                <div className="border-t dark:border-gray-700 pt-4 mt-4">
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Contraseña
+                        {isProfileMode ? 'Cambiar Contraseña' : 'Contraseña'}
                     </label>
                     <div className="relative">
                         <input
@@ -102,6 +138,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                         </button>
                     </div>
                     {errors.password && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.password}</p>}
+                    {isProfileMode && <p className="text-[10px] text-gray-500 mt-1">Solo complete este campo si desea actualizar su contraseña actual.</p>}
                 </div>
 
                 {/* Hide Sensitive Fields in Profile Mode */}
@@ -119,7 +156,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                                     <option key={office.id} value={office.id}>{office.name}</option>
                                 ))}
                             </Select>
-                            <Select name="asociadoId" label="Enlazar con Asociado (Dueño de Flota)" value={formData.asociadoId || ''} onChange={handleChange}>
+                            <Select name="asociadoId" label="Enlazar con Asociado" value={formData.asociadoId || ''} onChange={handleChange}>
                                 <option value="">Ninguno (Usuario Interno)</option>
                                 {asociados.map(asoc => (
                                     <option key={asoc.id} value={asoc.id}>{asoc.nombre}</option>
@@ -129,9 +166,11 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                     </>
                 )}
                 
-                <div className="flex justify-end space-x-2 pt-4">
+                <div className="flex justify-end space-x-2 pt-4 mt-6 border-t dark:border-gray-700">
                     <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
-                    <Button type="submit">Guardar</Button>
+                    <Button type="submit">
+                        {isProfileMode ? 'Actualizar Mi Información' : 'Guardar Usuario'}
+                    </Button>
                 </div>
             </form>
         </Modal>
