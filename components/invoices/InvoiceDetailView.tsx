@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -7,6 +6,8 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { XIcon, PackageIcon, DownloadIcon, SaveIcon, ArrowLeftIcon, ArrowUturnLeftIcon, PlusCircleIcon, ExclamationTriangleIcon } from '../icons/Icons';
 import { calculateFinancialDetails } from '../../utils/financials';
+import { apiFetch } from '../../utils/api';
+import { useToast } from '../ui/ToastProvider';
 
 interface InvoiceDetailViewProps {
     isOpen: boolean;
@@ -36,6 +37,8 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
     
     const [noteMode, setNoteMode] = useState<'none' | 'credit' | 'debit'>('none');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDownloadingHka, setIsDownloadingHka] = useState(false);
+    const { addToast } = useToast();
 
     const sender = clients.find(c => c.id === invoice.guide.sender.id) || invoice.guide.sender;
     const receiver = clients.find(c => c.id === invoice.guide.receiver.id) || invoice.guide.receiver;
@@ -67,6 +70,46 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
             console.error(error);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleDownloadHka = async () => {
+        setIsDownloadingHka(true);
+        addToast({ 
+            type: 'info', 
+            title: 'Descarga HKA', 
+            message: 'Solicitando factura oficial a The Factory HKA...' 
+        });
+
+        try {
+            // Se hace la petición POST a la ruta de descarga HKA del backend: /api/invoices/:id/download-hka
+            const response = await apiFetch<{ success: boolean, base64?: string, pdfUrl?: string, message?: string }>(
+                `/invoices/${invoice.id}/download-hka`, 
+                { method: 'POST' }
+            );
+
+            if (response.base64) {
+                const link = document.createElement('a');
+                link.href = `data:application/pdf;base64,${response.base64}`;
+                link.download = `Factura_Fiscal_HKA_${invoice.invoiceNumber}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                addToast({ type: 'success', title: 'Éxito', message: 'Factura fiscal descargada correctamente.' });
+            } else if (response.pdfUrl) {
+                window.open(response.pdfUrl, '_blank');
+                addToast({ type: 'success', title: 'Éxito', message: 'Documento abierto en una nueva pestaña.' });
+            } else {
+                throw new Error(response.message || 'No se recibió el archivo del servidor.');
+            }
+        } catch (error: any) {
+            addToast({ 
+                type: 'error', 
+                title: 'Error de Descarga', 
+                message: error.message || 'No se pudo recuperar la factura de HKA.' 
+            });
+        } finally {
+            setIsDownloadingHka(false);
         }
     };
 
@@ -103,6 +146,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
             while (heightLeft > 10) {
                 position = heightLeft - pdfImgHeight;
                 pdf.addPage();
+                // Fixed: replaced undefined 'imgHeight' with 'pdfImgHeight'
                 pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfImgHeight);
                 heightLeft -= pdfHeight;
             }
@@ -152,10 +196,26 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                         <PlusCircleIcon className="w-4 h-4 mr-2" />Nota Débito
                     </Button>
                 )}
+                
                 <div className="border-l mx-2 dark:border-gray-600 h-8 hidden sm:block"></div>
-                <Button type="button" variant="secondary" onClick={handleDownloadPdf}>
+                
+                {/* BOTÓN DESCARGA HKA - Con estilo emerald destacado */}
+                <Button 
+                    type="button" 
+                    variant="primary" 
+                    onClick={handleDownloadHka} 
+                    disabled={isDownloadingHka}
+                    className="!bg-emerald-600 hover:!bg-emerald-700 text-white shadow-sm"
+                    title="Descargar Documento Fiscal Oficial de HKA"
+                >
+                    <DownloadIcon className="w-4 h-4 mr-2" />
+                    {isDownloadingHka ? 'Descargando...' : 'Descarga HKA'}
+                </Button>
+
+                <Button type="button" variant="secondary" onClick={handleDownloadPdf} title="Descargar Copia del Sistema">
                     <DownloadIcon className="w-4 h-4 mr-2" />Descargar PDF
                 </Button>
+                
                 <Button type="button" variant="secondary" onClick={onClose}>
                     <XIcon className="w-4 h-4 mr-2" />Cerrar
                 </Button>
