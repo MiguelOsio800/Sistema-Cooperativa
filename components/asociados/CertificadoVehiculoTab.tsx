@@ -44,6 +44,8 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
     const [vehicleIdForCertModal, setVehicleIdForCertModal] = useState<string | null>(null);
     const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
     const [certIdToDelete, setCertIdToDelete] = useState<string | null>(null);
+    const [isConfirmDeleteVehicleOpen, setIsConfirmDeleteVehicleOpen] = useState(false);
+    const [vehicleIdToDelete, setVehicleIdToDelete] = useState<string | null>(null);
 
     const associateVehicles = useMemo(() => vehicles.filter(v => v.asociadoId === asociadoId), [vehicles, asociadoId]);
     
@@ -103,6 +105,26 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
             setCertIdToDelete(null);
         }
     };
+
+    const handleConfirmDeleteVehicle = (id: string) => {
+        setVehicleIdToDelete(id);
+        setIsConfirmDeleteVehicleOpen(true);
+    };
+
+    const executeDeleteVehicle = async () => {
+        if (vehicleIdToDelete) {
+            try {
+                await onDeleteVehicle(vehicleIdToDelete);
+                addToast({ type: 'success', title: 'Eliminado', message: 'Vehículo eliminado correctamente.' });
+            } catch (error: any) {
+                console.error('Error deleting vehicle:', error);
+                addToast({ type: 'error', title: 'Error', message: error.message || 'No se pudo eliminar el vehículo.' });
+            } finally {
+                setIsConfirmDeleteVehicleOpen(false);
+                setVehicleIdToDelete(null);
+            }
+        }
+    };
     
     const renderListView = () => (
         <>
@@ -122,7 +144,7 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                     </div>
                                     <div className="flex gap-2">
                                         <Button variant="secondary" size="sm" onClick={() => handleSelectVehicle(vehiculo as Vehicle)}><EditIcon className="w-4 h-4" /></Button>
-                                        <Button variant="danger" size="sm" onClick={() => onDeleteVehicle(vehiculo.id)}><TrashIcon className="w-4 h-4" /></Button>
+                                        <Button variant="danger" size="sm" onClick={() => handleConfirmDeleteVehicle(vehiculo.id)}><TrashIcon className="w-4 h-4" /></Button>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 gap-1 mt-3 text-sm">
@@ -256,6 +278,15 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                     vehiculoId={vehicleIdForCertModal}
                 />
             )}
+            <ConfirmationModal
+                isOpen={isConfirmDeleteVehicleOpen}
+                onClose={() => setIsConfirmDeleteVehicleOpen(false)}
+                onConfirm={executeDeleteVehicle}
+                title="Eliminar Vehículo"
+                message="¿Estás seguro de que deseas eliminar este vehículo y todos sus certificados? Esta acción no se puede deshacer."
+                confirmText="Eliminar Vehículo"
+                variant="danger"
+            />
             <ConfirmationModal
                 isOpen={isConfirmDeleteOpen}
                 onClose={() => setIsConfirmDeleteOpen(false)}

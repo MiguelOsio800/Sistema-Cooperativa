@@ -204,17 +204,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleDeleteInvoice: async (id) => { await apiFetch(`/invoices/${id}`, { method: 'DELETE' }); setInvoices(p => p.map(i => i.id === id ? {...i, status: 'Anulada'} : i)); },
             handleSaveVehicle: (v) => handleGenericSave(v, '/vehicles', setVehicles),
             handleDeleteVehicle: async (id) => {
-                console.log('handleDeleteVehicle called for id:', id);
-                if (!window.confirm('¿Eliminar vehículo?')) {
-                    return;
-                }
                 try {
                     await apiFetch(`/vehicles/${id}`, { method: 'DELETE' });
                     setVehicles(p => p.filter(i => i.id !== id));
-                    addToast({ type: 'success', title: 'Éxito', message: 'Vehículo eliminado correctamente.' });
+                    // El toast de éxito ya lo maneja la vista, así que no hace falta ponerlo aquí.
                 } catch (error: any) {
                     console.error('Error deleting vehicle:', error);
-                    addToast({ type: 'error', title: 'Error', message: error.message || 'No se pudo eliminar el vehículo.' });
+                    throw error; // Lanzamos el error para que la vista lo atrape y muestre el Toast rojo
                 }
             },
             handleAssignToVehicle: async (ids, vId) => {
