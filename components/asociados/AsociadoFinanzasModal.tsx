@@ -44,21 +44,22 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
     const [selectedRecibo, setSelectedRecibo] = useState<ReciboPagoAsociado | null>(null);
 
     const { pagosPendientes, recibosAsociado, totalDeuda } = useMemo(() => {
-        const misPagos = pagos.filter(p => {
-            const matchAsociado = String(p.asociadoId) === String(asociado.id);
-            const matchPeriod = selectedMonth && selectedYear 
-                ? p.fecha && p.fecha.startsWith(`${selectedYear}-${selectedMonth}`)
-                : true;
-            return matchAsociado && matchPeriod;
-        });
+        // Filter all payments for this associate
+        const misPagos = pagos.filter(p => String(p.asociadoId) === String(asociado.id));
         
+        // All pending payments (ignore period filter for debts to allow paying everything)
         const pendientes = misPagos
             .filter(p => p.status === 'Pendiente')
-            .sort((a, b) => (String(a.id) > String(b.id) ? -1 : 1)); // Sort by ID or creation if no date
+            .sort((a, b) => {
+                const dateA = new Date(a.createdAt || a.fecha).getTime();
+                const dateB = new Date(b.createdAt || b.fecha).getTime();
+                return dateA - dateB; // Oldest first
+            });
         
+        // Receipts can still be filtered by period if provided, or show all
         const misRecibos = recibos
             .filter(r => {
-            const matchAsociado = String(r.asociadoId) === String(asociado.id);
+                const matchAsociado = String(r.asociadoId) === String(asociado.id);
                 const matchPeriod = selectedMonth && selectedYear 
                     ? r.fechaPago && r.fechaPago.startsWith(`${selectedYear}-${selectedMonth}`)
                     : true;

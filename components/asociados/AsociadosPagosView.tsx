@@ -27,7 +27,7 @@ const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE',
 
 const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
     const { asociados, pagos, recibos, onSavePago, onDeletePago, onSaveRecibo, companyInfo, permissions } = props;
-    const { invoices } = useData();
+    const { invoices, vehicles, remesas } = useData();
 
     const [selectedAsociadoId, setSelectedAsociadoId] = useState<string>('');
     const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -106,8 +106,23 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
 
     const associateInvoices = useMemo(() => {
         if (!selectedAsociado) return [];
-        return invoices.filter(inv => inv.clientIdNumber === selectedAsociado.cedula && inv.status === 'Activa');
-    }, [invoices, selectedAsociado]);
+        
+        // 1. Obtener vehículos del asociado
+        const myVehicles = vehicles.filter(v => String(v.asociadoId) === String(selectedAsociado.id));
+        const myVehicleIds = myVehicles.map(v => v.id);
+        
+        // 2. Obtener remesas del asociado
+        const myRemesas = remesas.filter(r => String(r.asociadoId) === String(selectedAsociado.id));
+        const myRemesaIds = myRemesas.map(r => r.id);
+        
+        // 3. Filtrar facturas que tengan el vehicleId o remesaId del asociado
+        return invoices.filter(inv => 
+            inv.status === 'Activa' && (
+                (inv.vehicleId && myVehicleIds.includes(inv.vehicleId)) ||
+                (inv.remesaId && myRemesaIds.includes(inv.remesaId))
+            )
+        );
+    }, [invoices, vehicles, remesas, selectedAsociado]);
 
     return (
         <div className="space-y-4">

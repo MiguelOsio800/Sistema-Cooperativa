@@ -26,17 +26,36 @@ const PagosAsociadoTab: React.FC<PagosAsociadoTabProps> = (props) => {
 
     const [isReciboModalOpen, setIsReciboModalOpen] = useState(false);
 
-    const { pagosPendientes, pagosRealizados, recibosAsociado, totalDeuda } = useMemo(() => {
+    const { pagosPendientes, pagosRealizados, recibosAsociado, totalDeuda, groupedPagosPendientes } = useMemo(() => {
         const misPagos = pagos.filter(p => p.asociadoId === asociado.id);
         const pendientes = misPagos.filter(p => p.status === 'Pendiente');
         const realizados = misPagos.filter(p => p.status === 'Pagado');
         const misRecibos = recibos.filter(r => r.asociadoId === asociado.id);
         const deuda = pendientes.reduce((sum, p) => sum + p.montoBs, 0);
+
+        // Grouping logic
+        const groups: { [key: string]: PagoAsociado[] } = {};
+        pendientes.forEach(p => {
+            const dateStr = p.createdAt || p.fecha;
+            const date = new Date(dateStr);
+            const monthYear = date.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+            const key = monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(p);
+        });
+
+        const sortedGroups = Object.entries(groups).sort((a, b) => {
+            const dateA = new Date(a[1][0].createdAt || a[1][0].fecha);
+            const dateB = new Date(b[1][0].createdAt || b[1][0].fecha);
+            return dateB.getTime() - dateA.getTime();
+        });
+
         return { 
             pagosPendientes: pendientes, 
             pagosRealizados: realizados, 
             recibosAsociado: misRecibos,
             totalDeuda: deuda,
+            groupedPagosPendientes: sortedGroups
         };
     }, [pagos, recibos, asociado.id]);
 
@@ -70,21 +89,30 @@ const PagosAsociadoTab: React.FC<PagosAsociadoTabProps> = (props) => {
                         Saldo Deudor: <span className="font-bold text-red-600 dark:text-red-400">{formatCurrency(totalDeuda)}</span>
                     </p>
                 </CardHeader>
-                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                    {pagosPendientes.length > 0 ? pagosPendientes.map(p => (
-                        <div key={p.id} className="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-md">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="font-semibold text-yellow-800 dark:text-yellow-200">{p.concepto}</p>
-                                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                                        Cuotas: {p.cuotas} 
-                                        {p.tasaCambio && <span className="ml-2 px-1.5 py-0.5 bg-yellow-200 dark:bg-yellow-800 rounded text-[10px] font-bold">Tasa: {p.tasaCambio}</span>}
-                                    </p>
-                                </div>
-                                <p className="font-bold text-yellow-900 dark:text-yellow-100 text-right">
-                                    {formatCurrency(p.montoBs)}
-                                    {p.montoUsd && <span className="block text-xs font-normal text-yellow-800/80 dark:text-yellow-200/80">(${p.montoUsd.toFixed(2)})</span>}
-                                </p>
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {groupedPagosPendientes.length > 0 ? groupedPagosPendientes.map(([month, items]) => (
+                        <div key={month} className="space-y-2">
+                            <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-800 pb-1">
+                                {month}
+                            </h4>
+                            <div className="space-y-2">
+                                {items.map(p => (
+                                    <div key={p.id} className="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-md border border-yellow-100 dark:border-yellow-900/50">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-semibold text-yellow-800 dark:text-yellow-200">{p.concepto}</p>
+                                                <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                                                    Cuotas: {p.cuotas} 
+                                                    {p.tasaCambio && <span className="ml-2 px-1.5 py-0.5 bg-yellow-200 dark:bg-yellow-800 rounded text-[10px] font-bold">Tasa: {p.tasaCambio}</span>}
+                                                </p>
+                                            </div>
+                                            <p className="font-bold text-yellow-900 dark:text-yellow-100 text-right">
+                                                {formatCurrency(p.montoBs)}
+                                                {p.montoUsd && <span className="block text-xs font-normal text-yellow-800/80 dark:text-yellow-200/80">(${p.montoUsd.toFixed(2)})</span>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )) : (

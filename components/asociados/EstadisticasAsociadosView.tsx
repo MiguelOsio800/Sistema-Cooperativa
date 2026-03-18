@@ -15,20 +15,21 @@ const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE',
 
 const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ asociados, pagos }) => {
     
-    const { solventes, deudores, totalDeuda } = useMemo(() => {
-        const deudoresMap = new Map<string, { asociado: Asociado, deuda: number }>();
+    const { solventes, deudores, totalDeudaBs, totalDeudaUsd } = useMemo(() => {
+        const deudoresMap = new Map<string, { asociado: Asociado, deudaBs: number, deudaUsd: number }>();
         
         pagos.forEach(pago => {
             if (pago.status === 'Pendiente') {
                 if (!deudoresMap.has(pago.asociadoId)) {
                     const asociado = asociados.find(a => a.id === pago.asociadoId);
                     if (asociado) {
-                        deudoresMap.set(pago.asociadoId, { asociado, deuda: 0 });
+                        deudoresMap.set(pago.asociadoId, { asociado, deudaBs: 0, deudaUsd: 0 });
                     }
                 }
                 const deudor = deudoresMap.get(pago.asociadoId);
                 if (deudor) {
-                    deudor.deuda += pago.montoBs;
+                    deudor.deudaBs += pago.montoBs;
+                    deudor.deudaUsd += (pago.montoUsd || 0);
                 }
             }
         });
@@ -38,12 +39,14 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
 
         const solventesList = asociados.filter(a => !deudoresIds.has(a.id));
 
-        const totalDeudaGeneral = deudoresList.reduce((sum, d) => sum + d.deuda, 0);
+        const totalDeudaGeneralBs = deudoresList.reduce((sum, d) => sum + d.deudaBs, 0);
+        const totalDeudaGeneralUsd = deudoresList.reduce((sum, d) => sum + d.deudaUsd, 0);
 
         return {
             solventes: solventesList,
             deudores: deudoresList,
-            totalDeuda: totalDeudaGeneral
+            totalDeudaBs: totalDeudaGeneralBs,
+            totalDeudaUsd: totalDeudaGeneralUsd
         };
     }, [asociados, pagos]);
     
@@ -89,9 +92,12 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-                     <div className="text-center md:text-left">
-                        <p className="text-lg">Total General Adeudado:</p>
-                        <p className="text-4xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalDeuda)}</p>
+                     <div className="text-center md:text-left space-y-1">
+                        <p className="text-lg text-gray-600 dark:text-gray-400">Total General Adeudado:</p>
+                        <p className="text-4xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalDeudaBs)}</p>
+                        <p className="text-xl font-semibold text-gray-500 dark:text-gray-400">
+                            ≈ ${totalDeudaUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                        </p>
                     </div>
                 </div>
             </Card>
@@ -121,10 +127,13 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
                         </div>
                     </CardHeader>
                     <ul className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                        {deudores.map(({ asociado, deuda }) => (
-                            <li key={asociado.id} className="p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-md text-sm flex justify-between">
+                        {deudores.map(({ asociado, deudaBs, deudaUsd }) => (
+                            <li key={asociado.id} className="p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-md text-sm flex justify-between items-center">
                                 <span>{asociado.nombre}</span>
-                                <span className="font-semibold text-yellow-800 dark:text-yellow-200">{formatCurrency(deuda)}</span>
+                                <div className="text-right">
+                                    <span className="font-bold text-yellow-900 dark:text-yellow-100 block">{formatCurrency(deudaBs)}</span>
+                                    <span className="text-xs text-yellow-800/70 dark:text-yellow-200/70 block">${deudaUsd.toFixed(2)} USD</span>
+                                </div>
                             </li>
                         ))}
                     </ul>

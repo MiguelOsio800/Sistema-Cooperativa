@@ -125,7 +125,16 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
                                 />
                                 <div className="ml-3 flex-grow flex justify-between text-sm">
                                     <span>{pago.concepto}</span>
-                                    <span className="font-semibold">{formatCurrency(pago.montoBs)}</span>
+                                    <div className="text-right">
+                                        <span className="font-semibold block">
+                                            {formatCurrency((pago.tasaCambio && pago.montoUsd) ? (pago.montoUsd * pago.tasaCambio) : pago.montoBs)}
+                                        </span>
+                                        {pago.tasaCambio && pago.montoUsd && (
+                                            <span className="text-[10px] text-gray-500 block">
+                                                ${pago.montoUsd.toFixed(2)} x {pago.tasaCambio}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </label>
                         ))}

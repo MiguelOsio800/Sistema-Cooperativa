@@ -40,12 +40,9 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
             return;
         }
 
-        const start = new Date(startDate + 'T00:00:00');
-        const end = new Date(endDate + 'T23:59:59');
-
         const relevantInvoices = invoices.filter(inv => {
-            const invDate = new Date(inv.date);
-            return invDate >= start && invDate <= end;
+            const invDateStr = inv.date.split('T')[0];
+            return invDateStr >= startDate && invDateStr <= endDate;
         });
 
         const totalFacturado = relevantInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);

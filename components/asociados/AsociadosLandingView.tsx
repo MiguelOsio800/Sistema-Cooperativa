@@ -46,15 +46,13 @@ const AsociadosLandingView: React.FC<AsociadosLandingViewProps> = ({ permissions
                     />
                 )}
                 {permissions['asociados.view'] && (
-                    <div className="md:col-span-2">
-                        <AccountingTile
-                            title="Pagos de Asociados"
-                            description="Registrar abonos, generar recibos y gestionar deudas."
-                            icon={CreditCardIcon}
-                            onClick={() => window.location.hash = 'asociados/pagos'}
-                            colorVariant="orange"
-                        />
-                    </div>
+                    <AccountingTile
+                        title="Pagos de Asociados"
+                        description="Registrar abonos, generar recibos y gestionar deudas."
+                        icon={CreditCardIcon}
+                        onClick={() => window.location.hash = 'asociados/pagos'}
+                        colorVariant="orange"
+                    />
                 )}
             </div>
         </div>

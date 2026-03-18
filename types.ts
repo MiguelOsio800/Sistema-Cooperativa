@@ -260,6 +260,7 @@ export interface PagoAsociado {
     status: 'Pendiente' | 'Pagado';
     reciboId?: string;
     fecha: string; // ISO date string
+    createdAt?: string; // ISO date string for grouping
 }
 
 export interface ReciboPagoAsociado {

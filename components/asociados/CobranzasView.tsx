@@ -62,17 +62,32 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
 
     const asociadosWithDebt = useMemo(() => {
         return asociados.map(a => {
-            // Filtramos las deudas por el mes y año seleccionado
-            const pendingPayments = pagosAsociados.filter(p => 
-                String(p.asociadoId) === String(a.id) && 
-                p.status === 'Pendiente' &&
-                p.fecha && p.fecha.startsWith(`${selectedYear}-${selectedMonth}`)
-            );
-            const totalDebt = pendingPayments.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
+            const allPending = pagosAsociados.filter(p => String(p.asociadoId) === String(a.id) && p.status === 'Pendiente');
+            
+            const periodPending = allPending.filter(p => {
+                // Usamos la fecha del cargo (p.fecha) para determinar a qué mes pertenece
+                if (!p.fecha) return false;
+                
+                // Extraemos año y mes, manejando formatos YYYY-MM-DD o ISO strings
+                const datePart = p.fecha.split('T')[0];
+                const parts = datePart.split('-');
+                if (parts.length < 2) return false;
+                
+                const year = parts[0];
+                const month = parts[1].padStart(2, '0'); // Aseguramos formato '03'
+                
+                return year === selectedYear && month === selectedMonth;
+            });
+            
+            const totalDebtPeriod = periodPending.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
+            const totalDebtGlobal = allPending.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
+            
             return {
                 ...a,
-                totalDebt,
-                isPending: totalDebt > 0
+                totalDebt: totalDebtPeriod,
+                globalDebt: totalDebtGlobal,
+                isPendingInPeriod: totalDebtPeriod > 0,
+                isGlobalPending: allPending.length > 0
             };
         });
     }, [asociados, pagosAsociados, selectedMonth, selectedYear]);
@@ -169,7 +184,7 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Código</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Deuda en {meses.find(m => m.value === selectedMonth)?.label}</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado Periodo</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado Morosidad</th>
                                 <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
@@ -187,15 +202,23 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
                                         <div className={`text-sm font-bold ${a.totalDebt > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                             {a.totalDebt.toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}
                                         </div>
+                                        {a.globalDebt > a.totalDebt && (
+                                            <div className="text-[10px] text-red-500 font-medium mt-0.5">
+                                                Deuda Total: {a.globalDebt.toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            a.isPending 
+                                            a.isGlobalPending 
                                             ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
                                             : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                         }`}>
-                                            <span className={`w-2 h-2 rounded-full mr-1.5 ${a.isPending ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                                            {a.isPending ? 'Pendiente' : 'Solvente'}
+                                            <span className={`w-2 h-2 rounded-full mr-1.5 ${a.isGlobalPending ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                                            {a.isGlobalPending 
+                                                ? (a.totalDebt > 0 ? 'Con Deuda' : 'Mora Anterior') 
+                                                : 'Solvente'
+                                            }
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
