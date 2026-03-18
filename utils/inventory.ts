@@ -1,5 +1,5 @@
 
-import { Invoice, InventoryItem } from './types';
+import { Invoice, InventoryItem } from '../types';
 
 export const deriveInventoryFromInvoices = (invoices: Invoice[]): InventoryItem[] => {
     const inventory: InventoryItem[] = [];

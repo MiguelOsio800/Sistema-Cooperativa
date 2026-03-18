@@ -13,7 +13,8 @@ interface GenerarDeudaMasivaModalProps {
         cuotas: string,
         montoBs: number,
         montoUsd: number,
-        fechaVencimiento: string,
+        tasaCambio: number,
+        fecha: string,
         applyTo: 'Activo' | 'Todos'
     }) => void;
     companyInfo: CompanyInfo;
@@ -22,7 +23,7 @@ interface GenerarDeudaMasivaModalProps {
 const GenerarDeudaMasivaModal: React.FC<GenerarDeudaMasivaModalProps> = ({ isOpen, onClose, onGenerate, companyInfo }) => {
     const [concepto, setConcepto] = useState('');
     const [cuotas, setCuotas] = useState('');
-    const [fechaVencimiento, setFechaVencimiento] = useState(new Date().toISOString().split('T')[0]);
+    const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
     const [montoBs, setMontoBs] = useState<number | ''>('');
     const [montoUsd, setMontoUsd] = useState<number | ''>('');
     const [applyTo, setApplyTo] = useState<'Activo' | 'Todos'>('Activo');
@@ -60,7 +61,8 @@ const GenerarDeudaMasivaModal: React.FC<GenerarDeudaMasivaModalProps> = ({ isOpe
                 cuotas,
                 montoBs,
                 montoUsd: typeof montoUsd === 'number' ? montoUsd : 0,
-                fechaVencimiento,
+                tasaCambio: bcvRate,
+                fecha,
                 applyTo,
             });
         }
@@ -69,7 +71,14 @@ const GenerarDeudaMasivaModal: React.FC<GenerarDeudaMasivaModalProps> = ({ isOpe
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Generar Deuda Masiva para Asociados">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <Input label="Concepto de la Deuda" value={concepto} onChange={e => setConcepto(e.target.value)} required placeholder="Ej: Cuota de Mantenimiento Enero 2025" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-1">
+                        <Input label="Concepto de la Deuda" value={concepto} onChange={e => setConcepto(e.target.value)} required placeholder="Ej: Cuota de Mantenimiento Enero 2025" />
+                    </div>
+                    <div className="md:col-span-1">
+                        <Input label="Fecha" type="date" value={fecha} onChange={e => setFecha(e.target.value)} required />
+                    </div>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -96,7 +105,6 @@ const GenerarDeudaMasivaModal: React.FC<GenerarDeudaMasivaModalProps> = ({ isOpe
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input label="Cuotas" placeholder="Ej: 1/12" value={cuotas} onChange={e => setCuotas(e.target.value)} />
-                    <Input label="Fecha de Vencimiento" type="date" value={fechaVencimiento} onChange={e => setFechaVencimiento(e.target.value)} required />
                 </div>
 
                 <Select label="Aplicar a" value={applyTo} onChange={e => setApplyTo(e.target.value as 'Activo' | 'Todos')}>

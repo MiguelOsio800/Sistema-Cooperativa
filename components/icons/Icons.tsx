@@ -495,6 +495,35 @@ export const SendIcon = (props: IconProps) => (
     </svg>
 );
 
+export const CheckIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+);
+
+export const CurrencyDollarIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <line x1="12" y1="1" x2="12" y2="23"></line>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+    </svg>
+);
+
+export const FilterIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+    </svg>
+);
+
+export const DocumentTextIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+    </svg>
+);
+
 export const WhatsAppIcon = (props: IconProps) => (
     <svg fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
         <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.35 3.45 16.86L2.06 22L7.31 20.52C8.75 21.32 10.36 21.8 12.04 21.8C17.5 21.8 21.95 17.35 21.95 11.89C21.95 6.43 17.5 2 12.04 2ZM12.04 20.12C10.49 20.12 8.98 19.66 7.69 18.81L7.33 18.59L4.45 19.45L5.34 16.64L5.1 16.27C4.18 14.88 3.73 13.29 3.73 11.9C3.73 7.36 7.47 3.62 12.03 3.62C14.24 3.62 16.22 4.47 17.76 6.01C19.3 7.55 20.15 9.53 20.15 11.89C20.15 16.43 16.41 20.12 12.04 20.12ZM16.56 14.47C16.33 14.36 15.09 13.78 14.88 13.7C14.67 13.62 14.52 13.58 14.38 13.81C14.24 14.04 13.75 14.62 13.61 14.78C13.47 14.94 13.32 14.95 13.09 14.84C12.86 14.73 11.93 14.4 10.84 13.43C10.02 12.69 9.47 11.82 9.33 11.58C9.19 11.34 9.31 11.23 9.43 11.11C9.54 11 9.68 10.81 9.82 10.66C9.96 10.51 10.01 10.4 10.1 10.23C10.19 10.06 10.14 9.9 10.08 9.78C10.02 9.67 9.56 8.52 9.38 8.13C9.2 7.74 9.02 7.8 8.89 7.79C8.76 7.78 8.61 7.78 8.47 7.78C8.33 7.78 8.09 7.84 7.88 8.06C7.67 8.28 7.18 8.75 7.18 9.88C7.18 11.01 7.91 12.1 8.05 12.26C8.19 12.42 10.34 15.68 13.45 16.96C14.15 17.26 14.69 17.43 15.11 17.56C15.77 17.76 16.32 17.73 16.74 17.34C17.23 16.88 17.58 16.24 17.72 15.86C17.86 15.48 17.86 15.15 17.8 15.04C17.74 14.93 17.58 14.86 17.35 14.75C17.12 14.64 16.79 14.58 16.56 14.47Z"></path>

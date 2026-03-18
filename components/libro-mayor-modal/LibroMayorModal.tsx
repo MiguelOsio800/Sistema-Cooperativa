@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { Transaction } from './LibroContableView';
+import { Transaction } from '../libro-contable/LibroContableView';
 import { Invoice, Expense, CompanyInfo, PaymentMethod } from '../../types';
 import { calculateFinancialDetails } from '../../utils/financials';
 import { FileSpreadsheetIcon, ChevronDownIcon } from '../icons/Icons';

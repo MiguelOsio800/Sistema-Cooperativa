@@ -32,7 +32,15 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
     const totalAPagar = useMemo(() => {
         return pagosPendientes
             .filter(p => selectedPagoIds.includes(p.id))
-            .reduce((sum, p) => sum + p.montoBs, 0);
+            .reduce((sum, p) => {
+                // If debt has a frozen rate, use it to calculate Bs from USD
+                // This ensures the debt remains at the rate it was generated
+                if (p.tasaCambio && p.montoUsd) {
+                    return sum + (p.montoUsd * p.tasaCambio);
+                }
+                // Fallback to stored montoBs if no tasaCambio
+                return sum + p.montoBs;
+            }, 0);
     }, [pagosPendientes, selectedPagoIds]);
 
     const totalPagado = useMemo(() => {

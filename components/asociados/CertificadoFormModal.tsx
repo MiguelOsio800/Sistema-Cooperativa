@@ -20,6 +20,7 @@ const CertificadoFormModal: React.FC<CertificadoFormModalProps> = ({ isOpen, onC
         if (isOpen) {
             setFormData(certificado || {
                 vehiculoId: vehiculoId,
+                codigo: '',
                 descripcion: '',
                 fechaInicio: new Date().toISOString().split('T')[0],
                 status: 'Activo'
@@ -40,7 +41,14 @@ const CertificadoFormModal: React.FC<CertificadoFormModalProps> = ({ isOpen, onC
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={certificado ? 'Editar Certificado' : 'Nuevo Certificado'}>
             <form onSubmit={handleSubmit} className="space-y-4">
-                <Input name="descripcion" label="Descripción del Certificado" value={formData.descripcion || ''} onChange={handleChange} required />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-1">
+                        <Input name="codigo" label="Código" value={formData.codigo || ''} onChange={handleChange} required placeholder="Ej. C-001" />
+                    </div>
+                    <div className="md:col-span-2">
+                        <Input name="descripcion" label="Descripción del Certificado" value={formData.descripcion || ''} onChange={handleChange} required placeholder="Ej. Certificado de un año" />
+                    </div>
+                </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input name="fechaInicio" label="Fecha de Inicio" type="date" value={formData.fechaInicio || ''} onChange={handleChange} />
                     <Input name="fechaSuspension" label="Fecha de Suspensión" type="date" value={formData.fechaSuspension || ''} onChange={handleChange} />

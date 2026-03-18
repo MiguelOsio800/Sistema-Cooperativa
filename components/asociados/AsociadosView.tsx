@@ -105,7 +105,8 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
         cuotas: string,
         montoBs: number,
         montoUsd: number,
-        fechaVencimiento: string,
+        tasaCambio: number,
+        fecha: string,
         applyTo: 'Activo' | 'Todos'
     }) => {
         await handleGenerateMassiveDebt(debtData);

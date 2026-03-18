@@ -36,6 +36,15 @@ const AsociadosLandingView: React.FC<AsociadosLandingViewProps> = ({ permissions
                         colorVariant="green"
                     />
                 )}
+                {permissions['cobranzas.view'] && (
+                     <AccountingTile
+                        title="Cobranzas Mensuales"
+                        description="Generar cargos masivos y gestionar deudas mensuales."
+                        icon={CreditCardIcon}
+                        onClick={() => window.location.hash = 'asociados/cobranzas'}
+                        colorVariant="purple"
+                    />
+                )}
                 {permissions['asociados.view'] && (
                     <div className="md:col-span-2">
                         <AccountingTile

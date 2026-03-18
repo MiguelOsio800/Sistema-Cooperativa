@@ -1,0 +1,210 @@
+
+import React, { useMemo, useState } from 'react';
+import { Asociado, PagoAsociado, ReciboPagoAsociado, CompanyInfo, Permissions } from '../../types';
+import Modal from '../ui/Modal';
+import Card, { CardHeader, CardTitle } from '../ui/Card';
+import Button from '../ui/Button';
+import { ReceiptIcon, EyeIcon, TrashIcon, CheckCircleIcon, ExclamationTriangleIcon } from '../icons/Icons';
+import RegistrarPagoModal from './RegistrarPagoModal';
+import ReciboPagoAsociadoModal from './ReciboPagoAsociadoModal';
+
+interface AsociadoFinanzasModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    asociado: Asociado;
+    pagos: PagoAsociado[];
+    recibos: ReciboPagoAsociado[];
+    onSaveRecibo: (recibo: ReciboPagoAsociado) => Promise<void>;
+    onDeletePago: (pagoId: string) => Promise<void>;
+    companyInfo: CompanyInfo;
+    permissions: Permissions;
+    initialTab?: 'deudas' | 'recibos' | 'pagar';
+    selectedMonth?: string;
+    selectedYear?: string;
+}
+
+const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({ 
+    isOpen, 
+    onClose, 
+    asociado, 
+    pagos, 
+    recibos, 
+    onSaveRecibo, 
+    onDeletePago,
+    companyInfo, 
+    permissions,
+    initialTab = 'deudas',
+    selectedMonth,
+    selectedYear
+}) => {
+    const [isRegistrarModalOpen, setIsRegistrarModalOpen] = useState(initialTab === 'pagar');
+    const [viewReciboModalOpen, setViewReciboModalOpen] = useState(false);
+    const [selectedRecibo, setSelectedRecibo] = useState<ReciboPagoAsociado | null>(null);
+
+    const { pagosPendientes, recibosAsociado, totalDeuda } = useMemo(() => {
+        const misPagos = pagos.filter(p => {
+            const matchAsociado = String(p.asociadoId) === String(asociado.id);
+            const matchPeriod = selectedMonth && selectedYear 
+                ? p.fecha && p.fecha.startsWith(`${selectedYear}-${selectedMonth}`)
+                : true;
+            return matchAsociado && matchPeriod;
+        });
+        
+        const pendientes = misPagos
+            .filter(p => p.status === 'Pendiente')
+            .sort((a, b) => (String(a.id) > String(b.id) ? -1 : 1)); // Sort by ID or creation if no date
+        
+        const misRecibos = recibos
+            .filter(r => {
+            const matchAsociado = String(r.asociadoId) === String(asociado.id);
+                const matchPeriod = selectedMonth && selectedYear 
+                    ? r.fechaPago && r.fechaPago.startsWith(`${selectedYear}-${selectedMonth}`)
+                    : true;
+                return matchAsociado && matchPeriod;
+            })
+            .sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
+        
+        const deuda = pendientes.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
+        
+        return { 
+            pagosPendientes: pendientes, 
+            recibosAsociado: misRecibos,
+            totalDeuda: deuda,
+        };
+    }, [pagos, recibos, asociado.id, selectedMonth, selectedYear]);
+
+    const handleViewRecibo = (recibo: ReciboPagoAsociado) => {
+        setSelectedRecibo(recibo);
+        setViewReciboModalOpen(true);
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`Finanzas de ${asociado.nombre}`} size="xl">
+            <div className="space-y-6">
+                <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-lg">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-800 dark:text-white">{asociado.nombre}</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Código: {asociado.codigo} | C.I: {asociado.cedula}</p>
+                        </div>
+                        <div className="text-left sm:text-right">
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Saldo Deudor Total</p>
+                            <p className={`text-3xl font-bold ${totalDeuda > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                                {formatCurrency(totalDeuda)}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Cuentas Pendientes */}
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Cuentas Pendientes</h3>
+                            <Button onClick={() => setIsRegistrarModalOpen(true)} size="sm" disabled={pagosPendientes.length === 0}>
+                                <ReceiptIcon className="w-4 h-4 mr-1"/> Registrar Pago
+                            </Button>
+                        </div>
+                        <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                            {pagosPendientes.length > 0 ? pagosPendientes.map(p => {
+                                return (
+                                    <div key={p.id} className="p-3 rounded-md border-l-4 flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500">
+                                        <div className="flex-grow">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="font-semibold text-yellow-800 dark:text-yellow-200">{p.concepto}</p>
+                                                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                                                        Fecha: {p.fecha} | Cuotas: {p.cuotas}
+                                                        {p.tasaCambio && <span className="ml-2 px-1.5 py-0.5 bg-yellow-200 dark:bg-yellow-800 rounded text-[10px] font-bold">Tasa: {p.tasaCambio}</span>}
+                                                    </p>
+                                                </div>
+                                                <p className="font-bold text-right text-yellow-900 dark:text-yellow-100">
+                                                    {formatCurrency(p.montoBs)}
+                                                    {p.montoUsd && <span className="block text-xs font-normal text-yellow-800/80 dark:text-yellow-200/80">(${p.montoUsd.toFixed(2)})</span>}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {permissions['asociados.pagos.delete'] && (
+                                            <Button 
+                                                variant="danger" 
+                                                size="sm" 
+                                                className="ml-4 !p-2 flex-shrink-0"
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    await onDeletePago(p.id);
+                                                }}
+                                                title="Eliminar Deuda"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                )
+                            }) : (
+                                <div className="text-center py-8">
+                                    <CheckCircleIcon className="mx-auto h-10 w-10 text-green-500 mb-2" />
+                                    <p className="text-gray-500 dark:text-gray-400">Sin deudas pendientes.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Historial de Recibos */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Historial de Recibos</h3>
+                        <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                            {recibosAsociado.length > 0 ? recibosAsociado.map(r => (
+                                <div key={r.id} className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md block border-l-4 border-green-500">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <div>
+                                            <p className="font-semibold text-gray-900 dark:text-white">Recibo N°: {r.comprobanteNumero}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Fecha: {r.fechaPago}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(r.montoTotalBs)}</p>
+                                            <Button size="sm" variant="secondary" onClick={() => handleViewRecibo(r)} className="mt-1">
+                                                <EyeIcon className="w-3 h-3 mr-1" /> Ver
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )) : (
+                                <p className="text-center py-8 text-gray-500 dark:text-gray-400">No hay recibos registrados.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t dark:border-gray-700">
+                    <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+                </div>
+            </div>
+
+            {isRegistrarModalOpen && (
+                <RegistrarPagoModal
+                    isOpen={isRegistrarModalOpen}
+                    onClose={() => setIsRegistrarModalOpen(false)}
+                    asociado={asociado}
+                    pagosPendientes={pagosPendientes}
+                    onSaveRecibo={onSaveRecibo}
+                    companyInfo={companyInfo}
+                />
+            )}
+
+            {viewReciboModalOpen && selectedRecibo && (
+                <ReciboPagoAsociadoModal
+                    isOpen={viewReciboModalOpen}
+                    onClose={() => setViewReciboModalOpen(false)}
+                    recibo={selectedRecibo}
+                    asociado={asociado}
+                    pagos={pagos}
+                    companyInfo={companyInfo}
+                />
+            )}
+        </Modal>
+    );
+};
+
+export default AsociadoFinanzasModal;

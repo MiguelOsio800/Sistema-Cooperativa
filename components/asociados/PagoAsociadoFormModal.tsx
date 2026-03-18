@@ -29,8 +29,9 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
                 cuotas: '',
                 montoBs: 0,
                 montoUsd: 0,
-                fechaVencimiento: new Date().toISOString().split('T')[0],
-                status: 'Pendiente'
+                status: 'Pendiente',
+                tasaCambio: bcvRate,
+                fecha: new Date().toISOString().split('T')[0]
             };
             setFormData(initialData);
             setMontoBs(initialData.montoBs || '');
@@ -74,6 +75,8 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
             ...formData,
             montoBs: typeof montoBs === 'number' ? montoBs : 0,
             montoUsd: typeof montoUsd === 'number' ? montoUsd : 0,
+            tasaCambio: formData.tasaCambio || bcvRate,
+            fecha: formData.fecha || new Date().toISOString().split('T')[0]
         };
         onSave(finalData as PagoAsociado);
     };
@@ -81,7 +84,14 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={pago ? 'Editar Deuda/Concepto' : 'Nueva Deuda/Concepto'}>
             <form onSubmit={handleSubmit} className="space-y-4">
-                <Input name="concepto" label="Descripción del Concepto" value={formData.concepto || ''} onChange={handleChange} required />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-1">
+                        <Input name="concepto" label="Descripción del Concepto" value={formData.concepto || ''} onChange={handleChange} required />
+                    </div>
+                    <div className="md:col-span-1">
+                        <Input name="fecha" label="Fecha" type="date" value={formData.fecha || ''} onChange={handleChange} required />
+                    </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                         <Input 
@@ -106,7 +116,6 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input name="cuotas" label="Cuotas" placeholder="Ej: 41-45 o 10" value={formData.cuotas || ''} onChange={handleChange} />
-                    <Input name="fechaVencimiento" label="Fecha de Vencimiento" type="date" value={formData.fechaVencimiento || ''} onChange={handleChange} />
                 </div>
                 
                 <div className="flex justify-end space-x-2 pt-4">

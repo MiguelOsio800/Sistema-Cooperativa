@@ -101,57 +101,62 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLoading(false);
             return;
         }
+    }, [isAuthenticated]);
 
-        if (dataLoadedForUserRef.current === currentUser?.id || !currentUser) return;
+    const fetchData = useCallback(async () => {
+        if (!isAuthenticated || !currentUser) return;
+        
+        try {
+            setIsLoading(true);
+            dataLoadedForUserRef.current = currentUser?.id || 'authed';
+            
+            const isAdmin = ['role-admin', 'role-tech'].includes(currentUser.roleId);
+            const perms = (currentUser as any).Role?.permissions || currentUser.permissions || {};
+            const promises: Promise<any>[] = [];
 
-        const fetchData = async () => {
-            try {
-                setIsLoading(true);
-                dataLoadedForUserRef.current = currentUser?.id || 'authed';
-                
-                const isAdmin = ['role-admin', 'role-tech'].includes(currentUser.roleId);
-                const perms = (currentUser as any).Role?.permissions || currentUser.permissions || {};
-                const promises: Promise<any>[] = [];
-
-                if (isAdmin || perms['invoices.view']) promises.push(fetchSafe<Invoice[]>('/invoices', []).then(d => { setInvoices(d); setInventory(deriveInventoryFromInvoices(d)); }));
-                if (isAdmin || perms['clientes.view']) promises.push(fetchSafe<Client[]>('/clients', []).then(setClients));
-                if (isAdmin || perms['proveedores.view']) promises.push(fetchSafe<Supplier[]>('/suppliers', []).then(setSuppliers));
-                if (isAdmin || perms['flota.view']) promises.push(fetchSafe<Vehicle[]>('/vehicles', []).then(setVehicles));
-                if (isAdmin || perms['remesas.view']) promises.push(fetchSafe<Remesa[]>('/remesas', []).then(setRemesas));
-                if (isAdmin || perms['despachos.view']) promises.push(fetchSafe<Dispatch[]>('/dispatches', []).then(setDispatches));
-                if (isAdmin || perms['libro-contable.view']) {
-                    promises.push(fetchSafe<Expense[]>('/expenses', []).then(setExpenses));
-                    promises.push(fetchSafe<AsientoManual[]>('/asientos-manuales', []).then(setAsientosManuales));
-                }
-                
-                if (isAdmin || perms['inventario-bienes.view']) {
-                    promises.push(fetchSafe<Asset[]>('/assets', []).then(setAssets));
-                    promises.push(fetchSafe<AssetCategory[]>('/asset-categories', []).then(setAssetCategories));
-                }
-
-                if (isAdmin || perms['asociados.view']) {
-                    const asocsResponse = await fetchSafe<any>('/asociados', { data: [], total: 0 });
-                    const asocs = Array.isArray(asocsResponse) ? asocsResponse : (asocsResponse.data || []);
-                    setAsociados(asocs);
-                    promises.push(fetchSafe<ReciboPagoAsociado[]>('/asociados/recibos', []).then(setRecibosPagoAsociados));
-                    
-                    if (asocs.length > 0) {
-                        const validAsocs = asocs.filter((a: Asociado) => a.id && a.id.trim() !== '');
-                        const debtPromises = validAsocs.map((a: Asociado) => fetchSafe<PagoAsociado[]>(`/asociados/${a.id}/deudas`, []));
-                        const certPromises = validAsocs.map((a: Asociado) => fetchSafe<Certificado[]>(`/asociados/${a.id}/certificados`, []));
-                        const [debts, certs] = await Promise.all([Promise.all(debtPromises), Promise.all(certPromises)]);
-                        setPagosAsociados(debts.flat());
-                        setCertificados(certs.flat());
-                    }
-                }
-
-                await Promise.all(promises);
-            } finally {
-                setIsLoading(false);
+            if (isAdmin || perms['invoices.view']) promises.push(fetchSafe<Invoice[]>('/invoices', []).then(d => { setInvoices(d); setInventory(deriveInventoryFromInvoices(d)); }));
+            if (isAdmin || perms['clientes.view']) promises.push(fetchSafe<Client[]>('/clients', []).then(setClients));
+            if (isAdmin || perms['proveedores.view']) promises.push(fetchSafe<Supplier[]>('/suppliers', []).then(setSuppliers));
+            if (isAdmin || perms['flota.view']) promises.push(fetchSafe<Vehicle[]>('/vehicles', []).then(setVehicles));
+            if (isAdmin || perms['remesas.view']) promises.push(fetchSafe<Remesa[]>('/remesas', []).then(setRemesas));
+            if (isAdmin || perms['despachos.view']) promises.push(fetchSafe<Dispatch[]>('/dispatches', []).then(setDispatches));
+            if (isAdmin || perms['libro-contable.view']) {
+                promises.push(fetchSafe<Expense[]>('/expenses', []).then(setExpenses));
+                promises.push(fetchSafe<AsientoManual[]>('/asientos-manuales', []).then(setAsientosManuales));
             }
-        };
+            
+            if (isAdmin || perms['inventario-bienes.view']) {
+                promises.push(fetchSafe<Asset[]>('/assets', []).then(setAssets));
+                promises.push(fetchSafe<AssetCategory[]>('/asset-categories', []).then(setAssetCategories));
+            }
+
+            if (isAdmin || perms['asociados.view']) {
+                const asocsResponse = await fetchSafe<any>('/asociados', { data: [], total: 0 });
+                const asocs = Array.isArray(asocsResponse) ? asocsResponse : (asocsResponse.data || []);
+                setAsociados(asocs);
+                promises.push(fetchSafe<ReciboPagoAsociado[]>('/asociados/recibos', []).then(setRecibosPagoAsociados));
+                
+                if (asocs.length > 0) {
+                    const validAsocs = asocs.filter((a: Asociado) => a.id && String(a.id).trim() !== '');
+                    const debtPromises = validAsocs.map((a: Asociado) => fetchSafe<PagoAsociado[]>(`/asociados/${a.id}/deudas`, []));
+                    const certPromises = validAsocs.map((a: Asociado) => fetchSafe<Certificado[]>(`/asociados/${a.id}/certificados`, []));
+                    const [debts, certs] = await Promise.all([Promise.all(debtPromises), Promise.all(certPromises)]);
+                    setPagosAsociados(debts.flat());
+                    setCertificados(certs.flat());
+                }
+            }
+
+            await Promise.all(promises);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [isAuthenticated, currentUser, fetchSafe, addToast]);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        if (dataLoadedForUserRef.current === currentUser?.id || !currentUser) return;
         fetchData();
-    }, [isAuthenticated, currentUser?.id, fetchSafe]);
+    }, [isAuthenticated, currentUser?.id, fetchData]);
 
     const handleGenericSave = async <T extends { id?: string; }>(item: T, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<T[]>>): Promise<T> => {
         const isUpdating = !!item.id;
@@ -198,7 +203,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             },
             handleDeleteInvoice: async (id) => { await apiFetch(`/invoices/${id}`, { method: 'DELETE' }); setInvoices(p => p.map(i => i.id === id ? {...i, status: 'Anulada'} : i)); },
             handleSaveVehicle: (v) => handleGenericSave(v, '/vehicles', setVehicles),
-            handleDeleteVehicle: (id) => apiFetch(`/vehicles/${id}`, { method: 'DELETE' }).then(() => setVehicles(p => p.filter(i => i.id !== id))),
+            handleDeleteVehicle: async (id) => {
+                try {
+                    await apiFetch(`/vehicles/${id}`, { method: 'DELETE' });
+                    setVehicles(p => p.filter(i => i.id !== id));
+                    addToast({ type: 'success', title: 'Vehículo Eliminado', message: 'El vehículo ha sido eliminado correctamente.' });
+                } catch (error: any) {
+                    addToast({ type: 'error', title: 'Error al Eliminar', message: error.message || 'No se pudo eliminar el vehículo.' });
+                    throw error;
+                }
+            },
             handleAssignToVehicle: async (ids, vId) => {
                 const resp = await apiFetch<{updatedInvoices: Invoice[]}>(`/vehicles/${vId}/assign-invoices`, { method: 'POST', body: JSON.stringify({invoiceIds: ids}) });
                 const updatedInvoices = resp.updatedInvoices || [];
@@ -242,8 +256,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleDeleteAssetCategory: (id) => apiFetch(`/asset-categories/${id}`, { method: 'DELETE' }).then(() => setAssetCategories(p => p.filter(i => i.id !== id))),
             handleSaveAsociado: (a) => handleGenericSave(a, '/asociados', setAsociados),
             handleDeleteAsociado: (id) => apiFetch(`/asociados/${id}`, { method: 'DELETE' }).then(() => setAsociados(p => p.filter(i => i.id !== id))),
-            handleSaveCertificado: (c) => handleGenericSave(c, '/asociados/certificados', setCertificados),
-            handleDeleteCertificado: (id) => apiFetch(`/asociados/certificados/${id}`, { method: 'DELETE' }).then(() => setCertificados(p => p.filter(i => i.id !== id))),
+            handleSaveCertificado: async (c) => {
+                await handleGenericSave(c, '/asociados/certificados', setCertificados);
+                addToast({ type: 'success', title: 'Certificado Guardado', message: 'El certificado se ha guardado correctamente.' });
+            },
+            handleDeleteCertificado: async (id) => {
+                await apiFetch(`/asociados/certificados/${id}`, { method: 'DELETE' });
+                setCertificados(p => p.filter(i => i.id !== id));
+                addToast({ type: 'success', title: 'Certificado Eliminado', message: 'El certificado ha sido eliminado.' });
+            },
             handleSavePagoAsociado: (p) => handleGenericSave(p, '/asociados/pagos', setPagosAsociados),
             handleDeletePagoAsociado: (id) => apiFetch(`/asociados/pagos/${id}`, { method: 'DELETE' }).then(() => setPagosAsociados(p => p.filter(i => i.id !== id))),
             handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados),
@@ -291,7 +312,48 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setInvoices(p => p.map(i => map.get(i.id) || i));
                 }
             },
-            handleGenerateMassiveDebt: async (d) => { await apiFetch('/asociados/deuda-masiva', { method: 'POST', body: JSON.stringify(d) }); }
+            handleGenerateMassiveDebt: async (d) => { 
+                // Ensure payload has montoBs if it only has monto
+                const payload = { 
+                    ...d, 
+                    montoBs: (d as any).montoBs || (d as any).monto,
+                    montoUsd: (d as any).montoUsd || ((d as any).monto / (d.tasaCambio || 1))
+                };
+                
+                const resp = await apiFetch<any>('/asociados/deuda-masiva', { method: 'POST', body: JSON.stringify(payload) }); 
+                
+                // Handle different response formats: { newPayments: [] }, { data: [] }, or []
+                let rawPayments: any[] = [];
+                if (Array.isArray(resp)) {
+                    rawPayments = resp;
+                } else if (resp && resp.newPayments && Array.isArray(resp.newPayments)) {
+                    rawPayments = resp.newPayments;
+                } else if (resp && resp.data && Array.isArray(resp.data)) {
+                    rawPayments = resp.data;
+                }
+
+                // Normalize payments to match PagoAsociado interface
+                const newPayments: PagoAsociado[] = rawPayments.map(p => ({
+                    id: String(p.id || p._id),
+                    asociadoId: String(p.asociadoId || p.asociado_id),
+                    concepto: p.concepto || payload.concepto,
+                    cuotas: p.cuotas || payload.cuotas,
+                    montoBs: Number(p.montoBs || p.monto_bs || p.monto || payload.montoBs),
+                    montoUsd: Number(p.montoUsd || p.monto_usd || payload.montoUsd),
+                    tasaCambio: Number(p.tasaCambio || p.tasa_cambio || payload.tasaCambio),
+                    status: p.status || 'Pendiente',
+                    reciboId: p.reciboId || p.recibo_id,
+                    fecha: p.fecha || p.fecha_generacion || (payload as any).fecha || new Date().toISOString().split('T')[0]
+                }));
+
+                if (newPayments.length > 0) {
+                    setPagosAsociados(prev => [...newPayments, ...prev]);
+                } else {
+                    // If no payments returned, refresh all data to be sure
+                    await fetchData();
+                }
+                addToast({ type: 'success', title: 'Cargos Generados', message: `Se han generado cargos para ${d.asociadoIds?.length || 'los'} socios.` });
+            }
         }}>
             {children}
         </DataContext.Provider>

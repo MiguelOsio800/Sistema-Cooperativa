@@ -25,48 +25,61 @@ interface AsociadosPagosViewProps {
 
 const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const isOverdue = (dateString: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today's date
-    const dueDate = new Date(dateString + 'T00:00:00');
-    return dueDate < today;
-};
-
 const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
     const { asociados, pagos, recibos, onSavePago, onDeletePago, onSaveRecibo, companyInfo, permissions } = props;
     const { invoices } = useData();
 
     const [selectedAsociadoId, setSelectedAsociadoId] = useState<string>('');
+    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
+    const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
     const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
     const [editingPago, setEditingPago] = useState<PagoAsociado | null>(null);
     const [isReciboModalOpen, setIsReciboModalOpen] = useState(false);
     const [isDeudaProduccionModalOpen, setIsDeudaProduccionModalOpen] = useState(false);
-    
     const [viewReciboModalOpen, setViewReciboModalOpen] = useState(false);
     const [selectedRecibo, setSelectedRecibo] = useState<ReciboPagoAsociado | null>(null);
+
+    const meses = [
+        { value: '01', label: 'Enero' },
+        { value: '02', label: 'Febrero' },
+        { value: '03', label: 'Marzo' },
+        { value: '04', label: 'Abril' },
+        { value: '05', label: 'Mayo' },
+        { value: '06', label: 'Junio' },
+        { value: '07', label: 'Julio' },
+        { value: '08', label: 'Agosto' },
+        { value: '09', label: 'Septiembre' },
+        { value: '10', label: 'Octubre' },
+        { value: '11', label: 'Noviembre' },
+        { value: '12', label: 'Diciembre' },
+    ];
+
+    const años = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 2 + i));
     
     const selectedAsociado = useMemo(() => {
-        return asociados.find(a => a.id === selectedAsociadoId);
+        return asociados.find(a => String(a.id) === String(selectedAsociadoId));
     }, [asociados, selectedAsociadoId]);
 
     const { pagosPendientes, recibosAsociado, totalDeuda } = useMemo(() => {
         if (!selectedAsociadoId) {
             return { pagosPendientes: [], recibosAsociado: [], totalDeuda: 0 };
         }
-        // Filtramos estrictamente por asociado y estado 'Pendiente'
-        const misPagos = pagos.filter(p => p.asociadoId === selectedAsociadoId);
+        // Filtramos estrictamente por asociado, estado 'Pendiente' y el periodo seleccionado
+        const misPagos = pagos.filter(p => 
+            String(p.asociadoId) === String(selectedAsociadoId) &&
+            p.fecha && p.fecha.startsWith(`${selectedYear}-${selectedMonth}`)
+        );
         
         // REGLA: Solo lo que está en 'Pendiente' va a la lista de deudas y al saldo deudor
         const pendientes = misPagos
             .filter(p => p.status === 'Pendiente')
-            .sort((a,b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime());
+            .sort((a, b) => (String(a.id) > String(b.id) ? -1 : 1)); // Robust sort by ID string
         
         const misRecibos = recibos
-            .filter(r => r.asociadoId === selectedAsociadoId)
-            // Fix: Corrected sort to use mapped elements 'a' and 'b' instead of undefined 'r'
+            .filter(r => String(r.asociadoId) === String(selectedAsociadoId) && r.fechaPago.startsWith(`${selectedYear}-${selectedMonth}`))
             .sort((a,b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
         
-        // El saldo deudor total ahora solo suma los montos de pagos que siguen como 'Pendiente'
+        // El saldo deudor total ahora solo suma los montos de pagos que siguen como 'Pendiente' en este periodo
         const deuda = pendientes.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
         
         return { 
@@ -74,7 +87,7 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
             recibosAsociado: misRecibos,
             totalDeuda: deuda,
         };
-    }, [pagos, recibos, selectedAsociadoId]);
+    }, [pagos, recibos, selectedAsociadoId, selectedMonth, selectedYear]);
 
     const handleOpenPagoModal = (pago: PagoAsociado | null) => {
         setEditingPago(pago);
@@ -105,7 +118,25 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
             
             <Card>
                 <CardHeader>
-                    <CardTitle>Seleccionar Asociado</CardTitle>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <CardTitle>Seleccionar Asociado y Periodo</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <select 
+                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                            >
+                                {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                            </select>
+                            <select 
+                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                            >
+                                {años.map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                        </div>
+                    </div>
                     <div className="max-w-md mt-2">
                         <Select label="" value={selectedAsociadoId} onChange={e => setSelectedAsociadoId(e.target.value)}>
                             <option value="">-- Busque y seleccione un asociado --</option>
@@ -171,21 +202,24 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                             </CardHeader>
                             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                                 {pagosPendientes.length > 0 ? pagosPendientes.map(p => {
-                                    const overdue = isOverdue(p.fechaVencimiento);
                                     return (
-                                        <div key={p.id} className={`p-3 rounded-md border-l-4 flex justify-between items-center ${overdue ? 'bg-red-50 dark:bg-red-900/30 border-red-500' : 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500'}`}>
+                                        <div key={p.id} className="p-3 rounded-md border-l-4 flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500">
                                             <div className="flex-grow">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <p className={`font-semibold ${overdue ? 'text-red-800 dark:text-red-200' : 'text-yellow-800 dark:text-yellow-200'}`}>{p.concepto}</p>
-                                                        <p className={`text-xs ${overdue ? 'text-red-700 dark:text-red-300' : 'text-yellow-700 dark:text-yellow-300'}`}>
-                                                            {overdue && <ExclamationTriangleIcon className="w-3 h-3 inline-block mr-1" />}
-                                                            Vence: {p.fechaVencimiento}
-                                                        </p>
+                                                        <p className="font-semibold text-yellow-800 dark:text-yellow-200">{p.concepto}</p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs text-yellow-700 dark:text-yellow-300">Fecha: {p.fecha}</span>
+                                                            {p.tasaCambio && (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                                    Tasa: {p.tasaCambio}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <p className={`font-bold text-right ${overdue ? 'text-red-900 dark:text-red-100' : 'text-yellow-900 dark:text-yellow-100'}`}>
+                                                    <p className="font-bold text-right text-yellow-900 dark:text-yellow-100">
                                                         {formatCurrency(p.montoBs)}
-                                                        {p.montoUsd && <span className={`block text-xs font-normal ${overdue ? 'text-red-800/80 dark:text-red-200/80' : 'text-yellow-800/80 dark:text-yellow-200/80'}`}>(${p.montoUsd.toFixed(2)})</span>}
+                                                        {p.montoUsd && <span className="block text-xs font-normal text-yellow-800/80 dark:text-yellow-200/80">(${p.montoUsd.toFixed(2)})</span>}
                                                     </p>
                                                 </div>
                                             </div>

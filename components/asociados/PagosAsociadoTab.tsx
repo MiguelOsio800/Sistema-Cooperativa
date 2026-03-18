@@ -76,7 +76,10 @@ const PagosAsociadoTab: React.FC<PagosAsociadoTabProps> = (props) => {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="font-semibold text-yellow-800 dark:text-yellow-200">{p.concepto}</p>
-                                    <p className="text-xs text-yellow-700 dark:text-yellow-300">Cuotas: {p.cuotas} | Vence: {p.fechaVencimiento}</p>
+                                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                                        Cuotas: {p.cuotas} 
+                                        {p.tasaCambio && <span className="ml-2 px-1.5 py-0.5 bg-yellow-200 dark:bg-yellow-800 rounded text-[10px] font-bold">Tasa: {p.tasaCambio}</span>}
+                                    </p>
                                 </div>
                                 <p className="font-bold text-yellow-900 dark:text-yellow-100 text-right">
                                     {formatCurrency(p.montoBs)}

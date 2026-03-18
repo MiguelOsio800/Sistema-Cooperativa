@@ -37,6 +37,7 @@ import { useData } from './contexts/DataContext';
 import { useSystem } from './contexts/SystemContext';
 import ReportesAsociadosView from './components/asociados/ReportesAsociadosView';
 import AsociadosPagosView from './components/asociados/AsociadosPagosView';
+import CobranzasView from './components/asociados/CobranzasView';
 import RemesasView from './components/remesas/RemesasView';
 import FlotaVehiculosPorAsociadoView from './components/flota/FlotaVehiculosPorAsociadoView';
 import { PackageIcon } from './components/icons/Icons';
@@ -68,7 +69,7 @@ const AppContent: React.FC = () => {
         handleSavePagoAsociado, handleDeletePagoAsociado,
         handleSaveRecibo, handleDeleteRemesa,
         handleAssignToVehicle, handleUnassignInvoice, handleDispatchVehicle, onUndoDispatch, handleFinalizeTrip,
-        handleSaveAsientoManual, handleDeleteAsientoManual
+        handleSaveAsientoManual, handleDeleteAsientoManual, handleGenerateMassiveDebt
     } = useData();
     const { auditLog } = useSystem();
 
@@ -182,7 +183,7 @@ const AppContent: React.FC = () => {
             const [page, param, subParam, ...filterValueParts] = hash.split('/');
             const filterValue = filterValueParts.join('/');
             
-            const validPages: Page[] = ['dashboard', 'shipping-guide', 'invoices', 'asociados', 'reports', 'configuracion', 'categories', 'edit-invoice', 'report-detail', 'clientes', 'proveedores', 'offices', 'shipping-types', 'payment-methods', 'libro-contable', 'inventario', 'auditoria', 'inventario-bienes', 'inventario-envios', 'bienes-categorias', 'asociados-gestion', 'asociados-estadisticas', 'asociados-reportes', 'asociados-pagos', 'remesas', 'flota', 'flota-vehiculos', 'despachos'];
+            const validPages: Page[] = ['dashboard', 'shipping-guide', 'invoices', 'asociados', 'reports', 'configuracion', 'categories', 'edit-invoice', 'report-detail', 'clientes', 'proveedores', 'offices', 'shipping-types', 'payment-methods', 'libro-contable', 'inventario', 'auditoria', 'inventario-bienes', 'inventario-envios', 'bienes-categorias', 'asociados-gestion', 'asociados-estadisticas', 'asociados-reportes', 'asociados-pagos', 'remesas', 'flota', 'flota-vehiculos', 'despachos', 'cobranzas'];
             
             setEditingInvoiceId(null);
             setViewingReport(null);
@@ -217,7 +218,8 @@ const AppContent: React.FC = () => {
                 'categories': 'categories.view',
                 'offices': 'offices.view',
                 'shipping-types': 'shipping-types.view',
-                'payment-methods': 'payment-methods.view'
+                'payment-methods': 'payment-methods.view',
+                'cobranzas': 'cobranzas.view'
             };
 
             const requiredPermission = pagePermissionMap[page as Page];
@@ -240,6 +242,8 @@ const AppContent: React.FC = () => {
                 setCurrentPage('asociados-estadisticas');
             } else if (page === 'asociados' && param === 'pagos') {
                 setCurrentPage('asociados-pagos');
+            } else if (page === 'asociados' && param === 'cobranzas') {
+                setCurrentPage('cobranzas');
             } else if (page === 'invoices' && param === 'filter' && subParam && filterValue) {
                 setInvoiceFilter({ type: subParam, value: decodeURIComponent(filterValue) });
                 setCurrentPage('invoices');
@@ -367,6 +371,16 @@ const AppContent: React.FC = () => {
                             onSavePago={handleSavePagoAsociado}
                             onDeletePago={handleDeletePagoAsociado}
                             onSaveRecibo={handleSaveRecibo}
+                            companyInfo={companyInfo}
+                            permissions={userPermissions}
+                        />;
+                        case 'cobranzas': return <CobranzasView 
+                            asociados={asociados}
+                            pagosAsociados={pagosAsociados}
+                            recibosAsociados={recibosPagoAsociados}
+                            onGenerateMassiveDebt={handleGenerateMassiveDebt}
+                            onSaveRecibo={handleSaveRecibo}
+                            onDeletePago={handleDeletePagoAsociado}
                             companyInfo={companyInfo}
                             permissions={userPermissions}
                         />;

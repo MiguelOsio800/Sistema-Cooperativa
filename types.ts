@@ -1,5 +1,5 @@
 
-export type Page = 'dashboard' | 'shipping-guide' | 'invoices' | 'asociados' | 'reports' | 'configuracion' | 'categories' | 'edit-invoice' | 'report-detail' | 'clientes' | 'proveedores' | 'offices' | 'shipping-types' | 'payment-methods' | 'libro-contable' | 'inventario' | 'auditoria' | 'inventario-bienes' | 'inventario-envios' | 'bienes-categorias' | 'asociados-gestion' | 'asociados-estadisticas' | 'asociados-reportes' | 'asociados-pagos' | 'remesas' | 'flota' | 'flota-vehiculos' | 'despachos';
+export type Page = 'dashboard' | 'shipping-guide' | 'invoices' | 'asociados' | 'reports' | 'configuracion' | 'categories' | 'edit-invoice' | 'report-detail' | 'clientes' | 'proveedores' | 'offices' | 'shipping-types' | 'payment-methods' | 'libro-contable' | 'inventario' | 'auditoria' | 'inventario-bienes' | 'inventario-envios' | 'bienes-categorias' | 'asociados-gestion' | 'asociados-estadisticas' | 'asociados-reportes' | 'asociados-pagos' | 'remesas' | 'flota' | 'flota-vehiculos' | 'despachos' | 'cobranzas';
 
 export type Permissions = Record<string, boolean>;
 
@@ -241,6 +241,7 @@ export interface Asociado {
 export interface Certificado {
     id: string;
     vehiculoId: string;
+    codigo: string;
     descripcion: string;
     fechaInicio: string;
     fechaSuspension?: string;
@@ -255,9 +256,10 @@ export interface PagoAsociado {
     cuotas: string; 
     montoBs: number;
     montoUsd?: number;
-    fechaVencimiento: string;
+    tasaCambio?: number;
     status: 'Pendiente' | 'Pagado';
     reciboId?: string;
+    fecha: string; // ISO date string
 }
 
 export interface ReciboPagoAsociado {

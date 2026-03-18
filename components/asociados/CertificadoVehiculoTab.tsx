@@ -8,6 +8,7 @@ import Select from '../ui/Select';
 import { PlusIcon, EditIcon, TrashIcon, SaveIcon, ArrowLeftIcon, ChevronDownIcon } from '../icons/Icons';
 import CertificadoFormModal from './CertificadoFormModal';
 import { useToast } from '../ui/ToastProvider';
+import ConfirmationModal from '../ui/ConfirmationModal';
 
 interface CertificadoVehiculoTabProps {
     asociadoId: string;
@@ -41,6 +42,8 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
     const [isCertModalOpen, setIsCertModalOpen] = useState(false);
     const [editingCertificado, setEditingCertificado] = useState<Certificado | null>(null);
     const [vehicleIdForCertModal, setVehicleIdForCertModal] = useState<string | null>(null);
+    const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+    const [certIdToDelete, setCertIdToDelete] = useState<string | null>(null);
 
     const associateVehicles = useMemo(() => vehicles.filter(v => v.asociadoId === asociadoId), [vehicles, asociadoId]);
     
@@ -87,6 +90,19 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
         await onSaveCertificado(cert);
         setIsCertModalOpen(false);
     };
+
+    const handleConfirmDeleteCert = (id: string) => {
+        setCertIdToDelete(id);
+        setIsConfirmDeleteOpen(true);
+    };
+
+    const executeDeleteCert = async () => {
+        if (certIdToDelete) {
+            await onDeleteCertificado(certIdToDelete);
+            setIsConfirmDeleteOpen(false);
+            setCertIdToDelete(null);
+        }
+    };
     
     const renderListView = () => (
         <>
@@ -107,7 +123,13 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                     <div className="flex gap-2">
                                         <Button variant="secondary" size="sm" onClick={() => handleSelectVehicle(v)}><EditIcon className="w-4 h-4" /></Button>
                                         <Button variant="danger" size="sm" onClick={async () => {
-                                            if(window.confirm('¿Eliminar este vehículo?')) await onDeleteVehicle(v.id);
+                                            if(window.confirm('¿Está seguro de que desea eliminar este vehículo y todos sus certificados vinculados?')) {
+                                                try {
+                                                    await onDeleteVehicle(v.id);
+                                                } catch (error) {
+                                                    console.error('Error al eliminar vehículo:', error);
+                                                }
+                                            }
                                         }}><TrashIcon className="w-4 h-4" /></Button>
                                     </div>
                                 </div>
@@ -127,9 +149,30 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                 {vehicleCerts.length > 0 ? (
                                     <ul className="space-y-2 text-xs">
                                         {vehicleCerts.map(cert => (
-                                            <li key={cert.id} className="p-2 rounded-md bg-white dark:bg-gray-900/50 flex justify-between items-center">
-                                                <span>{cert.descripcion}</span>
-                                                <span className="text-gray-400">{cert.status}</span>
+                                            <li key={cert.id} className="p-2 rounded-md bg-white dark:bg-gray-900/50 flex justify-between items-center group">
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="font-bold text-primary-600 dark:text-primary-400">[{cert.codigo}]</span>
+                                                        <span className="font-medium">{cert.descripcion}</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-400">{cert.status}</span>
+                                                </div>
+                                                <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button 
+                                                        onClick={() => handleOpenCertModal(v.id, cert)}
+                                                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                                        title="Editar Certificado"
+                                                    >
+                                                        <EditIcon className="w-3 h-3" />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleConfirmDeleteCert(cert.id)}
+                                                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                                        title="Eliminar Certificado"
+                                                    >
+                                                        <TrashIcon className="w-3 h-3" />
+                                                    </button>
+                                                </div>
                                             </li>
                                         ))}
                                     </ul>
@@ -173,6 +216,7 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead>
                                     <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Código</th>
                                         <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Descripción</th>
                                         <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Fecha</th>
                                         <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Estado</th>
@@ -182,11 +226,13 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                 <tbody>
                                     {vehicleCertificados.map(c => (
                                         <tr key={c.id}>
+                                            <td className="px-4 py-2 text-sm font-mono font-bold text-primary-600 dark:text-primary-400">{c.codigo}</td>
                                             <td className="px-4 py-2 text-sm">{c.descripcion}</td>
                                             <td className="px-4 py-2 text-sm">{c.fechaInicio}</td>
                                             <td className="px-4 py-2 text-sm font-semibold">{c.status}</td>
-                                            <td className="px-4 py-2 text-right">
-                                                <Button variant="danger" size="sm" type="button" onClick={() => onDeleteCertificado(c.id)}><TrashIcon className="w-4 h-4" /></Button>
+                                            <td className="px-4 py-2 text-right space-x-2">
+                                                <Button variant="secondary" size="sm" type="button" onClick={() => handleOpenCertModal(selectedVehicle.id as string, c)}><EditIcon className="w-4 h-4" /></Button>
+                                                <Button variant="danger" size="sm" type="button" onClick={() => handleConfirmDeleteCert(c.id)}><TrashIcon className="w-4 h-4" /></Button>
                                             </td>
                                         </tr>
                                     ))}
@@ -218,6 +264,15 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                     vehiculoId={vehicleIdForCertModal}
                 />
             )}
+            <ConfirmationModal
+                isOpen={isConfirmDeleteOpen}
+                onClose={() => setIsConfirmDeleteOpen(false)}
+                onConfirm={executeDeleteCert}
+                title="Eliminar Certificado"
+                message="¿Estás seguro de que deseas eliminar este certificado? Esta acción no se puede deshacer."
+                confirmText="Eliminar"
+                variant="danger"
+            />
         </div>
     );
 };
