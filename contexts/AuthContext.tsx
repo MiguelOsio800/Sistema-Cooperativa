@@ -43,8 +43,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const resetIdleTimer = useCallback(() => {
         clearTimers();
-        // Set idle timeout. Session will warn after 5 minutes of inactivity.
-        const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+        // Set idle timeout. Session will warn 5 minutes before the 4 hours expire.
+        const IDLE_TIMEOUT_MS = (4 * 60 * 60 * 1000) - (5 * 60 * 1000); // 3 hours and 55 minutes
         idleTimerRef.current = setTimeout(showWarningModal, IDLE_TIMEOUT_MS);
     }, [showWarningModal]);
 

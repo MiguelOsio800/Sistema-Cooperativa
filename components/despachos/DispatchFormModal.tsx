@@ -19,6 +19,7 @@ const DispatchFormModal: React.FC<DispatchFormModalProps> = ({ isOpen, onClose, 
     const [selectedAsociadoId, setSelectedAsociadoId] = useState('');
     const [selectedVehicleId, setSelectedVehicleId] = useState('');
     const [selectedDestinationId, setSelectedDestinationId] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const availableVehicles = useMemo(() => {
         if (!selectedAsociadoId) return [];
@@ -26,9 +27,14 @@ const DispatchFormModal: React.FC<DispatchFormModalProps> = ({ isOpen, onClose, 
         return vehicles.filter(v => v.asociadoId === selectedAsociadoId);
     }, [vehicles, selectedAsociadoId]);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (selectedVehicleId && selectedDestinationId) {
-            onConfirm(selectedVehicleId, selectedDestinationId);
+            setIsSubmitting(true);
+            try {
+                await onConfirm(selectedVehicleId, selectedDestinationId);
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -75,9 +81,9 @@ const DispatchFormModal: React.FC<DispatchFormModalProps> = ({ isOpen, onClose, 
                 </Select>
 
                 <div className="flex justify-end pt-4 space-x-2">
-                    <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-                    <Button onClick={handleSubmit} disabled={!selectedVehicleId || !selectedDestinationId}>
-                        Confirmar y Generar Documento
+                    <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+                    <Button onClick={handleSubmit} disabled={!selectedVehicleId || !selectedDestinationId || isSubmitting}>
+                        {isSubmitting ? 'Procesando...' : 'Confirmar y Generar Documento'}
                     </Button>
                 </div>
             </div>

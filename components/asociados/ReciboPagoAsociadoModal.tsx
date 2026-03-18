@@ -100,12 +100,25 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
                 </div>
 
                 {/* Total */}
-                <div className="mt-6 flex justify-end">
-                    <div className="w-full max-w-xs">
+                <div className="mt-6 flex flex-col items-end">
+                    <div className="w-full max-w-xs space-y-2">
                         <div className="flex justify-between items-center bg-gray-800 text-white p-3 rounded-lg">
                             <span className="text-lg font-bold">MONTO TOTAL:</span>
                             <span className="text-xl font-extrabold">{formatCurrency(recibo.montoTotalBs)}</span>
                         </div>
+                        {recibo.tasaBcv > 0 && (
+                            <div className="flex flex-col items-end px-2 text-sm text-gray-600">
+                                <div className="flex justify-between w-full">
+                                    <span>Equivalente en USD:</span>
+                                    <span className="font-bold text-black">
+                                        $ {(recibo.montoTotalUsd || (recibo.montoTotalBs / recibo.tasaBcv)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                <div className="text-[10px] italic">
+                                    Tasa BCV aplicada: Bs. {recibo.tasaBcv.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

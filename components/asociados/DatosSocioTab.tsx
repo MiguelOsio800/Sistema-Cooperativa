@@ -9,13 +9,24 @@ import { SaveIcon } from '../icons/Icons';
 interface DatosSocioTabProps {
     asociado: Asociado;
     onSave: (asociado: Asociado) => void;
+    isLoading?: boolean;
 }
 
-const DatosSocioTab: React.FC<DatosSocioTabProps> = ({ asociado, onSave }) => {
-    const [formData, setFormData] = useState<Asociado>(asociado);
+const DatosSocioTab: React.FC<DatosSocioTabProps> = ({ asociado, onSave, isLoading = false }) => {
+    const [formData, setFormData] = useState<Asociado>({
+        ...asociado,
+        codigo: asociado.codigo || '',
+        nombre: asociado.nombre || '',
+        cedula: asociado.cedula || ''
+    });
 
     useEffect(() => {
-        setFormData(asociado);
+        setFormData({
+            ...asociado,
+            codigo: asociado.codigo || '',
+            nombre: asociado.nombre || '',
+            cedula: asociado.cedula || ''
+        });
     }, [asociado]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -32,11 +43,11 @@ const DatosSocioTab: React.FC<DatosSocioTabProps> = ({ asociado, onSave }) => {
         <Card>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="Código" name="codigo" value={formData.codigo} onChange={handleChange} required />
-                    <Input label="Nombre" name="nombre" value={formData.nombre} onChange={handleChange} required />
+                    <Input label="Código" name="codigo" value={formData.codigo} onChange={handleChange} required placeholder="Ej. S-001" />
+                    <Input label="Nombre" name="nombre" value={formData.nombre} onChange={handleChange} required placeholder="Nombre completo del socio" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Input label="Cédula" name="cedula" value={formData.cedula} onChange={handleChange} required />
+                    <Input label="Cédula" name="cedula" value={formData.cedula} onChange={handleChange} required placeholder="V-12345678" />
                     <Input label="Fecha Nacimiento" name="fechaNacimiento" type="date" value={formData.fechaNacimiento} onChange={handleChange} required />
                     <Input label="Fecha Ingreso" name="fechaIngreso" type="date" value={formData.fechaIngreso} onChange={handleChange} required />
                 </div>
@@ -54,9 +65,13 @@ const DatosSocioTab: React.FC<DatosSocioTabProps> = ({ asociado, onSave }) => {
                     <Input label="Observaciones" name="observaciones" value={formData.observaciones || ''} onChange={handleChange} />
                 </div>
                  <div className="flex justify-end pt-4">
-                    <Button type="submit">
-                        <SaveIcon className="w-4 h-4 mr-2" />
-                        Guardar Cambios
+                    <Button type="submit" disabled={isLoading}>
+                        {isLoading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        ) : (
+                            <SaveIcon className="w-4 h-4 mr-2" />
+                        )}
+                        {isLoading ? 'Guardando...' : (asociado.id ? 'Actualizar Datos' : 'Registrar Socio')}
                     </Button>
                 </div>
             </form>

@@ -85,12 +85,14 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
             return;
         }
 
+        const bcvRate = companyInfo.bcvRate || 1;
         const recibo: Omit<ReciboPagoAsociado, 'id'> = {
             comprobanteNumero: `C-${Date.now().toString().slice(-8)}`,
             asociadoId: asociado.id,
             fechaPago: fechaPago,
             montoTotalBs: totalAPagar,
-            tasaBcv: companyInfo.bcvRate || 0,
+            montoTotalUsd: bcvRate > 0 ? totalAPagar / bcvRate : 0,
+            tasaBcv: bcvRate,
             pagosIds: selectedPagoIds,
             detallesPago: detallesPago,
         };

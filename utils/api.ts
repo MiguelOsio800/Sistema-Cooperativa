@@ -1,5 +1,5 @@
 
-const API_BASE_URL = 'http://172.0.10.21:5000/api';
+const API_BASE_URL = 'https://4wt9b8zl-5000.use2.devtunnels.ms/api';
 
 interface ApiFetchOptions extends RequestInit {}
 
@@ -12,21 +12,38 @@ const refreshToken = async (): Promise<string | null> => {
         console.log('🔄 Intentando refrescar token...');
         const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+                'Authorization': `Bearer ${currentRefreshToken}`
+            },
             body: JSON.stringify({ refreshToken: currentRefreshToken }),
         });
+
+        if (response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            throw new Error('Session expired. Please log in again.');
+        }
 
         if (!response.ok) {
             throw new Error('Refresh token failed');
         }
 
-        const { accessToken, refreshToken: newRefreshToken } = await response.json();
-        localStorage.setItem('accessToken', accessToken);
+        const data = await response.json();
+        const newAccessToken = data.accessToken || data.token;
+        const newRefreshToken = data.refreshToken;
+
+        if (!newAccessToken) {
+            throw new Error('No access token received from refresh endpoint');
+        }
+
+        localStorage.setItem('accessToken', newAccessToken);
         if (newRefreshToken) {
              localStorage.setItem('refreshToken', newRefreshToken);
         }
         console.log('✅ Token refrescado exitosamente');
-        return accessToken;
+        return newAccessToken;
     } catch (error) {
         console.error("❌ Error al refrescar token:", error);
         // Clear tokens if refresh fails
@@ -72,26 +89,49 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
         }
 
         if (response.status === 401) {
+            let errorBody: any = {};
+            try {
+                errorBody = await response.clone().json();
+            } catch (e) {
+                // Ignore
+            }
+
             if (endpoint.includes('/auth/login')) {
-                const errorBody = await response.json().catch(() => ({}));
                 throw new Error(errorBody.message || 'Usuario o contraseña incorrectos.');
             }
 
-            console.warn(`⚠️ 401 No autorizado en ${endpoint}. Intentando refresh...`);
-            if (!isRefreshing) {
+            const isJwtExpired = errorBody.message === 'jwt expired' || errorBody.error === 'jwt expired';
+
+            // Wait for any ongoing refresh
+            if (isRefreshing && refreshPromise) {
+                const newAccessToken = await refreshPromise;
+                if (newAccessToken) {
+                    headers.set('Authorization', `Bearer ${newAccessToken}`);
+                    const retryOptions: ApiFetchOptions = { ...fetchOptions, headers };
+                    response = await fetch(`${API_BASE_URL}${endpoint}`, retryOptions);
+                }
+            } else if (isJwtExpired || !isRefreshing) {
+                console.warn(`⚠️ 401 Token expirado en ${endpoint}. Intentando refresh...`);
                 isRefreshing = true;
-                refreshPromise = refreshToken();
+                refreshPromise = refreshToken().finally(() => {
+                    isRefreshing = false;
+                    refreshPromise = null;
+                });
+
+                const newAccessToken = await refreshPromise;
+
+                if (newAccessToken) {
+                    headers.set('Authorization', `Bearer ${newAccessToken}`);
+                    const retryOptions: ApiFetchOptions = { ...fetchOptions, headers };
+                    response = await fetch(`${API_BASE_URL}${endpoint}`, retryOptions);
+                }
             }
 
-            const newAccessToken = await refreshPromise;
-            isRefreshing = false;
-            refreshPromise = null;
-
-            if (newAccessToken) {
-                headers.set('Authorization', `Bearer ${newAccessToken}`);
-                const retryOptions: ApiFetchOptions = { ...fetchOptions, headers };
-                response = await fetch(`${API_BASE_URL}${endpoint}`, retryOptions);
-            } else {
+            // If retry also fails with 401, force logout
+            if (response.status === 401) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                window.location.href = '/login';
                 throw new Error("Session expired. Please log in again.");
             }
         }
@@ -99,7 +139,7 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
         if (!response.ok) {
             let errorMessage = `HTTP error! status: ${response.status}`;
             try {
-                const errorBody = await response.json();
+                const errorBody = await response.clone().json();
                 if (errorBody && errorBody.message) {
                     errorMessage = errorBody.message;
                 } else if (typeof errorBody === 'string') {

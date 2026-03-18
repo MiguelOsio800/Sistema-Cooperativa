@@ -48,7 +48,7 @@ type DataContextType = {
     handleDeleteAsset: (assetId: string) => Promise<void>;
     handleSaveAssetCategory: (category: AssetCategory) => Promise<void>;
     handleDeleteAssetCategory: (categoryId: string) => Promise<void>;
-    handleSaveAsociado: (asociado: Asociado) => Promise<void>;
+    handleSaveAsociado: (asociado: Asociado) => Promise<Asociado>;
     handleDeleteAsociado: (asociadoId: string) => Promise<void>;
     handleSaveCertificado: (certificado: Certificado) => Promise<void>;
     handleDeleteCertificado: (certificadoId: string) => Promise<void>;
@@ -130,13 +130,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
 
                 if (isAdmin || perms['asociados.view']) {
-                    const asocs = await fetchSafe<Asociado[]>('/asociados', []);
+                    const asocsResponse = await fetchSafe<any>('/asociados', { data: [], total: 0 });
+                    const asocs = Array.isArray(asocsResponse) ? asocsResponse : (asocsResponse.data || []);
                     setAsociados(asocs);
                     promises.push(fetchSafe<ReciboPagoAsociado[]>('/asociados/recibos', []).then(setRecibosPagoAsociados));
                     
                     if (asocs.length > 0) {
-                        const debtPromises = asocs.map(a => fetchSafe<PagoAsociado[]>(`/asociados/${a.id}/deudas`, []));
-                        const certPromises = asocs.map(a => fetchSafe<Certificado[]>(`/asociados/${a.id}/certificados`, []));
+                        const validAsocs = asocs.filter((a: Asociado) => a.id && a.id.trim() !== '');
+                        const debtPromises = validAsocs.map((a: Asociado) => fetchSafe<PagoAsociado[]>(`/asociados/${a.id}/deudas`, []));
+                        const certPromises = validAsocs.map((a: Asociado) => fetchSafe<Certificado[]>(`/asociados/${a.id}/certificados`, []));
                         const [debts, certs] = await Promise.all([Promise.all(debtPromises), Promise.all(certPromises)]);
                         setPagosAsociados(debts.flat());
                         setCertificados(certs.flat());
@@ -151,12 +153,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchData();
     }, [isAuthenticated, currentUser?.id, fetchSafe]);
 
-    const handleGenericSave = async <T extends { id?: string; }>(item: T, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<T[]>>) => {
+    const handleGenericSave = async <T extends { id?: string; }>(item: T, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<T[]>>): Promise<T> => {
         const isUpdating = !!item.id;
         const method = isUpdating ? 'PUT' : 'POST';
         const url = isUpdating ? `${endpoint}/${item.id}` : endpoint;
-        const saved = await apiFetch<T>(url, { method, body: JSON.stringify(item) });
+        
+        const payload = { ...item };
+        if (!isUpdating) {
+            delete payload.id;
+        }
+
+        const saved = await apiFetch<T>(url, { method, body: JSON.stringify(payload) });
         stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === saved.id ? saved : i) : [saved, ...prev]);
+        return saved;
     };
 
     return (
@@ -176,8 +185,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleCreateDebitNote: async (id, r) => { await apiFetch(`/invoices/${id}/debit-note`, { method: 'POST', body: JSON.stringify({ motivo: r }) }); },
             handleUpdateInvoice: async (d) => {
                 const inv = await apiFetch<Invoice>(`/invoices/${d.id}`, { method: 'PUT', body: JSON.stringify(d) });
-                setInvoices(p => p.map(i => i.id === inv.id ? inv : i));
-                return inv;
+                if (inv && inv.id) {
+                    setInvoices(p => p.map(i => i.id === inv.id ? inv : i));
+                    return inv;
+                }
+                return null;
             },
             handleUpdateInvoiceStatuses: async (id, s) => {
                 const current = invoices.find(i => i.id === id);
@@ -189,27 +201,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleDeleteVehicle: (id) => apiFetch(`/vehicles/${id}`, { method: 'DELETE' }).then(() => setVehicles(p => p.filter(i => i.id !== id))),
             handleAssignToVehicle: async (ids, vId) => {
                 const resp = await apiFetch<{updatedInvoices: Invoice[]}>(`/vehicles/${vId}/assign-invoices`, { method: 'POST', body: JSON.stringify({invoiceIds: ids}) });
-                const map = new Map(resp.updatedInvoices.map(i => [i.id, i]));
-                setInvoices(p => p.map(i => map.get(i.id) || i));
+                const updatedInvoices = resp.updatedInvoices || [];
+                if (Array.isArray(updatedInvoices)) {
+                    const map = new Map(updatedInvoices.map(i => [i.id, i]));
+                    setInvoices(p => p.map(i => map.get(i.id) || i));
+                }
             },
             handleUnassignInvoice: async (id) => {
                 const inv = invoices.find(i => i.id === id);
                 const resp = await apiFetch<{updatedInvoice: Invoice}>(`/vehicles/${inv?.vehicleId}/unassign-invoice`, { method: 'POST', body: JSON.stringify({invoiceId: id}) });
-                setInvoices(p => p.map(i => i.id === id ? resp.updatedInvoice : i));
+                if (resp && resp.updatedInvoice) {
+                    setInvoices(p => p.map(i => i.id === id ? resp.updatedInvoice : i));
+                }
             },
             handleDispatchVehicle: async (vId) => {
                 const resp = await apiFetch<{newRemesa: Remesa, updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/vehicles/${vId}/dispatch`, { method: 'POST' });
                 setVehicles(p => p.map(v => v.id === vId ? resp.updatedVehicle : v));
-                const map = new Map(resp.updatedInvoices.map(i => [i.id, i]));
-                setInvoices(p => p.map(i => map.get(i.id) || i));
+                const updatedInvoices = resp.updatedInvoices || [];
+                if (Array.isArray(updatedInvoices)) {
+                    const map = new Map(updatedInvoices.map(i => [i.id, i]));
+                    setInvoices(p => p.map(i => map.get(i.id) || i));
+                }
                 setRemesas(p => [resp.newRemesa, ...p]);
                 return resp.newRemesa;
             },
             handleFinalizeTrip: async (vId) => {
                 const resp = await apiFetch<{updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/vehicles/${vId}/finalize-trip`, { method: 'POST' });
                 setVehicles(p => p.map(v => v.id === vId ? resp.updatedVehicle : v));
-                const map = new Map(resp.updatedInvoices.map(i => [i.id, i]));
-                setInvoices(p => p.map(i => map.get(i.id) || i));
+                const updatedInvoices = resp.updatedInvoices || [];
+                if (Array.isArray(updatedInvoices)) {
+                    const map = new Map(updatedInvoices.map(i => [i.id, i]));
+                    setInvoices(p => p.map(i => map.get(i.id) || i));
+                }
             },
             handleSaveExpense: (e) => handleGenericSave(e, '/expenses', setExpenses),
             handleDeleteExpense: (id) => apiFetch(`/expenses/${id}`, { method: 'DELETE' }).then(() => setExpenses(p => p.filter(i => i.id !== id))),
@@ -244,17 +267,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setAsientosManuales(p => p.filter(a => a.id !== id)); 
             },
             handleCreateDispatch: async (ids, vId, dId) => {
-                const resp = await apiFetch<{dispatch: Dispatch, updatedInvoices: Invoice[]}>('/dispatches', { method: 'POST', body: JSON.stringify({invoiceIds: ids, vehicleId: vId, destinationOfficeId: dId, originOfficeId: currentUser?.officeId}) });
-                const map = new Map(resp.updatedInvoices.map(i => [i.id, i]));
-                setInvoices(p => p.map(i => map.get(i.id) || i));
-                setDispatches(p => [resp.dispatch, ...p]);
-                return resp.dispatch;
+                const resp = await apiFetch<any>('/dispatches', { method: 'POST', body: JSON.stringify({invoiceIds: ids, vehicleId: vId, destinationOfficeId: dId, originOfficeId: currentUser?.officeId}) });
+                
+                // Si el backend devuelve el objeto de despacho directamente (como indica el usuario)
+                // o si lo devuelve envuelto en { dispatch, updatedInvoices }
+                const dispatchData = resp.dispatch || resp;
+                const updatedInvoices = resp.updatedInvoices || [];
+
+                if (Array.isArray(updatedInvoices) && updatedInvoices.length > 0) {
+                    const map = new Map(updatedInvoices.map((i: any) => [i.id, i]));
+                    setInvoices(p => p.map(i => map.get(i.id) || i));
+                }
+
+                setDispatches(prev => [dispatchData, ...prev]);
+                return dispatchData;
             },
             handleReceiveDispatch: async (dId, ids) => {
                 const resp = await apiFetch<{updatedDispatch: Dispatch, updatedInvoices: Invoice[]}>(`/dispatches/receive/${dId}`, { method: 'POST', body: JSON.stringify({verifiedInvoiceIds: ids, receivedBy: currentUser?.name}) });
                 setDispatches(p => p.map(d => d.id === dId ? resp.updatedDispatch : d));
-                const map = new Map(resp.updatedInvoices.map(i => [i.id, i]));
-                setInvoices(p => p.map(i => map.get(i.id) || i));
+                const updatedInvoices = resp.updatedInvoices || [];
+                if (Array.isArray(updatedInvoices)) {
+                    const map = new Map(updatedInvoices.map(i => [i.id, i]));
+                    setInvoices(p => p.map(i => map.get(i.id) || i));
+                }
             },
             handleGenerateMassiveDebt: async (d) => { await apiFetch('/asociados/deuda-masiva', { method: 'POST', body: JSON.stringify(d) }); }
         }}>

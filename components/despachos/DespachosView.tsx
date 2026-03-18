@@ -69,6 +69,7 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
     // 2. ENTRADAS: Dispatches coming TO current office
     const pendingInboundDispatches = useMemo(() => {
         const userOfficeId = currentUser.officeId;
+        if (!Array.isArray(dispatches)) return [];
         return dispatches.filter(d => 
             d.status === 'En Tránsito' &&
             (!userOfficeId || d.destinationOfficeId === userOfficeId)
@@ -78,6 +79,7 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
     // 3. SEGUIMIENTO: Dispatches SENT BY current office
     const mySentDispatches = useMemo(() => {
         const userOfficeId = currentUser.officeId;
+        if (!Array.isArray(dispatches)) return [];
         return dispatches.filter(d => 
             !userOfficeId || d.originOfficeId === userOfficeId
         ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -86,6 +88,7 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
     // 4. HISTORIAL: All dispatches
     const dispatchHistory = useMemo(() => {
         const userOfficeId = currentUser.officeId;
+        if (!Array.isArray(dispatches)) return [];
         return dispatches.filter(d => 
             !userOfficeId || 
             d.originOfficeId === userOfficeId || 
@@ -421,7 +424,7 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                     <div className="space-y-4">
                         <p className="text-sm text-gray-600 dark:text-gray-300">Marque las facturas recibidas físicamente.</p>
                         <div className="max-h-60 overflow-y-auto border rounded-lg divide-y dark:border-gray-700">
-                            {invoices.filter(inv => dispatchToVerify.invoiceIds.includes(inv.id)).map(inv => (
+                            {invoices.filter(inv => (dispatchToVerify.invoiceIds || []).includes(inv.id)).map(inv => (
                                 <div key={inv.id} className="p-3 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => handleToggleVerifyInvoice(inv.id)}>
                                     <input type="checkbox" checked={verifiedInvoiceIds.includes(inv.id)} readOnly className="h-5 w-5 text-green-600 rounded mr-4" />
                                     <div className="flex-1">
@@ -444,7 +447,7 @@ const DespachosView: React.FC<DespachosViewProps> = (props) => {
                     isOpen={!!showDocumentDispatch}
                     onClose={() => setShowDocumentDispatch(null)}
                     dispatch={showDocumentDispatch}
-                    invoices={invoices.filter(i => showDocumentDispatch.invoiceIds.includes(i.id))}
+                    invoices={invoices.filter(i => (showDocumentDispatch.invoiceIds || []).includes(i.id))}
                     vehicle={vehicles.find(v => v.id === showDocumentDispatch.vehicleId) || {} as Vehicle}
                     asociado={asociados.find(a => a.id === vehicles.find(v => v.id === showDocumentDispatch.vehicleId)?.asociadoId) || {} as any}
                     companyInfo={companyInfo}

@@ -28,7 +28,7 @@ export const SystemProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 if (isAdmin || isTech) {
                     try {
                         const logs = await apiFetch<AuditLog[]>('/audit-logs');
-                        setAuditLog(logs);
+                        setAuditLog(Array.isArray(logs) ? logs : []);
                     } catch (error: any) {
                         if (error.message && (
                             error.message.includes('403') || 
@@ -38,6 +38,7 @@ export const SystemProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                             return; 
                         }
                         console.error("Failed to fetch audit logs", error);
+                        setAuditLog([]);
                     }
                 } else {
                     setAuditLog([]);
