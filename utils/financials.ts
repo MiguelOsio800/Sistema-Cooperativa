@@ -1,5 +1,5 @@
 
-import { ShippingGuide, CompanyInfo, Financials, Invoice } from '../types';
+import { ShippingGuide, CompanyInfo, Financials, Invoice, ShippingType, Asociado } from '../types';
 
 /**
  * Calculates all financial details for a given shipping guide.
@@ -110,7 +110,12 @@ export interface DetailedFinancials {
     totalDestino: number; // Total amount to be collected at destination (for reference)
 }
 
-export const calculateDetailedRemesaFinancials = (invoices: Invoice[], companyInfo: CompanyInfo): DetailedFinancials => {
+export const calculateDetailedRemesaFinancials = (
+    invoices: Invoice[], 
+    companyInfo: CompanyInfo, 
+    shippingTypes: ShippingType[],
+    asociado?: Asociado
+): DetailedFinancials => {
     const init = { flete: 0, viajes: 0, sobres: 0, seguro: 0, ipostel: 0, manejo: 0, iva: 0, favorCooperativa: 0, favorAsociado: 0 };
     
     const result: DetailedFinancials = {
@@ -118,6 +123,8 @@ export const calculateDetailedRemesaFinancials = (invoices: Invoice[], companyIn
         destino: { ...init },
         totalDestino: 0
     };
+
+    const isNoAsociado = asociado?.nombre.toLowerCase().includes('no asociado') || asociado?.nombre.toLowerCase().includes('no asociados');
 
     invoices.forEach(inv => {
         const fin = calculateFinancialDetails(inv.guide, companyInfo);
@@ -130,12 +137,26 @@ export const calculateDetailedRemesaFinancials = (invoices: Invoice[], companyIn
         target.iva += fin.iva;
         
         // Business Logic for Distribution (ACTUALIZADO):
-        // Cooperativa gets 30% of Freight (Anteriormente 25%)
-        // Asociado gets 70% of Freight MINUS deductions (Ipostel, Seguro, Manejo, IVA)
+        // 1. No Asociados: 30% Cooperativa / 70% Socio (independientemente del tipo de envío)
+        // 2. Asociados:
+        //    - Franquicia, Viaje Expreso, Mudanza: 15% Cooperativa / 85% Socio
+        //    - Otros (Normales): 30% Cooperativa / 70% Socio
         
-        const coopShare = fin.freight * 0.30;
-        const deductions = fin.ipostel + fin.insuranceCost + fin.handling + fin.iva;
-        const associateShare = fin.freight - coopShare - deductions;
+        let coopPercentage = 0.30; // Default 30%
+
+        if (!isNoAsociado) {
+            const shippingType = shippingTypes.find(st => st.id === inv.guide.shippingTypeId);
+            const typeName = shippingType?.name.toLowerCase() || '';
+            
+            if (typeName.includes('franquicia') || 
+                typeName.includes('expreso') || 
+                typeName.includes('mudanza')) {
+                coopPercentage = 0.15;
+            }
+        }
+
+        const coopShare = fin.total * coopPercentage;
+        const associateShare = fin.total - coopShare;
 
         target.favorCooperativa += coopShare;
         target.favorAsociado += associateShare;

@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { Asociado, CompanyInfo, Invoice, PagoAsociado } from '../../types';
+import { Asociado, CompanyInfo, Remesa, PagoAsociado, Invoice, ShippingType } from '../../types';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import { useToast } from '../ui/ToastProvider';
+import { useConfig } from '../../contexts/ConfigContext';
 import Select from '../ui/Select';
 
 interface GenerarDeudaProduccionModalProps {
@@ -12,7 +13,9 @@ interface GenerarDeudaProduccionModalProps {
     onClose: () => void;
     onGenerate: (pago: PagoAsociado) => Promise<void>;
     asociado: Asociado;
+    remesas: Remesa[];
     invoices: Invoice[];
+    shippingTypes: ShippingType[];
     companyInfo: CompanyInfo;
 }
 
@@ -20,7 +23,7 @@ type DebtType = 'pasajeros' | 'carga';
 
 const formatCurrency = (amount: number) => amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = ({ isOpen, onClose, onGenerate, asociado, invoices, companyInfo }) => {
+const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = ({ isOpen, onClose, onGenerate, asociado, remesas, invoices, shippingTypes, companyInfo }) => {
     const { addToast } = useToast();
     const [debtType, setDebtType] = useState<DebtType>('pasajeros');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,15 +43,47 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
             return;
         }
 
-        const relevantInvoices = invoices.filter(inv => {
-            const invDateStr = inv.date.split('T')[0];
-            return invDateStr >= startDate && invDateStr <= endDate;
+        // Filtramos las remesas que pertenecen al asociado y están en el rango de fechas
+        const relevantRemesas = remesas.filter(remesa => {
+            if (String(remesa.asociadoId) !== String(asociado.id)) return false;
+            
+            const remesaDateStr = new Date(remesa.date).toISOString().split('T')[0];
+            return remesaDateStr >= startDate && remesaDateStr <= endDate;
         });
 
-        const totalFacturado = relevantInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-        const debtAmount = totalFacturado * 0.25;
+        let totalFacturado = 0;
+        let totalDebt = 0;
 
-        setCalculation({ total: totalFacturado, debt: debtAmount });
+        relevantRemesas.forEach(remesa => {
+            totalFacturado += remesa.totalAmount;
+            
+            // Para cada remesa, calculamos la deuda basada en sus facturas
+            remesa.invoiceIds.forEach(invId => {
+                const invoice = invoices.find(inv => String(inv.id) === String(invId));
+                if (!invoice) return;
+
+                const shippingType = shippingTypes.find(st => String(st.id) === String(invoice.guide.shippingTypeId));
+                const stName = shippingType?.name.toLowerCase() || '';
+
+                let percentage = 0.30; // 30% por defecto (Remesas Normales / No Asociados)
+
+                // Reglas específicas:
+                // Franquicia: 15%
+                // Viaje Expreso / Mudanzas: 15%
+                if (stName.includes('franquicia') || stName.includes('expreso') || stName.includes('mudanza')) {
+                    percentage = 0.15;
+                }
+
+                // Si el asociado es "No Asociado", el usuario dijo 30% para la cooperativa
+                if (asociado.nombre.toLowerCase().includes('no asociado')) {
+                    percentage = 0.30;
+                }
+
+                totalDebt += invoice.totalAmount * percentage;
+            });
+        });
+
+        setCalculation({ total: totalFacturado, debt: totalDebt });
     };
     
     const handleSubmit = async (e: React.FormEvent) => {
@@ -133,7 +168,7 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
                 {/* Carga Section */}
                 {debtType === 'carga' && (
                     <div className="p-4 border rounded-md dark:border-gray-600 space-y-3">
-                        <h3 className="font-semibold">Cálculo Semanal para Carga (25%)</h3>
+                        <h3 className="font-semibold">Cálculo Semanal para Carga</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Seleccione el rango de fechas para calcular la producción del asociado.</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Input label="Desde" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -143,7 +178,7 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
                         {calculation && (
                              <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-center">
                                 <p className="text-sm">Total Facturado en período: Bs. {formatCurrency(calculation.total)}</p>
-                                <p className="text-sm mt-2">Monto de Deuda (25%):</p>
+                                <p className="text-sm mt-2">Monto de Deuda Calculado:</p>
                                 <p className="text-xl font-bold text-primary-600 dark:text-primary-400">
                                     {formatCurrency(calculation.debt)}
                                 </p>

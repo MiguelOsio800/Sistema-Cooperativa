@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Remesa, Invoice, Asociado, Vehicle, Client, Office, CompanyInfo, Permissions, Category } from '../../types';
+import { Remesa, Invoice, Asociado, Vehicle, Client, Office, CompanyInfo, Permissions, Category, ShippingType } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import { PlusIcon, EyeIcon, TrashIcon, ClipboardDocumentListIcon, XIcon, PlayIcon, FileTextIcon } from '../icons/Icons';
@@ -18,6 +18,7 @@ interface RemesasViewProps {
     offices: Office[];
     clients: Client[];
     categories: Category[];
+    shippingTypes: ShippingType[];
     onAssignToVehicle: (invoiceIds: string[], vehicleId: string) => Promise<void>;
     onUnassignInvoice: (invoiceId: string) => Promise<void>;
     onDispatchVehicle: (vehicleId: string) => Promise<Remesa | null>;
@@ -28,7 +29,7 @@ interface RemesasViewProps {
 
 const RemesasView: React.FC<RemesasViewProps> = (props) => {
     const { 
-        remesas, asociados, vehicles, invoices, offices, clients, categories,
+        remesas, asociados, vehicles, invoices, offices, clients, categories, shippingTypes,
         onAssignToVehicle, onUnassignInvoice, onDispatchVehicle, onDeleteRemesa,
         permissions, companyInfo 
     } = props;
@@ -240,6 +241,7 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                     companyInfo={companyInfo}
                     offices={offices}
                     categories={categories}
+                    shippingTypes={shippingTypes}
                 />
             )}
         </div>

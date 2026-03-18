@@ -110,39 +110,31 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                 <Button onClick={handleNewVehicle}><PlusIcon className="w-4 h-4 mr-2" />Añadir Vehículo</Button>
             </div>
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {associateVehicles.map(v => {
-                    const vehicleCerts = certificados.filter(c => c.vehiculoId === v.id);
+                {associateVehicles.map(vehiculo => {
+                    const vehicleCerts = certificados.filter(c => c.vehiculoId === vehiculo.id);
                     return (
-                        <Card key={v.id} className="p-0 flex flex-col">
+                        <Card key={vehiculo.id} className="p-0 flex flex-col">
                             <div className="p-4">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="font-bold text-lg text-primary-600 dark:text-primary-400">{v.modelo} ({v.ano})</p>
-                                        <p className="text-sm font-mono bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded inline-block">{v.placa}</p>
+                                        <p className="font-bold text-lg text-primary-600 dark:text-primary-400">{vehiculo.modelo} ({vehiculo.ano})</p>
+                                        <p className="text-sm font-mono bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded inline-block">{vehiculo.placa}</p>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button variant="secondary" size="sm" onClick={() => handleSelectVehicle(v)}><EditIcon className="w-4 h-4" /></Button>
-                                        <Button variant="danger" size="sm" onClick={async () => {
-                                            if(window.confirm('¿Está seguro de que desea eliminar este vehículo y todos sus certificados vinculados?')) {
-                                                try {
-                                                    await onDeleteVehicle(v.id);
-                                                } catch (error) {
-                                                    console.error('Error al eliminar vehículo:', error);
-                                                }
-                                            }
-                                        }}><TrashIcon className="w-4 h-4" /></Button>
+                                        <Button variant="secondary" size="sm" onClick={() => handleSelectVehicle(vehiculo as Vehicle)}><EditIcon className="w-4 h-4" /></Button>
+                                        <Button variant="danger" size="sm" onClick={() => onDeleteVehicle(vehiculo.id)}><TrashIcon className="w-4 h-4" /></Button>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 gap-1 mt-3 text-sm">
-                                    <p><strong>Tipo:</strong> {v.tipo || 'N/A'}</p>
-                                    <p><strong>Ruta:</strong> {v.uso || 'N/A'}</p>
-                                    <p><strong>Conductor:</strong> {v.driver || 'N/A'}</p>
+                                    <p><strong>Tipo:</strong> {vehiculo.tipo || 'N/A'}</p>
+                                    <p><strong>Ruta:</strong> {vehiculo.uso || 'N/A'}</p>
+                                    <p><strong>Conductor:</strong> {vehiculo.driver || 'N/A'}</p>
                                 </div>
                             </div>
                             <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-grow">
                                 <div className="flex justify-between items-center mb-2">
                                     <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200">Certificados</h4>
-                                    <Button size="sm" variant="secondary" onClick={() => handleOpenCertModal(v.id, null)}>
+                                    <Button size="sm" variant="secondary" onClick={() => handleOpenCertModal(vehiculo.id, null)}>
                                         <PlusIcon className="w-3 h-3 mr-1" /> Añadir
                                     </Button>
                                 </div>
@@ -159,7 +151,7 @@ const CertificadoVehiculoTab: React.FC<CertificadoVehiculoTabProps> = (props) =>
                                                 </div>
                                                 <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button 
-                                                        onClick={() => handleOpenCertModal(v.id, cert)}
+                                                        onClick={() => handleOpenCertModal(vehiculo.id, cert)}
                                                         className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                                                         title="Editar Certificado"
                                                     >

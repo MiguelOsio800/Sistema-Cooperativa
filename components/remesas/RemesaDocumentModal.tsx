@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Remesa, Invoice, Asociado, Vehicle, Client, CompanyInfo, Office, Category, Merchandise } from '../../types';
+import { Remesa, Invoice, Asociado, Vehicle, Client, CompanyInfo, Office, Category, Merchandise, ShippingType } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { DownloadIcon, XIcon } from '../icons/Icons';
@@ -20,10 +20,11 @@ interface RemesaDocumentModalProps {
     companyInfo: CompanyInfo;
     offices: Office[];
     categories: Category[];
+    shippingTypes: ShippingType[];
 }
 
 const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
-    isOpen, onClose, remesa, invoices, asociados, vehicles, clients, companyInfo, offices
+    isOpen, onClose, remesa, invoices, asociados, vehicles, clients, companyInfo, offices, shippingTypes
 }) => {
 
     const formatCurrency = (amount: number) => amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,7 +34,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
     const remesaInvoices = invoices.filter(inv => remesa.invoiceIds.includes(inv.id));
     
     // Calculate specific financials for the report structure
-    const financials = useMemo(() => calculateDetailedRemesaFinancials(remesaInvoices, companyInfo), [remesaInvoices, companyInfo]);
+    const financials = useMemo(() => calculateDetailedRemesaFinancials(remesaInvoices, companyInfo, shippingTypes, asociado), [remesaInvoices, companyInfo, shippingTypes, asociado]);
 
     // Totals for the top table
     const topTableTotals = remesaInvoices.reduce((acc, inv) => {

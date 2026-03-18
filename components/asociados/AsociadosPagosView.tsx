@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Asociado, PagoAsociado, ReciboPagoAsociado, CompanyInfo, Permissions, Invoice } from '../../types';
+import { Asociado, PagoAsociado, ReciboPagoAsociado, CompanyInfo, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 // Added CheckCircleIcon to the imports
@@ -11,6 +11,7 @@ import Select from '../ui/Select';
 import GenerarDeudaProduccionModal from './GenerarDeudaProduccionModal';
 import ReciboPagoAsociadoModal from './ReciboPagoAsociadoModal';
 import { useData } from '../../contexts/DataContext';
+import { useConfig } from '../../contexts/ConfigContext';
 
 interface AsociadosPagosViewProps {
     asociados: Asociado[];
@@ -27,7 +28,8 @@ const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE',
 
 const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
     const { asociados, pagos, recibos, onSavePago, onDeletePago, onSaveRecibo, companyInfo, permissions } = props;
-    const { invoices, vehicles, remesas } = useData();
+    const { vehicles, remesas, invoices } = useData();
+    const { shippingTypes } = useConfig();
 
     const [selectedAsociadoId, setSelectedAsociadoId] = useState<string>('');
     const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -64,23 +66,45 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
         if (!selectedAsociadoId) {
             return { pagosPendientes: [], recibosAsociado: [], totalDeuda: 0 };
         }
-        // Filtramos estrictamente por asociado, estado 'Pendiente' y el periodo seleccionado
-        const misPagos = pagos.filter(p => 
-            String(p.asociadoId) === String(selectedAsociadoId) &&
-            p.fecha && p.fecha.startsWith(`${selectedYear}-${selectedMonth}`)
-        );
+        
+        // Filtramos estrictamente por asociado y el periodo seleccionado
+        const misPagos = pagos.filter(p => {
+            if (String(p.asociadoId) !== String(selectedAsociadoId)) return false;
+            
+            const dateToUse = p.createdAt || p.fecha;
+            if (!dateToUse) return false;
+            
+            const date = new Date(dateToUse);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            
+            return String(year) === selectedYear && month === selectedMonth;
+        });
         
         // REGLA: Solo lo que está en 'Pendiente' va a la lista de deudas y al saldo deudor
         const pendientes = misPagos
             .filter(p => p.status === 'Pendiente')
-            .sort((a, b) => (String(a.id) > String(b.id) ? -1 : 1)); // Robust sort by ID string
+            .sort((a, b) => (String(a.id) > String(b.id) ? -1 : 1));
         
         const misRecibos = recibos
-            .filter(r => String(r.asociadoId) === String(selectedAsociadoId) && r.fechaPago.startsWith(`${selectedYear}-${selectedMonth}`))
+            .filter(r => {
+                if (String(r.asociadoId) !== String(selectedAsociadoId)) return false;
+                const date = new Date(r.fechaPago);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                return String(year) === selectedYear && month === selectedMonth;
+            })
             .sort((a,b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
         
-        // El saldo deudor total ahora solo suma los montos de pagos que siguen como 'Pendiente' en este periodo
-        const deuda = pendientes.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
+        // La suma en Bolívares debe ser: montoUsd * tasaCambio
+        const calculateBs = (p: PagoAsociado) => {
+            if (p.montoUsd && p.tasaCambio) {
+                return p.montoUsd * p.tasaCambio;
+            }
+            return Number(p.montoBs) || 0;
+        };
+
+        const deuda = pendientes.reduce((sum, p) => sum + calculateBs(p), 0);
         
         return { 
             pagosPendientes: pendientes, 
@@ -103,26 +127,6 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
         setSelectedRecibo(recibo);
         setViewReciboModalOpen(true);
     };
-
-    const associateInvoices = useMemo(() => {
-        if (!selectedAsociado) return [];
-        
-        // 1. Obtener vehículos del asociado
-        const myVehicles = vehicles.filter(v => String(v.asociadoId) === String(selectedAsociado.id));
-        const myVehicleIds = myVehicles.map(v => v.id);
-        
-        // 2. Obtener remesas del asociado
-        const myRemesas = remesas.filter(r => String(r.asociadoId) === String(selectedAsociado.id));
-        const myRemesaIds = myRemesas.map(r => r.id);
-        
-        // 3. Filtrar facturas que tengan el vehicleId o remesaId del asociado
-        return invoices.filter(inv => 
-            inv.status === 'Activa' && (
-                (inv.vehicleId && myVehicleIds.includes(inv.vehicleId)) ||
-                (inv.remesaId && myRemesaIds.includes(inv.remesaId))
-            )
-        );
-    }, [invoices, vehicles, remesas, selectedAsociado]);
 
     return (
         <div className="space-y-4">
@@ -323,7 +327,9 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                     onClose={() => setIsDeudaProduccionModalOpen(false)}
                     onGenerate={onSavePago}
                     asociado={selectedAsociado}
-                    invoices={associateInvoices}
+                    remesas={remesas}
+                    invoices={invoices}
+                    shippingTypes={shippingTypes}
                     companyInfo={companyInfo}
                 />
             )}

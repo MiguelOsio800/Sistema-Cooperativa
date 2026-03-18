@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Asociado, PagoAsociado } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
-import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '../icons/Icons';
+import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, FilterIcon } from '../icons/Icons';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 
@@ -14,11 +14,38 @@ interface EstadisticasAsociadosViewProps {
 const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ asociados, pagos }) => {
+    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
+    const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
+
+    const meses = [
+        { value: '01', label: 'Enero' },
+        { value: '02', label: 'Febrero' },
+        { value: '03', label: 'Marzo' },
+        { value: '04', label: 'Abril' },
+        { value: '05', label: 'Mayo' },
+        { value: '06', label: 'Junio' },
+        { value: '07', label: 'Julio' },
+        { value: '08', label: 'Agosto' },
+        { value: '09', label: 'Septiembre' },
+        { value: '10', label: 'Octubre' },
+        { value: '11', label: 'Noviembre' },
+        { value: '12', label: 'Diciembre' },
+    ];
+
+    const años = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 2 + i));
     
     const { solventes, deudores, totalDeudaBs, totalDeudaUsd } = useMemo(() => {
         const deudoresMap = new Map<string, { asociado: Asociado, deudaBs: number, deudaUsd: number }>();
         
-        pagos.forEach(pago => {
+        // Filtramos pagos por periodo
+        const filteredPagos = pagos.filter(p => {
+            const dateToUse = p.createdAt || p.fecha;
+            if (!dateToUse) return false;
+            const date = new Date(dateToUse);
+            return String(date.getFullYear()) === selectedYear && String(date.getMonth() + 1).padStart(2, '0') === selectedMonth;
+        });
+
+        filteredPagos.forEach(pago => {
             if (pago.status === 'Pendiente') {
                 if (!deudoresMap.has(pago.asociadoId)) {
                     const asociado = asociados.find(a => a.id === pago.asociadoId);
@@ -28,7 +55,8 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
                 }
                 const deudor = deudoresMap.get(pago.asociadoId);
                 if (deudor) {
-                    deudor.deudaBs += pago.montoBs;
+                    const montoBs = (pago.montoUsd && pago.tasaCambio) ? (pago.montoUsd * pago.tasaCambio) : pago.montoBs;
+                    deudor.deudaBs += montoBs;
                     deudor.deudaUsd += (pago.montoUsd || 0);
                 }
             }
@@ -67,7 +95,26 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Estadísticas de Pagos de Asociados</CardTitle>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <CardTitle>Estadísticas de Pagos de Asociados</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <FilterIcon className="w-4 h-4 text-gray-400" />
+                            <select 
+                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                            >
+                                {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                            </select>
+                            <select 
+                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                            >
+                                {años.map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                        </div>
+                    </div>
                 </CardHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 items-center">
                     <div className="h-64">

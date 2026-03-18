@@ -313,6 +313,7 @@ const AppContent: React.FC = () => {
                             offices={offices}
                             clients={clients}
                             categories={categories}
+                            shippingTypes={shippingTypes}
                             onAssignToVehicle={handleAssignToVehicle}
                             onUnassignInvoice={handleUnassignInvoice}
                             onDispatchVehicle={handleDispatchVehicle}

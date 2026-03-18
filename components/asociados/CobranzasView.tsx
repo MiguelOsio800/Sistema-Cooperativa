@@ -65,22 +65,27 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
             const allPending = pagosAsociados.filter(p => String(p.asociadoId) === String(a.id) && p.status === 'Pendiente');
             
             const periodPending = allPending.filter(p => {
-                // Usamos la fecha del cargo (p.fecha) para determinar a qué mes pertenece
-                if (!p.fecha) return false;
+                // Priorizamos createdAt como solicitó el usuario para filtrado estricto
+                const dateToUse = p.createdAt || p.fecha;
+                if (!dateToUse) return false;
                 
-                // Extraemos año y mes, manejando formatos YYYY-MM-DD o ISO strings
-                const datePart = p.fecha.split('T')[0];
-                const parts = datePart.split('-');
-                if (parts.length < 2) return false;
+                const date = new Date(dateToUse);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
                 
-                const year = parts[0];
-                const month = parts[1].padStart(2, '0'); // Aseguramos formato '03'
-                
-                return year === selectedYear && month === selectedMonth;
+                return String(year) === selectedYear && month === selectedMonth;
             });
             
-            const totalDebtPeriod = periodPending.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
-            const totalDebtGlobal = allPending.reduce((sum, p) => sum + (Number(p.montoBs) || 0), 0);
+            // La suma en Bolívares debe ser: montoUsd * tasaCambio (usando la tasa guardada en cada registro)
+            const calculateBs = (p: PagoAsociado) => {
+                if (p.montoUsd && p.tasaCambio) {
+                    return p.montoUsd * p.tasaCambio;
+                }
+                return Number(p.montoBs) || 0;
+            };
+
+            const totalDebtPeriod = periodPending.reduce((sum, p) => sum + calculateBs(p), 0);
+            const totalDebtGlobal = allPending.reduce((sum, p) => sum + calculateBs(p), 0);
             
             return {
                 ...a,
@@ -91,6 +96,30 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
             };
         });
     }, [asociados, pagosAsociados, selectedMonth, selectedYear]);
+
+    const { totalPeriodBs, totalPeriodUsd, countDeudores } = useMemo(() => {
+        let bs = 0;
+        let usd = 0;
+        let deudores = 0;
+        
+        asociadosWithDebt.forEach(a => {
+            if (a.totalDebt > 0) {
+                bs += a.totalDebt;
+                // Para el USD global del periodo, sumamos los pagos individuales
+                const periodPagos = pagosAsociados.filter(p => {
+                    if (String(p.asociadoId) !== String(a.id) || p.status !== 'Pendiente') return false;
+                    const dateToUse = p.createdAt || p.fecha;
+                    if (!dateToUse) return false;
+                    const date = new Date(dateToUse);
+                    return String(date.getFullYear()) === selectedYear && String(date.getMonth() + 1).padStart(2, '0') === selectedMonth;
+                });
+                usd += periodPagos.reduce((sum, p) => sum + (p.montoUsd || 0), 0);
+                deudores++;
+            }
+        });
+        
+        return { totalPeriodBs: bs, totalPeriodUsd: usd, countDeudores: deudores };
+    }, [asociadosWithDebt, pagosAsociados, selectedMonth, selectedYear]);
 
     const filteredAsociados = useMemo(() => {
         return asociadosWithDebt.filter(a => 
@@ -136,6 +165,48 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
                         Generar Cargo Masivo
                     </Button>
                 )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-4 border-l-4 border-red-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Deuda Total ({meses.find(m => m.value === selectedMonth)?.label})</p>
+                            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                {totalPeriodBs.toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
+                            <CurrencyDollarIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+                        </div>
+                    </div>
+                </Card>
+                <Card className="p-4 border-l-4 border-amber-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Deuda en Divisas ({meses.find(m => m.value === selectedMonth)?.label})</p>
+                            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                ${totalPeriodUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+                            <CurrencyDollarIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                        </div>
+                    </div>
+                </Card>
+                <Card className="p-4 border-l-4 border-primary-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Socios con Deuda</p>
+                            <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                                {countDeudores}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-full">
+                            <FilterIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                        </div>
+                    </div>
+                </Card>
             </div>
 
             <Card className="p-0 overflow-hidden">
