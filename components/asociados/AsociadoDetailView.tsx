@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Asociado, Vehicle, Certificado, Permissions } from '../../types';
 import Button from '../ui/Button';
 import { ArrowLeftIcon, TrashIcon } from '../icons/Icons';
@@ -7,6 +7,7 @@ import DatosSocioTab from './DatosSocioTab';
 import CertificadoVehiculoTab from './CertificadoVehiculoTab';
 import { useToast } from '../ui/ToastProvider';
 import ConfirmationModal from '../ui/ConfirmationModal';
+import { useData } from '../../contexts/DataContext';
 
 interface AsociadoDetailViewProps {
     asociado: Asociado;
@@ -29,6 +30,7 @@ type Tab = 'datos' | 'vehiculos';
 
 const AsociadoDetailView: React.FC<AsociadoDetailViewProps> = (props) => {
     const { asociado, onBack, onDeleteAsociado, permissions } = props;
+    const { fetchAsociadoData } = useData();
     const [activeTab, setActiveTab] = useState<Tab>('datos');
     const [currentAsociado, setCurrentAsociado] = useState({
         ...asociado,
@@ -39,6 +41,12 @@ const AsociadoDetailView: React.FC<AsociadoDetailViewProps> = (props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
     const { addToast } = useToast();
+
+    useEffect(() => {
+        if (asociado.id) {
+            fetchAsociadoData(asociado.id);
+        }
+    }, [asociado.id, fetchAsociadoData]);
 
     const handleSaveAsociado = async (updatedAsociado: Asociado) => {
         // Validaciones robustas

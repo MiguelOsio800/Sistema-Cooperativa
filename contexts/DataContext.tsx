@@ -61,6 +61,7 @@ type DataContextType = {
     handleCreateDispatch: (invoiceIds: string[], vehicleId: string, destinationOfficeId: string) => Promise<Dispatch | null>;
     handleReceiveDispatch: (dispatchId: string, verifiedInvoiceIds: string[]) => Promise<void>;
     handleGenerateMassiveDebt: (debtData: any) => Promise<void>;
+    fetchAsociadoData: (asociadoId: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -135,15 +136,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const asocs = Array.isArray(asocsResponse) ? asocsResponse : (asocsResponse.data || []);
                 setAsociados(asocs);
                 promises.push(fetchSafe<ReciboPagoAsociado[]>('/asociados/recibos', []).then(setRecibosPagoAsociados));
-                
-                if (asocs.length > 0) {
-                    const validAsocs = asocs.filter((a: Asociado) => a.id && String(a.id).trim() !== '');
-                    const debtPromises = validAsocs.map((a: Asociado) => fetchSafe<PagoAsociado[]>(`/asociados/${a.id}/deudas`, []));
-                    const certPromises = validAsocs.map((a: Asociado) => fetchSafe<Certificado[]>(`/asociados/${a.id}/certificados`, []));
-                    const [debts, certs] = await Promise.all([Promise.all(debtPromises), Promise.all(certPromises)]);
-                    setPagosAsociados(debts.flat());
-                    setCertificados(certs.flat());
-                }
             }
 
             await Promise.all(promises);
@@ -353,6 +345,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     await fetchData();
                 }
                 addToast({ type: 'success', title: 'Cargos Generados', message: `Se han generado cargos para ${d.asociadoIds?.length || 'los'} socios.` });
+            },
+            fetchAsociadoData: async (asociadoId: string) => {
+                const [debts, certs] = await Promise.all([
+                    fetchSafe<PagoAsociado[]>(`/asociados/${asociadoId}/deudas`, []),
+                    fetchSafe<Certificado[]>(`/asociados/${asociadoId}/certificados`, [])
+                ]);
+                setPagosAsociados(prev => [...prev.filter(p => p.asociadoId !== asociadoId), ...debts]);
+                setCertificados(prev => [...prev.filter(c => !certs.find(cert => cert.id === c.id)), ...certs]);
             }
         }}>
             {children}

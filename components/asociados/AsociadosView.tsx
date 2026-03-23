@@ -33,10 +33,8 @@ interface AsociadosGestionViewProps {
 
 const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
     const { permissions, onSaveAsociado, onDeleteAsociado, onSavePago } = props;
-    const { handleGenerateMassiveDebt } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedAsociado, setSelectedAsociado] = useState<Asociado | null>(null);
-    const [isMassiveDebtModalOpen, setIsMassiveDebtModalOpen] = useState(false);
     
     // Pagination and Loading State
     const [asociadosData, setAsociadosData] = useState<Asociado[]>([]);
@@ -100,19 +98,6 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
         fetchAsociados(); // Refresh data when going back
     };
     
-    const handleGenerateMassiveDebtSubmit = async (debtData: {
-        concepto: string,
-        cuotas: string,
-        montoBs: number,
-        montoUsd: number,
-        tasaCambio: number,
-        fecha: string,
-        applyTo: 'Activo' | 'Todos'
-    }) => {
-        await handleGenerateMassiveDebt(debtData);
-        setIsMassiveDebtModalOpen(false);
-    };
-
     const confirmDelete = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setAsociadoToDelete(id);
@@ -168,11 +153,6 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
                     <div className="flex flex-wrap justify-between items-center gap-4">
                         <CardTitle>Búsqueda de Asociados</CardTitle>
                          <div className="flex items-center gap-2">
-                            {permissions['asociados.create'] && (
-                                <Button onClick={() => setIsMassiveDebtModalOpen(true)} variant="secondary">
-                                    <PlusCircleIcon className="w-4 h-4 mr-2" /> Generar Deuda Masiva
-                                </Button>
-                            )}
                             {permissions['asociados.create'] && (
                                  <Button onClick={handleCreateNew}>
                                     <PlusIcon className="w-4 h-4 mr-2" /> Nuevo Asociado
@@ -264,12 +244,6 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
                     </div>
                 )}
             </Card>
-            <GenerarDeudaMasivaModal
-                isOpen={isMassiveDebtModalOpen}
-                onClose={() => setIsMassiveDebtModalOpen(false)}
-                onGenerate={handleGenerateMassiveDebtSubmit}
-                companyInfo={props.companyInfo}
-            />
             <ConfirmationModal
                 isOpen={isConfirmDeleteOpen}
                 title="Eliminar Asociado"
