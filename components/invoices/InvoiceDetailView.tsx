@@ -85,7 +85,13 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
             // Se hace la petición POST a la ruta de descarga HKA del backend: /api/invoices/:id/download-hka
             const response = await apiFetch<{ success: boolean, base64?: string, pdfUrl?: string, message?: string }>(
                 `/invoices/${invoice.id}/download-hka`, 
-                { method: 'POST' }
+                { 
+                    method: 'POST',
+                    body: JSON.stringify({
+                        tipoArchivo: 'pdf',
+                        tipoDocumento: '01'
+                    })
+                }
             );
 
             if (response.base64) {

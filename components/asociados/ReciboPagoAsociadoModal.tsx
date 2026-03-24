@@ -92,7 +92,15 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
                     <div className="p-3 border rounded-md bg-gray-50 space-y-1">
                         {recibo.detallesPago.map((dp, index) => (
                             <div key={index} className="flex justify-between text-sm text-black">
-                                <span className="text-black">{dp.tipo} {dp.banco && `- ${dp.banco}`} {dp.referencia && `(Ref: ${dp.referencia})`}</span>
+                                <span className="text-black">
+                                    {dp.tipo} 
+                                    {(!['Efectivo Bs', 'Divisa', 'Pago Móvil'].includes(dp.tipo)) && (
+                                        <>
+                                            {dp.banco && ` - ${dp.banco}`} 
+                                            {dp.referencia && ` (Ref: ${dp.referencia})`}
+                                        </>
+                                    )}
+                                </span>
                                 <span className="font-mono text-black">{formatCurrency(dp.monto)}</span>
                             </div>
                         ))}

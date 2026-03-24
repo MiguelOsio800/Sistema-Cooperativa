@@ -84,15 +84,15 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Finanzas de ${asociado.nombre}`} size="xl">
             <div className="space-y-6">
-                <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-lg">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-800 dark:text-white">{asociado.nombre}</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Código: {asociado.codigo} | C.I: {asociado.cedula}</p>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{asociado.nombre}</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Código: {asociado.codigo} | C.I: {asociado.cedula}</p>
                         </div>
-                        <div className="text-left sm:text-right">
-                            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Saldo Deudor Total</p>
-                            <p className={`text-3xl font-bold ${totalDeuda > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                        <div className="text-left sm:text-right bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Saldo Deudor Total</p>
+                            <p className={`text-3xl font-extrabold mt-1 ${totalDeuda > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                 {formatCurrency(totalDeuda)}
                             </p>
                         </div>
@@ -104,26 +104,26 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Cuentas Pendientes</h3>
-                            <Button onClick={() => setIsRegistrarModalOpen(true)} size="sm" disabled={pagosPendientes.length === 0}>
+                            <Button onClick={() => setIsRegistrarModalOpen(true)} size="sm" disabled={pagosPendientes.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                                 <ReceiptIcon className="w-4 h-4 mr-1"/> Registrar Pago
                             </Button>
                         </div>
-                        <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                             {pagosPendientes.length > 0 ? pagosPendientes.map(p => {
                                 return (
-                                    <div key={p.id} className="p-3 rounded-md border-l-4 flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500">
+                                    <div key={p.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-yellow-400 dark:hover:border-yellow-600 transition-colors flex justify-between items-center shadow-sm">
                                         <div className="flex-grow">
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <p className="font-semibold text-yellow-800 dark:text-yellow-200">{p.concepto}</p>
-                                                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                                                    <p className="font-semibold text-gray-900 dark:text-white">{p.concepto}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                         Fecha: {p.fecha} | Cuotas: {p.cuotas}
-                                                        {p.tasaCambio && <span className="ml-2 px-1.5 py-0.5 bg-yellow-200 dark:bg-yellow-800 rounded text-[10px] font-bold">Tasa: {p.tasaCambio}</span>}
+                                                        {p.tasaCambio && <span className="ml-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-full text-[10px] font-bold text-gray-600 dark:text-gray-300">Tasa: {p.tasaCambio}</span>}
                                                     </p>
                                                 </div>
-                                                <p className="font-bold text-right text-yellow-900 dark:text-yellow-100">
+                                                <p className="font-bold text-right text-gray-900 dark:text-white">
                                                     {formatCurrency(p.montoBs)}
-                                                    {p.montoUsd && <span className="block text-xs font-normal text-yellow-800/80 dark:text-yellow-200/80">(${p.montoUsd.toFixed(2)})</span>}
+                                                    {p.montoUsd && <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">(${p.montoUsd.toFixed(2)})</span>}
                                                 </p>
                                             </div>
                                         </div>
@@ -144,9 +144,9 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
                                     </div>
                                 )
                             }) : (
-                                <div className="text-center py-8">
+                                <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
                                     <CheckCircleIcon className="mx-auto h-10 w-10 text-green-500 mb-2" />
-                                    <p className="text-gray-500 dark:text-gray-400">Sin deudas pendientes.</p>
+                                    <p className="text-gray-500 dark:text-gray-400 font-medium">Sin deudas pendientes.</p>
                                 </div>
                             )}
                         </div>
@@ -155,24 +155,25 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
                     {/* Historial de Recibos */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">Historial de Recibos</h3>
-                        <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                             {recibosAsociado.length > 0 ? recibosAsociado.map(r => (
-                                <div key={r.id} className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md block border-l-4 border-green-500">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <div>
-                                            <p className="font-semibold text-gray-900 dark:text-white">Recibo N°: {r.comprobanteNumero}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">Fecha: {r.fechaPago}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(r.montoTotalBs)}</p>
-                                            <Button size="sm" variant="secondary" onClick={() => handleViewRecibo(r)} className="mt-1">
-                                                <EyeIcon className="w-3 h-3 mr-1" /> Ver
-                                            </Button>
-                                        </div>
+                                <div key={r.id} className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                                    <div className="text-sm">
+                                        <p className="font-semibold text-gray-900 dark:text-white">Recibo N°: {r.comprobanteNumero}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Fecha: {r.fechaPago}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(r.montoTotalBs)}</p>
+                                        <Button size="sm" variant="secondary" onClick={() => handleViewRecibo(r)} className="mt-1">
+                                            <EyeIcon className="w-3 h-3 mr-1" /> Ver
+                                        </Button>
                                     </div>
                                 </div>
                             )) : (
-                                <p className="text-center py-8 text-gray-500 dark:text-gray-400">No hay recibos registrados.</p>
+                                <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+                                    <ExclamationTriangleIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                                    <p className="text-gray-500 dark:text-gray-400 font-medium">No hay recibos registrados.</p>
+                                </div>
                             )}
                         </div>
                     </div>
