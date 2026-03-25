@@ -486,6 +486,7 @@ const AppContent: React.FC = () => {
                         currentPage={currentPage} 
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
                         companyInfo={companyInfo} 
+                        onUpdateCompanyInfo={handleCompanyInfoSave}
                         currentUser={currentUser}
                         onLogout={handleLogout}
                         permissions={userPermissions}

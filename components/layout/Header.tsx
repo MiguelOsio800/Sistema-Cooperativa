@@ -11,6 +11,7 @@ interface HeaderProps {
     currentPage: Page;
     onToggleSidebar: () => void;
     companyInfo: CompanyInfo;
+    onUpdateCompanyInfo: (info: CompanyInfo) => Promise<void>;
     currentUser: User;
     onLogout: () => void;
     permissions: Permissions;
@@ -22,7 +23,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ 
-    currentPage, onToggleSidebar, companyInfo, currentUser, onLogout, permissions,
+    currentPage, onToggleSidebar, companyInfo, onUpdateCompanyInfo, currentUser, onLogout, permissions,
     roles, offices, asociados, onSaveUser
 }) => {
     
@@ -123,6 +124,9 @@ const Header: React.FC<HeaderProps> = ({
                 asociados={asociados} // Passed but hidden in Profile Mode
                 currentUser={currentUser}
                 isProfileMode={true} // Enables simplified view
+                companyInfo={companyInfo}
+                onUpdateCompanyInfo={onUpdateCompanyInfo}
+                permissions={permissions}
             />
         </header>
     );

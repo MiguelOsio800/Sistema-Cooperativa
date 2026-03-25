@@ -331,7 +331,6 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                                         const volWeightPerUnit = (Number(item.length) * Number(item.width) * Number(item.height)) / 5000;
                                         const chargeableWeightPerUnit = Math.max(realWeightPerUnit, volWeightPerUnit);
                                         const totalChargeableWeight = chargeableWeightPerUnit * (Number(item.quantity) || 1);
-                                        const itemFreight = totalChargeableWeight * (companyInfo.costPerKg || 0);
                                         const categoryName = categories.find(c => c.id === item.categoryId)?.name || 'N/A';
                                         return (
                                             <tr key={index} className="border-b border-gray-100">
@@ -343,7 +342,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                                                 <td className="px-2 py-2 text-right">{realWeightPerUnit.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right">{volWeightPerUnit.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-bold">{totalChargeableWeight.toFixed(2)}</td>
-                                                <td className="px-2 py-2 text-right font-semibold">{formatCurrency(itemFreight)}</td>
+                                                <td className="px-2 py-2 text-right font-semibold">{index === 0 ? formatCurrency(financials.freight) : ''}</td>
                                             </tr>
                                         );
                                     })}
@@ -351,8 +350,23 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                             </table>
                         </div>
 
-                        <div className="flex justify-end mb-8">
-                            <div className="w-64 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div className="flex gap-4 mb-8">
+                            <div className="w-1/2 text-[10px] text-justify leading-relaxed text-black border border-gray-200 rounded-lg p-3">
+                                <h2 className="text-sm font-bold uppercase underline mb-2 text-center">Condiciones generales</h2>
+                                <div className="space-y-1">
+                                    <p><strong>*Primero:</strong> La cooperativa indemnizará solo (3) veces el valor del flete en caso de extravío o siniestro si no tiene valor asegurado.</p>
+                                    <p><strong>*Segundo:</strong> Mercancía frágil o de fácil descomposición deteriorada por mal embalaje corre por cuenta del cliente.</p>
+                                    <p><strong>*Tercero:</strong> En caso de siniestro no imputable, se indemnizará según valor declarado menos el deducible de la póliza.</p>
+                                    <p><strong>*Cuarto:</strong> No habrá indemnización si la mercancía es confiscada por autoridades; el cliente pagará el flete.</p>
+                                    <p><strong>*Quinto:</strong> No somos responsables por retardos debidos a fuerza mayor o accidentes del vehículo.</p>
+                                    <p><strong>*Sexto:</strong> A los 30 días la Guía vence. Responsabilidad limitada a 50,00 Bs por valores no declarados.</p>
+                                    <p><strong>*Séptimo:</strong> Mercancía no retirada en 90 días pasará a remate sin derecho a reclamo.</p>
+                                    <p><strong>*Octavo:</strong> Encomiendas no recibidas a domicilio se devuelven al depósito de origen.</p>
+                                    <p><strong>*Noveno:</strong> El cliente declara el contenido real; la compañía no responde por fallas de contenido no declarado.</p>
+                                    <p><strong>*Décimo:</strong> Mercancía con más de 72h en oficina no será indemnizada por la aseguradora en caso de siniestro.</p>
+                                </div>
+                            </div>
+                            <div className="w-1/2 bg-gray-50 rounded-lg p-3 border border-gray-200">
                                 <div className="text-[10px] space-y-1.5">
                                     <div className="flex justify-between text-gray-700"><span>Monto del Flete:</span> <span className="font-medium">{formatCurrency(financials.freight)}</span></div>
                                     <div className="flex justify-between text-gray-700"><span>Manejo de Mercancía:</span> <span className="font-medium">{formatCurrency(financials.handling)}</span></div>
@@ -374,50 +388,6 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* HOJA 2: CONDICIONES DEL CONTRATO - Altura optimizada */}
-                    <div className="relative" style={{ padding: '40px', minHeight: '1120px', boxSizing: 'border-box' }}>
-                        {/* Línea divisoria absoluta para que no ocupe altura real */}
-                        <div className="absolute top-0 left-0 w-full border-t border-dashed border-gray-300 pointer-events-none"></div>
-                        
-                        <div className="text-center mb-8">
-                            <h2 className="text-lg font-bold uppercase underline">Condiciones generales del contrato</h2>
-                        </div>
-                        <div className="space-y-4 text-[11px] text-justify leading-relaxed text-black">
-                            <p><strong>*Primero:</strong> queda entendido que el Cliente que utilice los servicios de transporte de la cooperativa para ser enviada una mercancía no tenga valor asegurado la cooperativa indemnizara solo (3) veces el valor del flete, en caso de un extravió o siniestro.</p>
-                            
-                            <p><strong>*Segundo:</strong> queda entendido que en caso que las mercancías frágiles y/o fácil descomposición que se deterioró por mal embalaje corre por cuenta del cliente. Estas no son asegurables siendo responsabilidad del remitente o destinatario.</p>
-                            
-                            <p><strong>*Tercero:</strong> Queda entendido que en caso que la mercancía transportada sufriera un siniestro por causa no imputable a la cooperativa, esta compañía indemnizara al cliente de acuerdo al valor asegurado y declarado de la mercancía y se hará un deducible de acuerdo con la Póliza de seguro que tenga la compañía.</p>
-                            
-                            <p><strong>*Cuarto:</strong> Queda convenido mutuamente que la compañía no se hará responsable ni dará ninguna indemnización, en caso que la mercancía transportada, fuera confiscada por las autoridades competentes: y el CLIENTE le cancelará a la COMPAÑÍA EL VALOR DEL FLETE.</p>
-                            
-                            <p><strong>*Quinto:</strong> La COMPAÑÍA no se hará responsable por mercancía que llegue retardada a su destino, cuando por fuerza mayor no se puede despachar con la fecha indicada o accidente del vehículo que transporta la mercancía.</p>
-                            
-                            <p><strong>*Sexto:</strong> Queda entendido que después de treinta (30) días la Guía no tendrá validez y no se hará responsable la Cooperativa, por VALORES NO ASEGURADOS Y DECLARADOS, y en caso de pérdidas, la COOPERATIVA indemnizará al CLIENTE hasta la cantidad de cincuenta bolívares (50,00).</p>
-                            
-                            <p><strong>*Séptimo:</strong> Queda entendido que la MERCANCÍA, que llega a una de las oficinas y el cliente no la retire dentro de un lapso de noventa (90) días, pasará a formar parte del lote de MERCANCÍAS que serán rematadas, y no tendrán ningún reclamo a la COMPAÑÍA para que le sea indemnizada.</p>
-                            
-                            <p><strong>*Octavo:</strong> Encomienda llevada a destino y el Cliente no se encuentre en su domicilio será devuelta al depósito de la ciudad correspondiente sin excepción.</p>
-                            
-                            <p><strong>*Noveno:</strong> Queda convenido y mutuamente aceptado, que el CLIENTE se compromete declarar el contenido de la MERCANCÍA enviada por la COMPAÑÍA ya que no se hará responsable de alguna falla del contenido de la misma.</p>
-                            
-                            <p><strong>*Décimo:</strong> Queda entendido que la mercancía, que se encuentre más de 72 horas en las oficinas y ocurriere un Siniestro la Aseguradora no indemnizará al CLIENTE, aunque tenga el VALOR ASEGURADO.</p>
-                            
-                            <p><strong>*Décimo Primero:</strong> Todas las controversias o conflictos que pudieran derivar de este contrato deberán ser resueltas en forma amistosa entre las partes contratantes, de no ser posible, podrá ser sometido a arbitraje contando con la buena voluntad de ambas partes.</p>
-                        </div>
-                        
-                        <div className="mt-20 flex justify-around">
-                            <div className="w-48 border-t border-black text-center pt-2">
-                                <p className="font-bold text-[10px]">EL CLIENTE / REMITENTE</p>
-                                <p className="text-[9px] text-center mt-1 text-gray-600">Firma y Nombre</p>
-                            </div>
-                            <div className="w-48 border-t border-black text-center pt-2">
-                                <p className="font-bold text-[10px]">POR LA COOPERATIVA</p>
-                                <p className="text-[9px] text-center mt-1 text-gray-600">Firma Autorizada</p>
                             </div>
                         </div>
                     </div>

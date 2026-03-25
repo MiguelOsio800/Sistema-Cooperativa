@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Role, Office, Asociado } from '../../types';
+import { User, Role, Office, Asociado, CompanyInfo, Permissions } from '../../types';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -16,10 +16,17 @@ interface UserFormModalProps {
     currentUser: User;
     asociados: Asociado[];
     isProfileMode?: boolean; // New prop to indicate self-edit mode
+    companyInfo?: CompanyInfo;
+    onUpdateCompanyInfo?: (info: CompanyInfo) => Promise<void>;
+    permissions?: Permissions;
 }
 
-const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, user, roles, offices, currentUser, asociados, isProfileMode = false }) => {
+const UserFormModal: React.FC<UserFormModalProps> = ({ 
+    isOpen, onClose, onSave, user, roles, offices, currentUser, asociados, isProfileMode = false,
+    companyInfo, onUpdateCompanyInfo, permissions
+}) => {
     const [formData, setFormData] = useState<Partial<User>>({});
+    const [bcvRate, setBcvRate] = useState<number>(companyInfo?.bcvRate || 0);
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -43,10 +50,11 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
     useEffect(() => {
         if (isOpen) {
             setFormData(user || { name: '', username: '', password: '', email: '', roleId: availableRoles[0]?.id, officeId: '', asociadoId: '' });
+            setBcvRate(companyInfo?.bcvRate || 0);
             setShowPassword(false);
             setErrors({});
         }
-    }, [user, isOpen, availableRoles]);
+    }, [user, isOpen, availableRoles, companyInfo]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -67,9 +75,12 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (validate()) {
+            if (isProfileMode && companyInfo && onUpdateCompanyInfo && permissions?.['config.profile.edit-rate']) {
+                await onUpdateCompanyInfo({ ...companyInfo, bcvRate });
+            }
             onSave(formData as User);
         }
     };
@@ -111,6 +122,17 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                 </div>
                 
                 <Input name="email" label="Correo Electrónico" type="email" value={formData.email || ''} onChange={handleChange} error={errors.email} />
+                
+                {isProfileMode && permissions?.['config.profile.edit-rate'] && (
+                    <Input 
+                        name="bcvRate" 
+                        label="Tasa Dólar BCV (Bs.)" 
+                        type="number" 
+                        step="0.01"
+                        value={bcvRate} 
+                        onChange={(e) => setBcvRate(Number(e.target.value))} 
+                    />
+                )}
                 
                 <div className="border-t dark:border-gray-700 pt-4 mt-4">
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

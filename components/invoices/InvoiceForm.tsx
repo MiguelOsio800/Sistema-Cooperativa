@@ -112,6 +112,20 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
     }, [offices, shippingTypes, paymentMethods, categories, invoice, canManageAllOffices, currentUser]);
 
     useEffect(() => {
+        const totalFreight = guide.merchandise.reduce((acc, item) => {
+            const realWeightPerUnit = Number(item.weight) || 0;
+            const volWeightPerUnit = (Number(item.length) * Number(item.width) * Number(item.height)) / 5000;
+            const chargeableWeightPerUnit = Math.max(realWeightPerUnit, volWeightPerUnit);
+            const totalChargeableWeight = chargeableWeightPerUnit * (Number(item.quantity) || 1);
+            return acc + totalChargeableWeight * (companyInfo.costPerKg || 0);
+        }, 0);
+        
+        if (guide.baseFreightAmount !== totalFreight) {
+            setGuide(g => ({...g, baseFreightAmount: totalFreight}));
+        }
+    }, [guide.merchandise, companyInfo.costPerKg]);
+
+    useEffect(() => {
         const newFinancials = calculateFinancialDetails(guide, companyInfo);
         setFinancials(newFinancials);
     }, [guide, companyInfo]);
