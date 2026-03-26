@@ -346,14 +346,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
                 addToast({ type: 'success', title: 'Cargos Generados', message: `Se han generado cargos para ${d.asociadoIds?.length || 'los'} socios.` });
             },
-            fetchAsociadoData: async (asociadoId: string) => {
+            fetchAsociadoData: useCallback(async (asociadoId: string) => {
                 const [debts, certs] = await Promise.all([
                     fetchSafe<PagoAsociado[]>(`/asociados/${asociadoId}/deudas`, []),
                     fetchSafe<Certificado[]>(`/asociados/${asociadoId}/certificados`, [])
                 ]);
                 setPagosAsociados(prev => [...prev.filter(p => p.asociadoId !== asociadoId), ...debts]);
                 setCertificados(prev => [...prev.filter(c => !certs.find(cert => cert.id === c.id)), ...certs]);
-            }
+            }, [fetchSafe])
         }}>
             {children}
         </DataContext.Provider>
