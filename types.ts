@@ -204,6 +204,7 @@ export interface Remesa {
     totalAmount: number;
     totalPackages: number;
     totalWeight: number;
+    exchangeRate?: number;
 }
 
 export type DispatchStatus = 'En Tránsito' | 'Recibido' | 'Anulado';

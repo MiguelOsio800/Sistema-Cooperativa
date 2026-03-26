@@ -19,7 +19,7 @@ interface DespachosViewProps {
     clients: Client[];
     categories: Category[];
     onAssignToVehicle: (invoiceIds: string[], vehicleId: string) => Promise<void>;
-    onDispatchVehicle: (vehicleId: string) => Promise<Remesa | null>;
+    onDispatchVehicle: (vehicleId: string, invoiceIds: string[], exchangeRate: number, asociadoId: string) => Promise<Remesa | null>;
     companyInfo: CompanyInfo;
     currentUser: any;
     permissions: Permissions;

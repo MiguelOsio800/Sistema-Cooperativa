@@ -300,7 +300,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                             </div>
                             <div className="flex justify-between py-1 text-[10px] text-black">
                                 <span className="text-black">Referencia $:</span>
-                                <span className="text-black">{companyInfo.bcvRate ? (financials.pagado.favorAsociado / companyInfo.bcvRate).toFixed(2) : '0.00'}</span>
+                                <span className="text-black">{((remesa.exchangeRate || companyInfo.bcvRate) ? (financials.pagado.favorAsociado / (remesa.exchangeRate || companyInfo.bcvRate || 1)).toFixed(2) : '0.00')}</span>
                             </div>
                         </div>
                     </div>

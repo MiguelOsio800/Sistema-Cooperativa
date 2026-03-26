@@ -40,7 +40,7 @@ type DataContextType = {
     handleDeleteVehicle: (vehicleId: string) => Promise<void>;
     handleAssignToVehicle: (invoiceIds: string[], vehicleId: string) => Promise<void>;
     handleUnassignInvoice: (invoiceId: string) => Promise<void>;
-    handleDispatchVehicle: (vehicleId: string) => Promise<Remesa | null>;
+    handleDispatchVehicle: (vehicleId: string, invoiceIds: string[], exchangeRate: number, asociadoId: string) => Promise<Remesa | null>;
     handleFinalizeTrip: (vehicleId: string) => Promise<void>;
     handleSaveExpense: (expense: Expense) => Promise<void>;
     handleDeleteExpense: (expenseId: string) => Promise<void>;
@@ -220,16 +220,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setInvoices(p => p.map(i => i.id === id ? resp.updatedInvoice : i));
                 }
             },
-            handleDispatchVehicle: async (vId) => {
-                const resp = await apiFetch<{newRemesa: Remesa, updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/vehicles/${vId}/dispatch`, { method: 'POST' });
-                setVehicles(p => p.map(v => v.id === vId ? resp.updatedVehicle : v));
-                const updatedInvoices = resp.updatedInvoices || [];
-                if (Array.isArray(updatedInvoices)) {
-                    const map = new Map(updatedInvoices.map(i => [i.id, i]));
-                    setInvoices(p => p.map(i => map.get(i.id) || i));
-                }
-                setRemesas(p => [resp.newRemesa, ...p]);
-                return resp.newRemesa;
+            handleDispatchVehicle: async (vId, invoiceIds, exchangeRate, asociadoId) => {
+                const resp = await apiFetch<{newRemesa: Remesa, updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/remesas`, { 
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        vehicleId: vId, 
+                        invoiceIds: invoiceIds, // ✅ AHORA SÍ ENVIAMOS LAS FACTURAS
+                        exchangeRate: exchangeRate, 
+                        asociadoId: asociadoId 
+                    })
+                });
+                
+                // Refrescar datos como lo solicitó el usuario
+                const [newVehicles, newRemesas, newInvoices] = await Promise.all([
+                    fetchSafe<Vehicle[]>('/vehicles', []),
+                    fetchSafe<Remesa[]>('/remesas', []),
+                    fetchSafe<Invoice[]>('/invoices', [])
+                ]);
+                
+                setVehicles(newVehicles);
+                setRemesas(newRemesas);
+                setInvoices(newInvoices);
+                setInventory(deriveInventoryFromInvoices(newInvoices));
+                
+                return resp.newRemesa || (resp as any);
             },
             handleFinalizeTrip: async (vId) => {
                 const resp = await apiFetch<{updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/vehicles/${vId}/finalize-trip`, { method: 'POST' });
@@ -260,7 +274,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleSavePagoAsociado: (p) => handleGenericSave(p, '/asociados/pagos', setPagosAsociados),
             handleDeletePagoAsociado: (id) => apiFetch(`/asociados/pagos/${id}`, { method: 'DELETE' }).then(() => setPagosAsociados(p => p.filter(i => i.id !== id))),
             handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados),
-            handleDeleteRemesa: (id) => apiFetch(`/remesas/${id}`, { method: 'DELETE' }).then(() => setRemesas(p => p.filter(i => i.id !== id))),
+            handleDeleteRemesa: async (id) => {
+                await apiFetch(`/remesas/${id}`, { method: 'DELETE' });
+                
+                // Refrescar datos como lo solicitó el usuario
+                const [newVehicles, newRemesas, newInvoices] = await Promise.all([
+                    fetchSafe<Vehicle[]>('/vehicles', []),
+                    fetchSafe<Remesa[]>('/remesas', []),
+                    fetchSafe<Invoice[]>('/invoices', [])
+                ]);
+                
+                setVehicles(newVehicles);
+                setRemesas(newRemesas);
+                setInvoices(newInvoices);
+                setInventory(deriveInventoryFromInvoices(newInvoices));
+            },
             handleSaveAsientoManual: async (a) => {
                 const body = {
                     date: a.fecha,

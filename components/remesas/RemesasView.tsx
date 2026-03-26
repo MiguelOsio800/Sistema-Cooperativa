@@ -21,7 +21,7 @@ interface RemesasViewProps {
     shippingTypes: ShippingType[];
     onAssignToVehicle: (invoiceIds: string[], vehicleId: string) => Promise<void>;
     onUnassignInvoice: (invoiceId: string) => Promise<void>;
-    onDispatchVehicle: (vehicleId: string) => Promise<Remesa | null>;
+    onDispatchVehicle: (vehicleId: string, invoiceIds: string[], exchangeRate: number, asociadoId: string) => Promise<Remesa | null>;
     onDeleteRemesa: (remesaId: string) => Promise<void>;
     permissions: Permissions;
     companyInfo: CompanyInfo;
@@ -77,7 +77,14 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
     };
     
     const handleDispatchAndShowManifest = async (vehicleId: string) => {
-        const newRemesa = await onDispatchVehicle(vehicleId);
+        const vehicle = vehicles.find(v => v.id === vehicleId);
+        if (!vehicle) return;
+        
+        const assignedInvoices = invoices.filter(inv => inv.vehicleId === vehicleId);
+        const invoiceIds = assignedInvoices.map(inv => inv.id);
+        
+        const exchangeRate = companyInfo.bcvRate || 1;
+        const newRemesa = await onDispatchVehicle(vehicleId, invoiceIds, exchangeRate, vehicle.asociadoId);
         if (newRemesa) {
             setRemesaForManifest(newRemesa);
             setIsManifestModalOpen(true);
