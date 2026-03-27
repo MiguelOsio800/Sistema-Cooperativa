@@ -18,7 +18,7 @@ const OfficeFormModal: React.FC<OfficeFormModalProps> = ({ isOpen, onClose, onSa
 
     useEffect(() => {
         if (isOpen) {
-            setFormData(office || { code: '', name: '', address: '', phone: '' });
+            setFormData(office || { code: '', name: '', address: '', phone: '', email: '' });
         }
     }, [office, isOpen]);
 
@@ -39,7 +39,10 @@ const OfficeFormModal: React.FC<OfficeFormModalProps> = ({ isOpen, onClose, onSa
                     <Input name="name" label="Nombre de la Oficina" value={formData.name || ''} onChange={handleChange} required />
                 </div>
                 <Input name="address" label="Dirección" value={formData.address || ''} onChange={handleChange} required />
-                <Input name="phone" label="Teléfono" value={formData.phone || ''} onChange={handleChange} required />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input name="phone" label="Teléfono" value={formData.phone || ''} onChange={handleChange} required />
+                    <Input name="email" label="Correo Electrónico" type="email" value={formData.email || ''} onChange={handleChange} />
+                </div>
                 <div className="flex justify-end space-x-2 pt-4">
                     <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
                     <Button type="submit">Guardar</Button>

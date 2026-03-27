@@ -64,7 +64,7 @@ const FlotaVehiculosPorAsociadoView: React.FC<FlotaVehiculosPorAsociadoViewProps
     }
 
     const getAssignedInvoices = (vehicleId: string) => {
-        return invoices.filter(inv => inv.vehicleId === vehicleId);
+        return invoices.filter(inv => inv.vehicleId === vehicleId && inv.shippingStatus === 'Pendiente para Despacho');
     };
 
     return (

@@ -130,11 +130,21 @@ export const calculateDetailedRemesaFinancials = (
         const fin = calculateFinancialDetails(inv.guide, companyInfo);
         const target = inv.guide.paymentType === 'flete-pagado' ? result.pagado : result.destino;
 
-        target.flete += fin.freight;
-        target.seguro += fin.insuranceCost;
-        target.ipostel += fin.ipostel;
-        target.manejo += fin.handling;
-        target.iva += fin.iva;
+        // Use historical values from invoice if available to prevent recalculation mismatches
+        const handling = inv.Montomanejo !== undefined ? inv.Montomanejo : fin.handling;
+        const ipostel = inv.ipostelFee !== undefined ? inv.ipostelFee : fin.ipostel;
+        const insuranceCost = fin.insuranceCost;
+        const iva = fin.iva;
+        const total = inv.totalAmount; // Source of truth
+
+        // Flete Puro is the base for distribution
+        const fletePuro = total - insuranceCost - ipostel - handling - iva;
+
+        target.flete += total; // The user wants Flete column to be the totalAmount
+        target.seguro += insuranceCost;
+        target.ipostel += ipostel;
+        target.manejo += handling;
+        target.iva += iva;
         
         // Business Logic for Distribution (ACTUALIZADO):
         // 1. No Asociados: 30% Cooperativa / 70% Socio (independientemente del tipo de envío)
@@ -155,14 +165,15 @@ export const calculateDetailedRemesaFinancials = (
             }
         }
 
-        const coopShare = fin.total * coopPercentage;
-        const associateShare = fin.total - coopShare;
+        // Apply split to Flete Puro for ALL invoices (Pagado and Destino)
+        const coopShare = fletePuro * coopPercentage;
+        const associateShare = fletePuro - coopShare; // To avoid rounding issues
 
         target.favorCooperativa += coopShare;
         target.favorAsociado += associateShare;
 
         if (inv.guide.paymentType === 'flete-destino') {
-            result.totalDestino += fin.total;
+            result.totalDestino += total;
         }
     });
 

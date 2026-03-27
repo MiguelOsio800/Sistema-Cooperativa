@@ -36,6 +36,14 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
     // Calculate specific financials for the report structure
     const financials = useMemo(() => calculateDetailedRemesaFinancials(remesaInvoices, companyInfo, shippingTypes, asociado), [remesaInvoices, companyInfo, shippingTypes, asociado]);
 
+    const totalPagado = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-pagado').reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const totalDestino = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-destino').reduce((sum, inv) => sum + inv.totalAmount, 0);
+
+    const sumaTotalAbsoluta = totalPagado + totalDestino;
+        
+    const currentRate = remesa.exchangeRate || companyInfo.bcvRate || 1;
+    const referenciaDolares = currentRate > 0 ? (sumaTotalAbsoluta / currentRate).toFixed(2) : '0.00';
+
     // Totals for the top table
     const topTableTotals = remesaInvoices.reduce((acc, inv) => {
         const totalPackages = inv.guide.merchandise.reduce((sum, m) => sum + m.quantity, 0);
@@ -182,9 +190,9 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                 <td colSpan={4} className="py-1 text-right text-black pr-2">Total piezas</td>
                                 <td className="py-1 text-center text-black">{topTableTotals.pza}</td>
                                 <td className="py-1"></td>
-                                <td className="py-1 text-right text-black">{formatCurrency(financials.pagado.flete + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva)}</td>
+                                <td className="py-1 text-right text-black">{formatCurrency(totalPagado)}</td>
                                 <td className="py-1 text-right text-black">0.00</td>
-                                <td className="py-1 text-right text-black">{formatCurrency(financials.destino.flete + financials.destino.seguro + financials.destino.ipostel + financials.destino.manejo + financials.destino.iva)}</td>
+                                <td className="py-1 text-right text-black">{formatCurrency(totalDestino)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -193,15 +201,15 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                     <div className="flex justify-between border-b border-dotted border-black py-1 font-bold text-black mt-2 text-[10px]">
                         <span className="text-black">SUB TOTALES -&gt;</span>
                         <div className="flex gap-8 w-[36%] justify-end">
-                            <span className="text-black w-[45%] text-right">{formatCurrency(financials.pagado.flete + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva)}</span>
-                            <span className="text-black w-[45%] text-right">{formatCurrency(financials.destino.flete + financials.destino.seguro + financials.destino.ipostel + financials.destino.manejo + financials.destino.iva)}</span>
+                            <span className="text-black w-[45%] text-right">{formatCurrency(totalPagado)}</span>
+                            <span className="text-black w-[45%] text-right">{formatCurrency(totalDestino)}</span>
                         </div>
                     </div>
                     <div className="flex justify-between border-b-2 border-black py-1 font-bold mb-4 text-black text-[10px]">
                         <span className="text-black">TOTALES -&gt;</span>
                         <div className="flex gap-8 w-[36%] justify-end">
-                            <span className="text-black w-[45%] text-right">{formatCurrency(financials.pagado.flete + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva)}</span>
-                            <span className="text-black w-[45%] text-right">{formatCurrency(financials.destino.flete + financials.destino.seguro + financials.destino.ipostel + financials.destino.manejo + financials.destino.iva)}</span>
+                            <span className="text-black w-[45%] text-right">{formatCurrency(totalPagado)}</span>
+                            <span className="text-black w-[45%] text-right">{formatCurrency(totalDestino)}</span>
                         </div>
                     </div>
 
@@ -265,12 +273,12 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                     <div className="grid grid-cols-2 gap-8 mt-4 text-black text-[10px]">
                         {/* Left Side: Summary of Deductions/Destino */}
                         <div className="pr-4">
-                            <div className="flex justify-between py-1 text-black"><span className="text-black">Destino</span><span className="text-black">{formatCurrency(financials.totalDestino)}</span></div>
-                            <div className="flex justify-between py-1 text-black"><span className="text-black">Coop.</span><span className="text-black">0.00</span></div>
-                            <div className="flex justify-between py-1 text-black"><span className="text-black">Seguro</span><span className="text-black">0.00</span></div>
-                            <div className="flex justify-between py-1 text-black"><span className="text-black">Ipostel</span><span className="text-black">0.00</span></div>
-                            <div className="flex justify-between py-1 text-black"><span className="text-black">Manejo</span><span className="text-black">0.00</span></div>
-                            <div className="flex justify-between py-1 text-black"><span className="text-black">I.V.A.</span><span className="text-black">0.00</span></div>
+                            <div className="flex justify-between py-1 text-black"><span className="text-black">Destino</span><span className="text-black">{formatCurrency(totalDestino)}</span></div>
+                            <div className="flex justify-between py-1 text-black"><span className="text-black">Coop.</span><span className="text-black">{formatCurrency(financials.pagado.favorCooperativa + financials.destino.favorCooperativa)}</span></div>
+                            <div className="flex justify-between py-1 text-black"><span className="text-black">Seguro</span><span className="text-black">{formatCurrency(financials.pagado.seguro + financials.destino.seguro)}</span></div>
+                            <div className="flex justify-between py-1 text-black"><span className="text-black">Ipostel</span><span className="text-black">{formatCurrency(financials.pagado.ipostel + financials.destino.ipostel)}</span></div>
+                            <div className="flex justify-between py-1 text-black"><span className="text-black">Manejo</span><span className="text-black">{formatCurrency(financials.pagado.manejo + financials.destino.manejo)}</span></div>
+                            <div className="flex justify-between py-1 text-black"><span className="text-black">I.V.A.</span><span className="text-black">{formatCurrency(financials.pagado.iva + financials.destino.iva)}</span></div>
                         </div>
 
                         {/* Right Side: Totals for Associate */}
@@ -280,27 +288,27 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                 <span className="line-through decoration-double text-black">0.00</span>
                             </div>
                             <div className="flex justify-between py-1 font-bold text-black">
-                                <span className="text-black">TOTAL SOCIO (PAGADOS)</span>
-                                <span className="text-black">{formatCurrency(financials.pagado.favorAsociado)}</span>
+                                <span className="text-black">TOTAL SOCIO</span>
+                                <span className="text-black">{formatCurrency(financials.pagado.favorAsociado + financials.destino.favorAsociado)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-black">
                                 <span className="text-black">SUB TOTAL</span>
-                                <span className="text-black">{formatCurrency(financials.pagado.favorAsociado)}</span>
+                                <span className="text-black">{formatCurrency(financials.pagado.favorAsociado + financials.destino.favorAsociado)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-black"><span className="text-black">Regalias</span><span className="text-black">0.00</span></div>
                             <div className="flex justify-between py-1 text-black"><span className="text-black">Prestamos</span><span className="text-black">0.00</span></div>
                             <div className="flex justify-between py-1 text-black"><span className="text-black">Creditos</span><span className="text-black">0.00</span></div>
                             <div className="flex justify-between py-1 border-t border-black font-bold text-black">
                                 <span className="text-black">SUB TOTAL</span>
-                                <span className="text-black">{formatCurrency(financials.pagado.favorAsociado)}</span>
+                                <span className="text-black">{formatCurrency(financials.pagado.favorAsociado + financials.destino.favorAsociado)}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t-2 border-black font-bold text-[11px] mt-2 text-black bg-gray-50 p-1">
                                 <span className="text-black">Cuenta por cobrar al asociado:</span>
-                                <span className="text-black">{formatCurrency(financials.pagado.favorAsociado)}</span>
+                                <span className="text-black">0.00</span>
                             </div>
                             <div className="flex justify-between py-1 text-[10px] text-black">
                                 <span className="text-black">Referencia $:</span>
-                                <span className="text-black">{((remesa.exchangeRate || companyInfo.bcvRate) ? (financials.pagado.favorAsociado / (remesa.exchangeRate || companyInfo.bcvRate || 1)).toFixed(2) : '0.00')}</span>
+                                <span className="text-black">{referenciaDolares}</span>
                             </div>
                         </div>
                     </div>

@@ -39,6 +39,7 @@ export interface Office {
     name: string;
     address: string;
     phone: string;
+    email?: string;
 }
 
 export interface ShippingType {
@@ -75,6 +76,7 @@ export interface Client {
     phone: string;
     address: string;
     email?: string;
+    officeId?: string;
 }
 
 export interface Supplier {

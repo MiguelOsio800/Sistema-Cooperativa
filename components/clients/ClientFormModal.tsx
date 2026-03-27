@@ -5,6 +5,7 @@ import Input from '../ui/Input';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import { ShieldCheckIcon } from '../icons/Icons';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ClientFormModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ interface ClientFormModalProps {
 const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSave, client }) => {
     const [formData, setFormData] = useState<Partial<Client>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const { currentUser } = useAuth();
 
     useEffect(() => {
         if (isOpen) {
@@ -54,7 +56,11 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSa
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (validate()) {
-            onSave(formData as Client);
+            const payload = { ...formData } as Client;
+            if (!payload.officeId && currentUser?.officeId) {
+                payload.officeId = currentUser.officeId;
+            }
+            onSave(payload);
         }
     };
 

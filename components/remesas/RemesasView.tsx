@@ -80,7 +80,16 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
         const vehicle = vehicles.find(v => v.id === vehicleId);
         if (!vehicle) return;
         
-        const assignedInvoices = invoices.filter(inv => inv.vehicleId === vehicleId);
+        // FIX: Only dispatch invoices that are 'Pendiente para Despacho'
+        // This prevents invoices that are already in a previous remesa ('En Tránsito' or 'Entregada')
+        // from being spawned/duplicated into a new remesa.
+        const assignedInvoices = invoices.filter(inv => inv.vehicleId === vehicleId && inv.shippingStatus === 'Pendiente para Despacho');
+        
+        if (assignedInvoices.length === 0) {
+            alert("No hay facturas pendientes para despachar en este vehículo.");
+            return;
+        }
+
         const invoiceIds = assignedInvoices.map(inv => inv.id);
         
         const exchangeRate = companyInfo.bcvRate || 1;
