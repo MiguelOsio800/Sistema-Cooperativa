@@ -541,29 +541,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                         </div>
                                     )}
                                 </div>
-                                 <div className="pt-2 border-t dark:border-gray-700">
-                                    <div className="flex items-center">
-                                        <input
-                                            id="discount"
-                                            type="checkbox"
-                                            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                            checked={guide.hasDiscount}
-                                            onChange={e => setGuide(g => ({ ...g, hasDiscount: e.target.checked }))}
-                                        />
-                                        <label htmlFor="discount" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Aplicar Descuento</label>
-                                    </div>
-                                    {guide.hasDiscount && (
-                                        <div className="mt-2">
-                                            <Input
-                                                label="Porcentaje de Descuento (%)"
-                                                type="number"
-                                                name="discountPercentage"
-                                                value={guide.discountPercentage}
-                                                onChange={e => setGuide(g => ({ ...g, discountPercentage: Number(e.target.value) }))}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
 
                                 {/* CAMPO MONTO FLETE MOVIDO AL FINAL CON DISEÑO MEJORADO */}
                                 <div className="pt-4 border-t border-primary-100 dark:border-gray-700">
