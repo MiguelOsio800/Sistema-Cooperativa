@@ -107,7 +107,7 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Visualizar Preforma ${formatInvoiceNumber(invoice.invoiceNumber)}`} size="4xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Visualizar Proforma ${formatInvoiceNumber(invoice.invoiceNumber)}`} size="4xl">
             <div className="flex flex-col h-[75vh]">
                 <div className="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
                     <p className="text-sm text-gray-500">Vista previa del documento generado.</p>
@@ -176,7 +176,7 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                             </div>
                         </div>
                         <div className="text-right">
-                            <h2 className="text-3xl font-black uppercase tracking-wide text-green-600">PREFORMA</h2>
+                            <h2 className="text-3xl font-black uppercase tracking-wide text-green-600">PROFORMA</h2>
                             <div className="mt-1 flex flex-col items-end space-y-0.5">
                                 <p className="text-sm font-bold text-gray-800">Nº: <span className="text-red-600">{formatInvoiceNumber(invoice.invoiceNumber)}</span></p>
                                 <p className="text-[11px] text-gray-600"><strong>Código:</strong> {invoice.controlNumber}</p>

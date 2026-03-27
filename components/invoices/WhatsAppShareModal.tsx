@@ -30,7 +30,7 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose
             .join('\n');
 
         const parts = [
-            `*PREFORMA - ${companyInfo.name}*`,
+            `*PROFORMA - ${companyInfo.name}*`,
             `RIF: ${companyInfo.rif}`,
             ``,
             `*N° Factura:* ${invoice.invoiceNumber}`,

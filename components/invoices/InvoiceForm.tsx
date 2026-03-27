@@ -67,7 +67,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             paymentMethodId: paymentMethods[0]?.id || '',
             hasInsurance: false,
             declaredValue: 0,
-            insurancePercentage: 2,
+            insurancePercentage: 1.5,
             paymentType: 'flete-pagado',
             paymentCurrency: 'VES',
             hasDiscount: false,

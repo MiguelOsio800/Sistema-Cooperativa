@@ -37,7 +37,6 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
     
     const [noteMode, setNoteMode] = useState<'none' | 'credit' | 'debit'>('none');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isDownloadingHka, setIsDownloadingHka] = useState(false);
     const { addToast } = useToast();
 
     const sender = clients.find(c => c.id === invoice.guide.sender.id) || invoice.guide.sender;
@@ -70,52 +69,6 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
             console.error(error);
         } finally {
             setIsSubmitting(false);
-        }
-    };
-
-    const handleDownloadHka = async () => {
-        setIsDownloadingHka(true);
-        addToast({ 
-            type: 'info', 
-            title: 'Descarga HKA', 
-            message: 'Solicitando factura oficial a The Factory HKA...' 
-        });
-
-        try {
-            // Se hace la petición POST a la ruta de descarga HKA del backend: /api/invoices/:id/download-hka
-            const response = await apiFetch<{ success: boolean, base64?: string, pdfUrl?: string, message?: string }>(
-                `/invoices/${invoice.id}/download-hka`, 
-                { 
-                    method: 'POST',
-                    body: JSON.stringify({
-                        tipoArchivo: 'pdf',
-                        tipoDocumento: '01'
-                    })
-                }
-            );
-
-            if (response.base64) {
-                const link = document.createElement('a');
-                link.href = `data:application/pdf;base64,${response.base64}`;
-                link.download = `Factura_Fiscal_HKA_${invoice.invoiceNumber}.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                addToast({ type: 'success', title: 'Éxito', message: 'Factura fiscal descargada correctamente.' });
-            } else if (response.pdfUrl) {
-                window.open(response.pdfUrl, '_blank');
-                addToast({ type: 'success', title: 'Éxito', message: 'Documento abierto en una nueva pestaña.' });
-            } else {
-                throw new Error(response.message || 'No se recibió el archivo del servidor.');
-            }
-        } catch (error: any) {
-            addToast({ 
-                type: 'error', 
-                title: 'Error de Descarga', 
-                message: error.message || 'No se pudo recuperar la factura de HKA.' 
-            });
-        } finally {
-            setIsDownloadingHka(false);
         }
     };
 
@@ -190,7 +143,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Detalle de Preforma ${formatInvoiceNumber(invoice.invoiceNumber)}`} size="4xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Detalle de Proforma ${formatInvoiceNumber(invoice.invoiceNumber)}`} size="4xl">
             <div className="flex flex-wrap justify-end gap-3 mb-4 no-print border-b pb-4 dark:border-gray-700">
                 {permissions?.['invoices.void'] && invoice.status === 'Activa' && onCreateCreditNote && (
                     <Button type="button" variant="danger" onClick={startCreditNote} title="Generar Nota de Crédito (Anular)">
@@ -205,19 +158,6 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                 
                 <div className="border-l mx-2 dark:border-gray-600 h-8 hidden sm:block"></div>
                 
-                {/* BOTÓN DESCARGA HKA - Con estilo emerald destacado */}
-                <Button 
-                    type="button" 
-                    variant="primary" 
-                    onClick={handleDownloadHka} 
-                    disabled={isDownloadingHka}
-                    className="!bg-emerald-600 hover:!bg-emerald-700 text-white shadow-sm"
-                    title="Descargar Documento Fiscal Oficial de HKA"
-                >
-                    <DownloadIcon className="w-4 h-4 mr-2" />
-                    {isDownloadingHka ? 'Descargando...' : 'Descarga HKA'}
-                </Button>
-
                 <Button type="button" variant="secondary" onClick={handleDownloadPdf} title="Descargar Copia del Sistema">
                     <DownloadIcon className="w-4 h-4 mr-2" />Descargar PDF
                 </Button>
@@ -265,7 +205,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                                 </div>
                             </div>
                             <div className="text-right">
-                                <h2 className="text-3xl font-black uppercase tracking-wide text-green-600">PREFORMA</h2>
+                                <h2 className="text-3xl font-black uppercase tracking-wide text-green-600">PROFORMA</h2>
                                 <div className="mt-1 flex flex-col items-end space-y-0.5">
                                     <p className="text-sm font-bold text-gray-800">Nº: <span className="text-red-600">{formatInvoiceNumber(invoice.invoiceNumber)}</span></p>
                                     <p className="text-[11px] text-gray-600"><strong>Código:</strong> {invoice.controlNumber}</p>
