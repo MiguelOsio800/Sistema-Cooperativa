@@ -91,12 +91,16 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             case 'iva':
                 return dateFilteredInvoices.filter(inv => inv.status !== 'Anulada');
             case 'cuadre_caja':
+                if (!startDate && !endDate) return [];
+                const validInvoices = dateFilteredInvoices.filter(i => i.status !== 'Anulada');
+                const produccionDelDia = validInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+
                 const cashFlowMap = paymentMethods.reduce((acc, pm) => {
                     acc[pm.id] = { id: pm.id, name: pm.name, income: 0, expense: 0, incomes: [], expenses: [] };
                     return acc;
                 }, {} as Record<string, { id: string; name: string; income: number; expense: number; incomes: Invoice[]; expenses: Expense[] }>);
 
-                dateFilteredInvoices.filter(i => i.paymentStatus === 'Pagada' && i.status !== 'Anulada').forEach(inv => {
+                validInvoices.filter(i => i.paymentStatus === 'Pagada').forEach(inv => {
                     if (cashFlowMap[inv.guide.paymentMethodId]) {
                         cashFlowMap[inv.guide.paymentMethodId].income += inv.totalAmount;
                         cashFlowMap[inv.guide.paymentMethodId].incomes.push(inv);
@@ -108,8 +112,14 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         cashFlowMap[exp.paymentMethodId].expenses.push(exp);
                     }
                 });
-                // FIX: Add explicit type to filter parameter to resolve 'unknown' type error.
-                return Object.values(cashFlowMap).filter((item: { income: number; expense: number; }) => item.income > 0 || item.expense > 0);
+                
+                const paymentMethodsData = Object.values(cashFlowMap).filter((item: { income: number; expense: number; }) => item.income > 0 || item.expense > 0);
+                
+                return [{
+                    produccionDelDia,
+                    invoices: validInvoices,
+                    paymentMethods: paymentMethodsData
+                }];
             case 'envios_oficina':
                 const officeProductivity = dateFilteredInvoices.filter(inv => inv.status !== 'Anulada').reduce((acc, inv) => {
                     const officeId = inv.guide.originOfficeId;
@@ -254,10 +264,53 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     [headers[4]]: ivaTotals.iva,
                 };
                 break;
-            case 'cuadre_caja':
-                 headers = ["Método de Pago", "Ingresos", "Egresos", "Saldo"];
-                 dataToExport = (sourceData as any[]).map(d => ({ [headers[0]]: d.name, [headers[1]]: d.income, [headers[2]]: d.expense, [headers[3]]: d.income - d.expense }));
-                break;
+            case 'cuadre_caja': {
+                 const reportDataObj = (sourceData as any[])[0];
+                 if (!reportDataObj) return;
+
+                 const pmData = reportDataObj.paymentMethods || [];
+                 const invoicesData = reportDataObj.invoices || [];
+                 
+                 const totalInc = pmData.reduce((sum: number, d: any) => sum + d.income, 0);
+                 const totalExp = pmData.reduce((sum: number, d: any) => sum + d.expense, 0);
+                 
+                 const wsData: any[][] = [];
+                 
+                 // --- Sección de Resumen ---
+                 wsData.push(["RESUMEN DE CAJA"]);
+                 wsData.push(["Método de Pago", "Ingresos", "Egresos", "Saldo"]);
+                 
+                 pmData.forEach((d: any) => {
+                     wsData.push([d.name, d.income, d.expense, d.income - d.expense]);
+                 });
+                 
+                 wsData.push(["TOTALES", totalInc, totalExp, totalInc - totalExp]);
+                 wsData.push([]); // Fila vacía
+                 wsData.push(["Producción del Día", reportDataObj.produccionDelDia]);
+                 wsData.push([]); // Fila vacía
+                 wsData.push([]); // Fila vacía
+                 
+                 // --- Sección de Facturas ---
+                 wsData.push(["FACTURAS DEL DÍA"]);
+                 wsData.push(["Fecha", "Factura N°", "Guía", "Cliente", "Estado Pago", "Monto"]);
+                 
+                 invoicesData.forEach((inv: Invoice) => {
+                     wsData.push([
+                         inv.date, 
+                         inv.invoiceNumber, 
+                         inv.guide.guideNumber, 
+                         inv.clientName, 
+                         inv.paymentStatus, 
+                         inv.totalAmount
+                     ]);
+                 });
+
+                 const ws = XLSX.utils.aoa_to_sheet(wsData);
+                 const workbook = XLSX.utils.book_new();
+                 XLSX.utils.book_append_sheet(workbook, ws, "Cuadre de Caja");
+                 XLSX.writeFile(workbook, `${sheetName}_${new Date().toISOString().split('T')[0]}.xlsx`);
+                 return;
+            }
             case 'envios_oficina':
                 headers = ["Oficina", "Total Facturado", "N° Envíos", "Total Kilos Movilizados"];
                 dataToExport = (sourceData as any[]).map(d => ({ [headers[0]]: d.name, [headers[1]]: d.totalFacturado, [headers[2]]: d.envios, [headers[3]]: d.totalKg }));
@@ -327,47 +380,124 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
         // --- Render Card-Based Reports ---
         if (cardReports.includes(report.id)) {
             const data = reportData as any[];
-            if (!data || data.length === 0) return <p className="text-center py-10 text-gray-500">No hay datos para mostrar en el período seleccionado.</p>;
+            if ((!data || data.length === 0) && report.id !== 'cuadre_caja') return <p className="text-center py-10 text-gray-500">No hay datos para mostrar en el período seleccionado.</p>;
 
             switch(report.id) {
                 case 'cuadre_caja':
+                    if (!data || data.length === 0) return (
+                        <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+                            <p className="text-gray-500 dark:text-gray-400">Seleccione una fecha para ver el Cuadre de Caja.</p>
+                        </div>
+                    );
+                    const reportDataObj = data[0];
+                    if (!reportDataObj) return null;
+                    
+                    const totalIncome = reportDataObj.paymentMethods.reduce((sum: number, pm: any) => sum + pm.income, 0);
+                    const totalExpense = reportDataObj.paymentMethods.reduce((sum: number, pm: any) => sum + pm.expense, 0);
+                    const saldoFinal = totalIncome - totalExpense;
+
                     return (
-                        <div className="space-y-4">
-                            {data.map(d => (
-                                <Card key={d.name} className="p-0 overflow-hidden">
-                                    <button onClick={() => setExpandedCard(expandedCard === d.id ? null : d.id)} className="w-full text-left bg-gray-50 dark:bg-gray-800/50 p-4 flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition">
-                                        <div className="flex-grow">
-                                            <h4 className="font-bold text-lg text-black">{d.name}</h4>
-                                            <div className="grid grid-cols-3 gap-4 mt-2 text-center">
-                                                <div><p className="text-xl font-semibold text-green-600">{formatCurrency(d.income)}</p><p className="text-xs text-gray-500">Ingresos</p></div>
-                                                <div><p className="text-xl font-semibold text-red-600">{formatCurrency(d.expense)}</p><p className="text-xs text-gray-500">Egresos</p></div>
-                                                <div><p className="text-2xl font-bold text-black">{formatCurrency(d.income - d.expense)}</p><p className="text-xs text-gray-500">Saldo Final</p></div>
-                                            </div>
-                                        </div>
-                                        <div className={`transform transition-transform duration-300 ${expandedCard === d.id ? 'rotate-180' : ''}`}>
-                                            <ChevronDownIcon className="w-6 h-6 text-gray-500" />
-                                        </div>
-                                    </button>
-                                    <div className={`grid transition-all duration-500 ease-in-out ${expandedCard === d.id ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                                        <div className="overflow-hidden">
-                                            <div className="p-4 border-t dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div>
-                                                    <h5 className="font-semibold mb-2 text-black">Ingresos ({d.incomes.length})</h5>
-                                                    <ul className="text-sm space-y-1 max-h-40 overflow-y-auto pr-2 text-black">
-                                                        {d.incomes.map((inv: Invoice) => <li key={inv.id} className="flex justify-between"><span>Fact. {inv.invoiceNumber}</span> <span>{formatCurrency(inv.totalAmount)}</span></li>)}
-                                                    </ul>
-                                                </div>
-                                                <div>
-                                                    <h5 className="font-semibold mb-2 text-black">Egresos ({d.expenses.length})</h5>
-                                                    <ul className="text-sm space-y-1 max-h-40 overflow-y-auto pr-2 text-black">
-                                                        {d.expenses.map((exp: Expense) => <li key={exp.id} className="flex justify-between"><span>{exp.description}</span> <span>{formatCurrency(exp.amount)}</span></li>)}
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
+                        <div className="space-y-6">
+                            {/* Report Header with Date */}
+                            <div className="flex justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Cuadre de Caja</h2>
+                                    <p className="text-sm text-gray-500">Período: {startDate || 'Inicio'} al {endDate || 'Fin'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-gray-400 uppercase tracking-wider">Fecha de Reporte</p>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{new Date().toLocaleDateString('es-VE')}</p>
+                                </div>
+                            </div>
+
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                                    <div className="p-4">
+                                        <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Producción del Día</p>
+                                        <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{formatCurrency(reportDataObj.produccionDelDia)}</p>
+                                        <p className="text-xs text-blue-500 mt-1">{reportDataObj.invoices.length} facturas generadas</p>
                                     </div>
                                 </Card>
-                            ))}
+                                <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                                    <div className="p-4">
+                                        <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Ingresos (Pagados)</p>
+                                        <p className="text-2xl font-bold text-green-900 dark:text-green-100">{formatCurrency(totalIncome)}</p>
+                                    </div>
+                                </Card>
+                                <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                                    <div className="p-4">
+                                        <p className="text-sm font-medium text-red-600 dark:text-red-400">Total Egresos</p>
+                                        <p className="text-2xl font-bold text-red-900 dark:text-red-100">{formatCurrency(totalExpense)}</p>
+                                    </div>
+                                </Card>
+                                <Card className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                                    <div className="p-4">
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Saldo en Caja</p>
+                                        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(saldoFinal)}</p>
+                                    </div>
+                                </Card>
+                            </div>
+
+                            {/* Payment Methods Breakdown */}
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-6 mb-4">Desglose por Método de Pago</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {reportDataObj.paymentMethods.map((pm: any) => (
+                                    <Card key={pm.id} className="p-4">
+                                        <h4 className="font-bold text-md text-gray-800 dark:text-gray-200 border-b pb-2 mb-3">{pm.name}</h4>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between">
+                                                <span className="text-sm text-gray-500">Ingresos:</span>
+                                                <span className="font-semibold text-green-600">{formatCurrency(pm.income)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm text-gray-500">Egresos:</span>
+                                                <span className="font-semibold text-red-600">{formatCurrency(pm.expense)}</span>
+                                            </div>
+                                            <div className="flex justify-between pt-2 border-t">
+                                                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Saldo:</span>
+                                                <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(pm.income - pm.expense)}</span>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            {/* Invoices List */}
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-8 mb-4">Facturas de Producción</h3>
+                            <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                                <table className="min-w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                                        <tr>
+                                            <th className="px-4 py-3">Factura N°</th>
+                                            <th className="px-4 py-3">Guía</th>
+                                            <th className="px-4 py-3">Cliente</th>
+                                            <th className="px-4 py-3">Estado Pago</th>
+                                            <th className="px-4 py-3 text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                        {reportDataObj.invoices.map((inv: Invoice) => (
+                                            <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{inv.invoiceNumber}</td>
+                                                <td className="px-4 py-3">{inv.guide.guideNumber}</td>
+                                                <td className="px-4 py-3">{inv.clientName}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${inv.paymentStatus === 'Pagada' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                                                        {inv.paymentStatus}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(inv.totalAmount)}</td>
+                                            </tr>
+                                        ))}
+                                        {reportDataObj.invoices.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No hay facturas en este período.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     );
                 case 'envios_oficina':
