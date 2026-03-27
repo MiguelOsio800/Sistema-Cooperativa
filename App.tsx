@@ -67,7 +67,7 @@ const AppContent: React.FC = () => {
         handleSaveCertificado, handleDeleteCertificado,
         handleSavePagoAsociado, handleDeletePagoAsociado,
         handleSaveRecibo, handleDeleteRemesa,
-        handleAssignToVehicle, handleUnassignInvoice, handleDispatchVehicle, handleFinalizeTrip,
+        handleAssignToVehicle, handleUnassignInvoice, handleDispatchVehicle,
         handleSaveAsientoManual, handleDeleteAsientoManual, handleGenerateMassiveDebt
     } = useData();
     const { auditLog } = useSystem();

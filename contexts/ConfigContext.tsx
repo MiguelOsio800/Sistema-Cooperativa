@@ -52,6 +52,7 @@ const FALLBACK_COMPANY_INFO: CompanyInfo = {
 
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { addToast } = useToast();
+    const { logAction } = useSystem();
     // Fix: Added setIsAuthenticated from useAuth() to resolve the errors in handleLogin and handleLogout
     const { isAuthenticated, currentUser, setCurrentUser, setIsAuthenticated, refreshUser } = useAuth();
     const loadOnceRef = useRef<string | null>(null);
@@ -155,10 +156,15 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             loadOnceRef.current = null; // Reset para forzar carga fresca
             setCurrentUser(data.user);
             setIsAuthenticated(true);
+            
+            logAction(data.user, 'LOGIN', `Inicio de sesión: ${username}`);
         }
     };
 
     const handleLogout = async () => {
+        if (currentUser) {
+            logAction(currentUser, 'LOGOUT', `Cierre de sesión: ${currentUser.username}`);
+        }
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         setIsAuthenticated(false);
@@ -170,6 +176,9 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const handleCompanyInfoSave = async (info: CompanyInfo) => {
         const saved = await apiFetch<CompanyInfo>('/company-info', { method: 'PUT', body: JSON.stringify(info) });
         setCompanyInfo(saved);
+        if (currentUser) {
+            logAction(currentUser, 'UPDATE', 'Actualización de información de la empresa');
+        }
         addToast({ type: 'success', title: 'Éxito', message: 'Configuración actualizada.' });
     };
 
@@ -182,16 +191,36 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (currentUser?.roleId === roleId) {
             await refreshUser();
         }
+        if (currentUser) {
+            logAction(currentUser, 'UPDATE', `Actualización de permisos del rol: ${updatedRole.name}`, roleId);
+        }
         addToast({ type: 'success', title: 'Permisos', message: 'Rol actualizado.' });
     };
 
-    const handleAuxSave = async <T extends {id?: string}>(item: T, path: string, setter: any) => {
+    const handleAuxSave = async <T extends {id?: string}>(item: T, path: string, setter: any, entityName: string) => {
         const isUpdating = !!item.id;
         const saved = await apiFetch<T>(isUpdating ? `${path}/${item.id}` : path, { 
             method: isUpdating ? 'PUT' : 'POST', 
             body: JSON.stringify(item) 
         });
         setter((prev: T[]) => isUpdating ? prev.map(i => i.id === saved.id ? saved : i) : [...prev, saved]);
+        
+        if (currentUser) {
+            logAction(
+                currentUser, 
+                isUpdating ? 'UPDATE' : 'CREATE', 
+                `${isUpdating ? 'Actualización' : 'Creación'} de ${entityName}: ${JSON.stringify(saved)}`,
+                saved.id
+            );
+        }
+    };
+
+    const handleAuxDelete = async (id: string, path: string, setter: any, entityName: string) => {
+        await apiFetch(`${path}/${id}`, { method: 'DELETE' });
+        setter((p: any[]) => p.filter(i => i.id !== id));
+        if (currentUser) {
+            logAction(currentUser, 'DELETE', `Eliminación de ${entityName}`, id);
+        }
     };
 
     return (
@@ -199,22 +228,22 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             companyInfo, categories, users, roles, offices, shippingTypes, paymentMethods, expenseCategories, cuentasContables,
             userPermissions, isLoading,
             handleLogin, handleLogout, handleCompanyInfoSave, onUpdateRolePermissions,
-            handleSaveUser: (u) => handleAuxSave(u, '/users', setUsers),
-            onDeleteUser: (id) => apiFetch(`/users/${id}`, { method: 'DELETE' }).then(() => setUsers(p => p.filter(u => u.id !== id))),
-            handleSaveRole: (r) => handleAuxSave(r, '/roles', setRoles),
-            onDeleteRole: (id) => apiFetch(`/roles/${id}`, { method: 'DELETE' }).then(() => setRoles(p => p.filter(r => r.id !== id))),
-            handleSaveCategory: (c) => handleAuxSave(c, '/categories', setCategories),
-            onDeleteCategory: (id) => apiFetch(`/categories/${id}`, { method: 'DELETE' }).then(() => setCategories(p => p.filter(i => i.id !== id))),
-            handleSaveOffice: (o) => handleAuxSave(o, '/offices', setOffices),
-            onDeleteOffice: (id) => apiFetch(`/offices/${id}`, { method: 'DELETE' }).then(() => setOffices(p => p.filter(i => i.id !== id))),
-            handleSaveShippingType: (s) => handleAuxSave(s, '/shipping-types', setShippingTypes),
-            onDeleteShippingType: (id) => apiFetch(`/shipping-types/${id}`, { method: 'DELETE' }).then(() => setShippingTypes(p => p.filter(i => i.id !== id))),
-            handleSavePaymentMethod: (p) => handleAuxSave(p, '/payment-methods', setPaymentMethods),
-            onDeletePaymentMethod: (id) => apiFetch(`/payment-methods/${id}`, { method: 'DELETE' }).then(() => setPaymentMethods(p => p.filter(i => i.id !== id))),
-            handleSaveExpenseCategory: (e) => handleAuxSave(e, '/expense-categories', setExpenseCategories),
-            onDeleteExpenseCategory: (id) => apiFetch(`/expense-categories/${id}`, { method: 'DELETE' }).then(() => setExpenseCategories(p => p.filter(i => i.id !== id))),
-            handleSaveCuentaContable: (c) => handleAuxSave(c, '/cuentas-contables', setCuentasContables),
-            handleDeleteCuentaContable: (id) => apiFetch(`/cuentas-contables/${id}`, { method: 'DELETE' }).then(() => setCuentasContables(p => p.filter(i => i.id !== id)))
+            handleSaveUser: (u) => handleAuxSave(u, '/users', setUsers, 'Usuario'),
+            onDeleteUser: (id) => handleAuxDelete(id, '/users', setUsers, 'Usuario'),
+            handleSaveRole: (r) => handleAuxSave(r, '/roles', setRoles, 'Rol'),
+            onDeleteRole: (id) => handleAuxDelete(id, '/roles', setRoles, 'Rol'),
+            handleSaveCategory: (c) => handleAuxSave(c, '/categories', setCategories, 'Categoría'),
+            onDeleteCategory: (id) => handleAuxDelete(id, '/categories', setCategories, 'Categoría'),
+            handleSaveOffice: (o) => handleAuxSave(o, '/offices', setOffices, 'Sucursal'),
+            onDeleteOffice: (id) => handleAuxDelete(id, '/offices', setOffices, 'Sucursal'),
+            handleSaveShippingType: (s) => handleAuxSave(s, '/shipping-types', setShippingTypes, 'Tipo de Envío'),
+            onDeleteShippingType: (id) => handleAuxDelete(id, '/shipping-types', setShippingTypes, 'Tipo de Envío'),
+            handleSavePaymentMethod: (p) => handleAuxSave(p, '/payment-methods', setPaymentMethods, 'Método de Pago'),
+            onDeletePaymentMethod: (id) => handleAuxDelete(id, '/payment-methods', setPaymentMethods, 'Método de Pago'),
+            handleSaveExpenseCategory: (e) => handleAuxSave(e, '/expense-categories', setExpenseCategories, 'Categoría de Gasto'),
+            onDeleteExpenseCategory: (id) => handleAuxDelete(id, '/expense-categories', setExpenseCategories, 'Categoría de Gasto'),
+            handleSaveCuentaContable: (c) => handleAuxSave(c, '/cuentas-contables', setCuentasContables, 'Cuenta Contable'),
+            handleDeleteCuentaContable: (id) => handleAuxDelete(id, '/cuentas-contables', setCuentasContables, 'Cuenta Contable')
         }}>
             {children}
         </ConfigContext.Provider>

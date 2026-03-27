@@ -6,6 +6,7 @@ import {
 } from '../types';
 import { useToast } from '../components/ui/ToastProvider';
 import { useAuth } from './AuthContext';
+import { useSystem } from './SystemContext';
 import { apiFetch } from '../utils/api';
 import { deriveInventoryFromInvoices } from '../utils/inventory';
 
@@ -65,6 +66,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { addToast } = useToast();
     const { isAuthenticated, currentUser } = useAuth();
+    const { logAction } = useSystem();
     const dataLoadedForUserRef = useRef<string | null>(null);
 
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -144,7 +146,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchData();
     }, [isAuthenticated, currentUser?.id, fetchData]);
 
-    const handleGenericSave = async <T extends { id?: string; }>(item: T, endpoint: string, stateSetter: React.Dispatch<React.SetStateAction<T[]>>): Promise<T> => {
+    const handleGenericSave = async <T extends { id?: string; name?: string; }>(
+        item: T, 
+        endpoint: string, 
+        stateSetter: React.Dispatch<React.SetStateAction<T[]>>,
+        entityName: string
+    ): Promise<T> => {
         const isUpdating = !!item.id;
         const method = isUpdating ? 'PUT' : 'POST';
         const url = isUpdating ? `${endpoint}/${item.id}` : endpoint;
@@ -156,6 +163,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         const saved = await apiFetch<T>(url, { method, body: JSON.stringify(payload) });
         stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === saved.id ? saved : i) : [saved, ...prev]);
+        
+        if (currentUser) {
+            const action = isUpdating ? `ACTUALIZAR_${entityName}` : `CREAR_${entityName}`;
+            const details = `${isUpdating ? 'Actualizó' : 'Creó'} ${entityName.toLowerCase()} ${saved.name || saved.id}`;
+            logAction(currentUser, action, details, saved.id);
+        }
+        
         return saved;
     };
 
@@ -163,21 +177,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <DataContext.Provider value={{
             invoices, clients, suppliers, vehicles, expenses, inventory, assets, assetCategories, 
             asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, asientosManuales, isLoading,
-            handleSaveClient: (c) => handleGenericSave(c, '/clients', setClients),
-            handleDeleteClient: (id) => apiFetch(`/clients/${id}`, { method: 'DELETE' }).then(() => setClients(p => p.filter(i => i.id !== id))),
-            handleSaveSupplier: (s) => handleGenericSave(s, '/suppliers', setSuppliers),
-            handleDeleteSupplier: (id) => apiFetch(`/suppliers/${id}`, { method: 'DELETE' }).then(() => setSuppliers(p => p.filter(i => i.id !== id))),
+            handleSaveClient: (c) => handleGenericSave(c, '/clients', setClients, 'CLIENTE'),
+            handleDeleteClient: async (id) => {
+                const item = clients.find(i => i.id === id);
+                await apiFetch(`/clients/${id}`, { method: 'DELETE' });
+                setClients(p => p.filter(i => i.id !== id));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_CLIENTE', `Eliminó cliente ${item.name || item.id}`, id);
+            },
+            handleSaveSupplier: (s) => handleGenericSave(s, '/suppliers', setSuppliers, 'PROVEEDOR'),
+            handleDeleteSupplier: async (id) => {
+                const item = suppliers.find(i => i.id === id);
+                await apiFetch(`/suppliers/${id}`, { method: 'DELETE' });
+                setSuppliers(p => p.filter(i => i.id !== id));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_PROVEEDOR', `Eliminó proveedor ${item.name || item.id}`, id);
+            },
             handleSaveInvoice: async (d) => {
                 const inv = await apiFetch<Invoice>('/invoices', { method: 'POST', body: JSON.stringify(d) });
                 setInvoices(p => [inv, ...p]);
+                if (currentUser) logAction(currentUser, 'CREAR_FACTURA', `Creó factura ${inv.invoiceNumber}`, inv.id);
                 return inv;
             },
-            handleCreateCreditNote: async (id, r) => { await apiFetch(`/invoices/${id}/credit-note`, { method: 'POST', body: JSON.stringify({ motivo: r }) }); },
-            handleCreateDebitNote: async (id, r) => { await apiFetch(`/invoices/${id}/debit-note`, { method: 'POST', body: JSON.stringify({ motivo: r }) }); },
+            handleCreateCreditNote: async (id, r) => { 
+                await apiFetch(`/invoices/${id}/credit-note`, { method: 'POST', body: JSON.stringify({ motivo: r }) });
+                if (currentUser) logAction(currentUser, 'CREAR_NOTA_CREDITO', `Creó nota de crédito para factura ID ${id}`, id);
+            },
+            handleCreateDebitNote: async (id, r) => { 
+                await apiFetch(`/invoices/${id}/debit-note`, { method: 'POST', body: JSON.stringify({ motivo: r }) });
+                if (currentUser) logAction(currentUser, 'CREAR_NOTA_DEBITO', `Creó nota de débito para factura ID ${id}`, id);
+            },
             handleUpdateInvoice: async (d) => {
                 const inv = await apiFetch<Invoice>(`/invoices/${d.id}`, { method: 'PUT', body: JSON.stringify(d) });
                 if (inv && inv.id) {
                     setInvoices(p => p.map(i => i.id === inv.id ? inv : i));
+                    if (currentUser) logAction(currentUser, 'ACTUALIZAR_FACTURA', `Actualizó factura ${inv.invoiceNumber}`, inv.id);
                     return inv;
                 }
                 return null;
@@ -186,17 +218,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const current = invoices.find(i => i.id === id);
                 const inv = await apiFetch<Invoice>(`/invoices/${id}`, { method: 'PUT', body: JSON.stringify({...current, ...s}) });
                 setInvoices(p => p.map(i => i.id === id ? inv : i));
+                if (currentUser) logAction(currentUser, 'ACTUALIZAR_ESTADO_FACTURA', `Actualizó estados de factura ${inv.invoiceNumber}`, id);
             },
-            handleDeleteInvoice: async (id) => { await apiFetch(`/invoices/${id}`, { method: 'DELETE' }); setInvoices(p => p.map(i => i.id === id ? {...i, status: 'Anulada'} : i)); },
-            handleSaveVehicle: (v) => handleGenericSave(v, '/vehicles', setVehicles),
+            handleDeleteInvoice: async (id) => { 
+                const item = invoices.find(i => i.id === id);
+                await apiFetch(`/invoices/${id}`, { method: 'DELETE' }); 
+                setInvoices(p => p.map(i => i.id === id ? {...i, status: 'Anulada'} : i));
+                if (currentUser && item) logAction(currentUser, 'ANULAR_FACTURA', `Anuló factura ${item.invoiceNumber}`, id);
+            },
+            handleSaveVehicle: (v) => handleGenericSave(v, '/vehicles', setVehicles, 'VEHICULO'),
             handleDeleteVehicle: async (id) => {
                 try {
+                    const item = vehicles.find(i => i.id === id);
                     await apiFetch(`/vehicles/${id}`, { method: 'DELETE' });
                     setVehicles(p => p.filter(i => i.id !== id));
-                    // El toast de éxito ya lo maneja la vista, así que no hace falta ponerlo aquí.
+                    if (currentUser && item) logAction(currentUser, 'ELIMINAR_VEHICULO', `Eliminó vehículo ${item.placa}`, id);
                 } catch (error: any) {
                     console.error('Error deleting vehicle:', error);
-                    throw error; // Lanzamos el error para que la vista lo atrape y muestre el Toast rojo
+                    throw error;
                 }
             },
             handleAssignToVehicle: async (ids, vId) => {
@@ -206,6 +245,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const map = new Map(updatedInvoices.map(i => [i.id, i]));
                     setInvoices(p => p.map(i => map.get(i.id) || i));
                 }
+                if (currentUser) logAction(currentUser, 'ASIGNAR_VEHICULO', `Asignó ${ids.length} facturas al vehículo ID ${vId}`, vId);
             },
             handleUnassignInvoice: async (id) => {
                 const inv = invoices.find(i => i.id === id);
@@ -213,19 +253,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (resp && resp.updatedInvoice) {
                     setInvoices(p => p.map(i => i.id === id ? resp.updatedInvoice : i));
                 }
+                if (currentUser) logAction(currentUser, 'DESASIGNAR_VEHICULO', `Desasignó factura ${id} del vehículo`, id);
             },
             handleDispatchVehicle: async (vId, invoiceIds, exchangeRate, asociadoId) => {
                 const resp = await apiFetch<{newRemesa: Remesa, updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/remesas`, { 
                     method: 'POST',
                     body: JSON.stringify({ 
                         vehicleId: vId, 
-                        invoiceIds: invoiceIds, // ✅ AHORA SÍ ENVIAMOS LAS FACTURAS
+                        invoiceIds: invoiceIds,
                         exchangeRate: exchangeRate, 
                         asociadoId: asociadoId 
                     })
                 });
                 
-                // Refrescar datos como lo solicitó el usuario
                 const [newVehicles, newRemesas, newInvoices] = await Promise.all([
                     fetchSafe<Vehicle[]>('/vehicles', []),
                     fetchSafe<Remesa[]>('/remesas', []),
@@ -236,33 +276,63 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setRemesas(newRemesas);
                 setInvoices(newInvoices);
                 setInventory(deriveInventoryFromInvoices(newInvoices));
+                
+                if (currentUser) logAction(currentUser, 'DESPACHAR_VEHICULO', `Despachó vehículo ID ${vId} con ${invoiceIds.length} facturas`, vId);
                 
                 return resp.newRemesa || (resp as any);
             },
-            handleSaveExpense: (e) => handleGenericSave(e, '/expenses', setExpenses),
-            handleDeleteExpense: (id) => apiFetch(`/expenses/${id}`, { method: 'DELETE' }).then(() => setExpenses(p => p.filter(i => i.id !== id))),
-            handleSaveAsset: (a) => handleGenericSave(a, '/assets', setAssets),
-            handleDeleteAsset: (id) => apiFetch(`/assets/${id}`, { method: 'DELETE' }).then(() => setAssets(p => p.filter(i => i.id !== id))),
-            handleSaveAssetCategory: (c) => handleGenericSave(c, '/asset-categories', setAssetCategories),
-            handleDeleteAssetCategory: (id) => apiFetch(`/asset-categories/${id}`, { method: 'DELETE' }).then(() => setAssetCategories(p => p.filter(i => i.id !== id))),
-            handleSaveAsociado: (a) => handleGenericSave(a, '/asociados', setAsociados),
-            handleDeleteAsociado: (id) => apiFetch(`/asociados/${id}`, { method: 'DELETE' }).then(() => setAsociados(p => p.filter(i => i.id !== id))),
+            handleSaveExpense: (e) => handleGenericSave(e, '/expenses', setExpenses, 'GASTO'),
+            handleDeleteExpense: async (id) => {
+                const item = expenses.find(i => i.id === id);
+                await apiFetch(`/expenses/${id}`, { method: 'DELETE' });
+                setExpenses(p => p.filter(i => i.id !== id));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_GASTO', `Eliminó gasto ${item.description}`, id);
+            },
+            handleSaveAsset: (a) => handleGenericSave(a, '/assets', setAssets, 'ACTIVO_FIJO'),
+            handleDeleteAsset: async (id) => {
+                const item = assets.find(i => i.id === id);
+                await apiFetch(`/assets/${id}`, { method: 'DELETE' });
+                setAssets(p => p.filter(i => i.id !== id));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_ACTIVO_FIJO', `Eliminó activo fijo ${item.name}`, id);
+            },
+            handleSaveAssetCategory: (c) => handleGenericSave(c, '/asset-categories', setAssetCategories, 'CATEGORIA_ACTIVO'),
+            handleDeleteAssetCategory: async (id) => {
+                const item = assetCategories.find(i => i.id === id);
+                await apiFetch(`/asset-categories/${id}`, { method: 'DELETE' });
+                setAssetCategories(p => p.filter(i => i.id !== id));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_CATEGORIA_ACTIVO', `Eliminó categoría de activo ${item.name}`, id);
+            },
+            handleSaveAsociado: (a) => handleGenericSave(a, '/asociados', setAsociados, 'ASOCIADO'),
+            handleDeleteAsociado: async (id) => {
+                const item = asociados.find(i => i.id === id);
+                await apiFetch(`/asociados/${id}`, { method: 'DELETE' });
+                setAsociados(p => p.filter(i => i.id !== id));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_ASOCIADO', `Eliminó asociado ${item.nombre}`, id);
+            },
             handleSaveCertificado: async (c) => {
-                await handleGenericSave(c, '/asociados/certificados', setCertificados);
+                const saved = await handleGenericSave(c, '/asociados/certificados', setCertificados, 'CERTIFICADO');
                 addToast({ type: 'success', title: 'Certificado Guardado', message: 'El certificado se ha guardado correctamente.' });
+                if (currentUser) logAction(currentUser, 'GUARDAR_CERTIFICADO', `Guardó certificado ${saved.codigo}`, saved.id);
             },
             handleDeleteCertificado: async (id) => {
+                const item = certificados.find(i => i.id === id);
                 await apiFetch(`/asociados/certificados/${id}`, { method: 'DELETE' });
                 setCertificados(p => p.filter(i => i.id !== id));
                 addToast({ type: 'success', title: 'Certificado Eliminado', message: 'El certificado ha sido eliminado.' });
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_CERTIFICADO', `Eliminó certificado ${item.codigo}`, id);
             },
-            handleSavePagoAsociado: (p) => handleGenericSave(p, '/asociados/pagos', setPagosAsociados),
-            handleDeletePagoAsociado: (id) => apiFetch(`/asociados/pagos/${id}`, { method: 'DELETE' }).then(() => setPagosAsociados(p => p.filter(i => i.id !== id))),
-            handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados),
+            handleSavePagoAsociado: (p) => handleGenericSave(p, '/asociados/pagos', setPagosAsociados, 'PAGO_ASOCIADO'),
+            handleDeletePagoAsociado: async (id) => {
+                const item = pagosAsociados.find(i => i.id === id);
+                await apiFetch(`/asociados/pagos/${id}`, { method: 'DELETE' });
+                setPagosAsociados(p => p.filter(i => i.id !== id));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_PAGO_ASOCIADO', `Eliminó pago de asociado ${item.concepto}`, id);
+            },
+            handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados, 'RECIBO_PAGO'),
             handleDeleteRemesa: async (id) => {
+                const item = remesas.find(i => i.id === id);
                 await apiFetch(`/remesas/${id}`, { method: 'DELETE' });
                 
-                // Refrescar datos como lo solicitó el usuario
                 const [newVehicles, newRemesas, newInvoices] = await Promise.all([
                     fetchSafe<Vehicle[]>('/vehicles', []),
                     fetchSafe<Remesa[]>('/remesas', []),
@@ -273,6 +343,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setRemesas(newRemesas);
                 setInvoices(newInvoices);
                 setInventory(deriveInventoryFromInvoices(newInvoices));
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_REMESA', `Eliminó remesa ${item.remesaNumber}`, id);
             },
             handleSaveAsientoManual: async (a) => {
                 const body = {
@@ -287,13 +358,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const saved = await apiFetch<AsientoManual>('/asientos-manuales', { method: 'POST', body: JSON.stringify(body) });
                 setAsientosManuales(p => [saved, ...p]);
                 addToast({ type: 'success', title: 'Asiento Guardado', message: 'El asiento contable se sincronizó con el backend.' });
+                if (currentUser) logAction(currentUser, 'CREAR_ASIENTO_CONTABLE', `Creó asiento contable manual: ${saved.descripcion}`, saved.id);
             },
             handleDeleteAsientoManual: async (id) => { 
+                const item = asientosManuales.find(i => i.id === id);
                 await apiFetch(`/asientos-manuales/${id}`, { method: 'DELETE' });
                 setAsientosManuales(p => p.filter(a => a.id !== id)); 
+                if (currentUser && item) logAction(currentUser, 'ELIMINAR_ASIENTO_CONTABLE', `Eliminó asiento contable manual ${id}`, id);
             },
             handleGenerateMassiveDebt: async (d) => { 
-                // Ensure payload has montoBs if it only has monto
                 const payload = { 
                     ...d, 
                     montoBs: (d as any).montoBs || (d as any).monto,
@@ -302,7 +375,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 
                 const resp = await apiFetch<any>('/asociados/deuda-masiva', { method: 'POST', body: JSON.stringify(payload) }); 
                 
-                // Handle different response formats: { newPayments: [] }, { data: [] }, or []
                 let rawPayments: any[] = [];
                 if (Array.isArray(resp)) {
                     rawPayments = resp;
@@ -312,7 +384,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     rawPayments = resp.data;
                 }
 
-                // Normalize payments to match PagoAsociado interface
                 const newPayments: PagoAsociado[] = rawPayments.map(p => ({
                     id: String(p.id || p._id),
                     asociadoId: String(p.asociadoId || p.asociado_id),
@@ -329,10 +400,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (newPayments.length > 0) {
                     setPagosAsociados(prev => [...newPayments, ...prev]);
                 } else {
-                    // If no payments returned, refresh all data to be sure
                     await fetchData();
                 }
                 addToast({ type: 'success', title: 'Cargos Generados', message: `Se han generado cargos para ${d.asociadoIds?.length || 'los'} socios.` });
+                if (currentUser) logAction(currentUser, 'GENERAR_DEUDA_MASIVA', `Generó deuda masiva para asociados`, 'N/A');
             },
             fetchAsociadoData: useCallback(async (asociadoId: string) => {
                 const [debts, certs] = await Promise.all([

@@ -12,11 +12,15 @@ const actionColors: { [key: string]: string } = {
     CREAR: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300',
     ACTUALIZAR: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300',
     ELIMINAR: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300',
+    ANULAR: 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300',
     CAMBIAR: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
-    INICIO_SESION: 'bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-300',
-    CIERRE_SESION: 'bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-300',
+    LOGIN: 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300',
+    LOGOUT: 'bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-300',
     DESPACHAR: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300',
-    FINALIZAR: 'bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300',
+    ASIGNAR: 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-300',
+    DESASIGNAR: 'bg-pink-100 dark:bg-pink-900/50 text-pink-800 dark:text-pink-300',
+    GUARDAR: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300',
+    GENERAR: 'bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-300',
 };
 
 const getActionColor = (action: string) => {
