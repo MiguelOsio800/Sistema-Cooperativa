@@ -17,8 +17,6 @@ interface FlotaVehiculosPorAsociadoViewProps {
     onUnassignInvoice: (invoiceId: string) => Promise<void>;
     onSaveVehicle: (vehicle: Vehicle) => Promise<void>;
     onDeleteVehicle: (vehicleId: string) => Promise<void>;
-    onFinalizeTrip: (vehicleId: string) => Promise<void>;
-    onUndoDispatch: (vehicleId: string) => Promise<void>;
     permissions: Permissions;
     companyInfo: CompanyInfo;
 }
@@ -34,7 +32,6 @@ const FlotaVehiculosPorAsociadoView: React.FC<FlotaVehiculosPorAsociadoViewProps
     const { 
         asociado, vehicles, invoices, offices, clients, 
         onUnassignInvoice, onSaveVehicle, onDeleteVehicle, 
-        onFinalizeTrip, onUndoDispatch,
         permissions, companyInfo 
     } = props;
     

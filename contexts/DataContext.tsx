@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback, useRef } from 'react';
 import { 
     Invoice, Client, Vehicle, Expense, InventoryItem, Asset, AssetCategory, Supplier,
-    PaymentStatus, ShippingStatus, MasterStatus, Asociado, Certificado, PagoAsociado, ReciboPagoAsociado, Remesa, AsientoManual, Dispatch 
+    PaymentStatus, ShippingStatus, MasterStatus, Asociado, Certificado, PagoAsociado, ReciboPagoAsociado, Remesa, AsientoManual 
 } from '../types';
 import { useToast } from '../components/ui/ToastProvider';
 import { useAuth } from './AuthContext';
@@ -23,7 +23,6 @@ type DataContextType = {
     pagosAsociados: PagoAsociado[];
     recibosPagoAsociados: ReciboPagoAsociado[];
     remesas: Remesa[];
-    dispatches: Dispatch[]; 
     asientosManuales: AsientoManual[];
     isLoading: boolean;
     handleSaveClient: (client: Client) => Promise<void>;
@@ -41,7 +40,6 @@ type DataContextType = {
     handleAssignToVehicle: (invoiceIds: string[], vehicleId: string) => Promise<void>;
     handleUnassignInvoice: (invoiceId: string) => Promise<void>;
     handleDispatchVehicle: (vehicleId: string, invoiceIds: string[], exchangeRate: number, asociadoId: string) => Promise<Remesa | null>;
-    handleFinalizeTrip: (vehicleId: string) => Promise<void>;
     handleSaveExpense: (expense: Expense) => Promise<void>;
     handleDeleteExpense: (expenseId: string) => Promise<void>;
     handleSaveAsset: (asset: Asset) => Promise<void>;
@@ -58,8 +56,6 @@ type DataContextType = {
     handleDeleteRemesa: (remesaId: string) => Promise<void>;
     handleSaveAsientoManual: (asiento: AsientoManual) => Promise<void>;
     handleDeleteAsientoManual: (asientoId: string) => Promise<void>;
-    handleCreateDispatch: (invoiceIds: string[], vehicleId: string, destinationOfficeId: string) => Promise<Dispatch | null>;
-    handleReceiveDispatch: (dispatchId: string, verifiedInvoiceIds: string[]) => Promise<void>;
     handleGenerateMassiveDebt: (debtData: any) => Promise<void>;
     fetchAsociadoData: (asociadoId: string) => Promise<void>;
 };
@@ -84,7 +80,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [pagosAsociados, setPagosAsociados] = useState<PagoAsociado[]>([]);
     const [recibosPagoAsociados, setRecibosPagoAsociados] = useState<ReciboPagoAsociado[]>([]);
     const [remesas, setRemesas] = useState<Remesa[]>([]);
-    const [dispatches, setDispatches] = useState<Dispatch[]>([]);
     const [asientosManuales, setAsientosManuales] = useState<AsientoManual[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -120,7 +115,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (isAdmin || perms['proveedores.view']) promises.push(fetchSafe<Supplier[]>('/suppliers', []).then(setSuppliers));
             if (isAdmin || perms['flota.view']) promises.push(fetchSafe<Vehicle[]>('/vehicles', []).then(setVehicles));
             if (isAdmin || perms['remesas.view']) promises.push(fetchSafe<Remesa[]>('/remesas', []).then(setRemesas));
-            if (isAdmin || perms['despachos.view']) promises.push(fetchSafe<Dispatch[]>('/dispatches', []).then(setDispatches));
             if (isAdmin || perms['libro-contable.view']) {
                 promises.push(fetchSafe<Expense[]>('/expenses', []).then(setExpenses));
                 promises.push(fetchSafe<AsientoManual[]>('/asientos-manuales', []).then(setAsientosManuales));
@@ -168,7 +162,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <DataContext.Provider value={{
             invoices, clients, suppliers, vehicles, expenses, inventory, assets, assetCategories, 
-            asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, dispatches, asientosManuales, isLoading,
+            asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, asientosManuales, isLoading,
             handleSaveClient: (c) => handleGenericSave(c, '/clients', setClients),
             handleDeleteClient: (id) => apiFetch(`/clients/${id}`, { method: 'DELETE' }).then(() => setClients(p => p.filter(i => i.id !== id))),
             handleSaveSupplier: (s) => handleGenericSave(s, '/suppliers', setSuppliers),
@@ -245,15 +239,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 
                 return resp.newRemesa || (resp as any);
             },
-            handleFinalizeTrip: async (vId) => {
-                const resp = await apiFetch<{updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/vehicles/${vId}/finalize-trip`, { method: 'POST' });
-                setVehicles(p => p.map(v => v.id === vId ? resp.updatedVehicle : v));
-                const updatedInvoices = resp.updatedInvoices || [];
-                if (Array.isArray(updatedInvoices)) {
-                    const map = new Map(updatedInvoices.map(i => [i.id, i]));
-                    setInvoices(p => p.map(i => map.get(i.id) || i));
-                }
-            },
             handleSaveExpense: (e) => handleGenericSave(e, '/expenses', setExpenses),
             handleDeleteExpense: (id) => apiFetch(`/expenses/${id}`, { method: 'DELETE' }).then(() => setExpenses(p => p.filter(i => i.id !== id))),
             handleSaveAsset: (a) => handleGenericSave(a, '/assets', setAssets),
@@ -306,31 +291,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleDeleteAsientoManual: async (id) => { 
                 await apiFetch(`/asientos-manuales/${id}`, { method: 'DELETE' });
                 setAsientosManuales(p => p.filter(a => a.id !== id)); 
-            },
-            handleCreateDispatch: async (ids, vId, dId) => {
-                const resp = await apiFetch<any>('/dispatches', { method: 'POST', body: JSON.stringify({invoiceIds: ids, vehicleId: vId, destinationOfficeId: dId, originOfficeId: currentUser?.officeId}) });
-                
-                // Si el backend devuelve el objeto de despacho directamente (como indica el usuario)
-                // o si lo devuelve envuelto en { dispatch, updatedInvoices }
-                const dispatchData = resp.dispatch || resp;
-                const updatedInvoices = resp.updatedInvoices || [];
-
-                if (Array.isArray(updatedInvoices) && updatedInvoices.length > 0) {
-                    const map = new Map(updatedInvoices.map((i: any) => [i.id, i]));
-                    setInvoices(p => p.map(i => map.get(i.id) || i));
-                }
-
-                setDispatches(prev => [dispatchData, ...prev]);
-                return dispatchData;
-            },
-            handleReceiveDispatch: async (dId, ids) => {
-                const resp = await apiFetch<{updatedDispatch: Dispatch, updatedInvoices: Invoice[]}>(`/dispatches/receive/${dId}`, { method: 'POST', body: JSON.stringify({verifiedInvoiceIds: ids, receivedBy: currentUser?.name}) });
-                setDispatches(p => p.map(d => d.id === dId ? resp.updatedDispatch : d));
-                const updatedInvoices = resp.updatedInvoices || [];
-                if (Array.isArray(updatedInvoices)) {
-                    const map = new Map(updatedInvoices.map(i => [i.id, i]));
-                    setInvoices(p => p.map(i => map.get(i.id) || i));
-                }
             },
             handleGenerateMassiveDebt: async (d) => { 
                 // Ensure payload has montoBs if it only has monto

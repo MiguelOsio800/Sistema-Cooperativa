@@ -1,5 +1,5 @@
 
-export type Page = 'dashboard' | 'shipping-guide' | 'invoices' | 'asociados' | 'reports' | 'configuracion' | 'categories' | 'edit-invoice' | 'report-detail' | 'clientes' | 'proveedores' | 'offices' | 'shipping-types' | 'payment-methods' | 'libro-contable' | 'inventario' | 'auditoria' | 'inventario-bienes' | 'inventario-envios' | 'bienes-categorias' | 'asociados-gestion' | 'asociados-estadisticas' | 'asociados-reportes' | 'asociados-pagos' | 'remesas' | 'flota' | 'flota-vehiculos' | 'despachos' | 'cobranzas';
+export type Page = 'dashboard' | 'shipping-guide' | 'invoices' | 'asociados' | 'reports' | 'configuracion' | 'categories' | 'edit-invoice' | 'report-detail' | 'clientes' | 'proveedores' | 'offices' | 'shipping-types' | 'payment-methods' | 'libro-contable' | 'inventario' | 'auditoria' | 'inventario-bienes' | 'inventario-envios' | 'bienes-categorias' | 'asociados-gestion' | 'asociados-estadisticas' | 'asociados-reportes' | 'asociados-pagos' | 'remesas' | 'flota' | 'flota-vehiculos' | 'cobranzas';
 
 export type Permissions = Record<string, boolean>;
 
@@ -208,22 +208,6 @@ export interface Remesa {
     totalWeight: number;
     exchangeRate?: number;
 }
-
-export type DispatchStatus = 'En Tránsito' | 'Recibido' | 'Anulado';
-
-export interface Dispatch {
-    id: string;
-    dispatchNumber: string;
-    date: string;
-    vehicleId: string;
-    invoiceIds: string[];
-    originOfficeId: string;
-    destinationOfficeId: string; // The office receiving the cargo
-    status: DispatchStatus;
-    receivedDate?: string;
-    receivedBy?: string;
-}
-
 
 // --- New Types for Asociados Module ---
 

@@ -28,7 +28,6 @@ import AuditLogView from './components/auditoria/AuditLogView';
 import BienesCategoryView from './components/inventario/BienesCategoryView';
 import SuppliersView from './components/proveedores/SuppliersView';
 import FlotaView from './components/flota/FlotaView';
-import DespachosView from './components/despachos/DespachosView';
 
 import AppProviders from './contexts/AppProviders';
 import { useAuth } from './contexts/AuthContext';
@@ -58,7 +57,7 @@ const AppContent: React.FC = () => {
     } = useConfig();
     const {
         invoices, clients, suppliers, vehicles, expenses, inventory, assets, assetCategories,
-        asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, dispatches, asientosManuales, isLoading: isLoadingData,
+        asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, asientosManuales, isLoading: isLoadingData,
         handleSaveClient, handleDeleteClient, handleSaveSupplier, handleDeleteSupplier,
         handleSaveInvoice, handleUpdateInvoice, handleUpdateInvoiceStatuses, handleDeleteInvoice,
         handleSaveVehicle, handleDeleteVehicle, handleSaveExpense,
@@ -68,7 +67,7 @@ const AppContent: React.FC = () => {
         handleSaveCertificado, handleDeleteCertificado,
         handleSavePagoAsociado, handleDeletePagoAsociado,
         handleSaveRecibo, handleDeleteRemesa,
-        handleAssignToVehicle, handleUnassignInvoice, handleDispatchVehicle, onUndoDispatch, handleFinalizeTrip,
+        handleAssignToVehicle, handleUnassignInvoice, handleDispatchVehicle, handleFinalizeTrip,
         handleSaveAsientoManual, handleDeleteAsientoManual, handleGenerateMassiveDebt
     } = useData();
     const { auditLog } = useSystem();
@@ -104,18 +103,11 @@ const AppContent: React.FC = () => {
         }
         
         // OFFICE RESTRICTION CHECK: Regular Operators
-        const inboundDispatchInvoiceIds = new Set(
-            dispatches
-                .filter(d => (d.destinationOfficeId === currentUser.officeId || d.originOfficeId === currentUser.officeId))
-                .flatMap(d => d.invoiceIds)
-        );
-
         return invoices.filter(invoice => 
             invoice.guide.originOfficeId === currentUser.officeId || 
-            invoice.guide.destinationOfficeId === currentUser.officeId ||
-            inboundDispatchInvoiceIds.has(invoice.id)
+            invoice.guide.destinationOfficeId === currentUser.officeId
         );
-    }, [invoices, dispatches, currentUser, hasGlobalAccess]);
+    }, [invoices, currentUser, hasGlobalAccess]);
 
     // 2. Expenses
     const filteredExpenses = useMemo(() => {
@@ -183,7 +175,7 @@ const AppContent: React.FC = () => {
             const [page, param, subParam, ...filterValueParts] = hash.split('/');
             const filterValue = filterValueParts.join('/');
             
-            const validPages: Page[] = ['dashboard', 'shipping-guide', 'invoices', 'asociados', 'reports', 'configuracion', 'categories', 'edit-invoice', 'report-detail', 'clientes', 'proveedores', 'offices', 'shipping-types', 'payment-methods', 'libro-contable', 'inventario', 'auditoria', 'inventario-bienes', 'inventario-envios', 'bienes-categorias', 'asociados-gestion', 'asociados-estadisticas', 'asociados-reportes', 'asociados-pagos', 'remesas', 'flota', 'flota-vehiculos', 'despachos', 'cobranzas'];
+            const validPages: Page[] = ['dashboard', 'shipping-guide', 'invoices', 'asociados', 'reports', 'configuracion', 'categories', 'edit-invoice', 'report-detail', 'clientes', 'proveedores', 'offices', 'shipping-types', 'payment-methods', 'libro-contable', 'inventario', 'auditoria', 'inventario-bienes', 'inventario-envios', 'bienes-categorias', 'asociados-gestion', 'asociados-estadisticas', 'asociados-reportes', 'asociados-pagos', 'remesas', 'flota', 'flota-vehiculos', 'cobranzas'];
             
             setEditingInvoiceId(null);
             setViewingReport(null);
@@ -196,7 +188,6 @@ const AppContent: React.FC = () => {
                 'dashboard': 'dashboard.view',
                 'shipping-guide': 'shipping-guide.view',
                 'invoices': 'invoices.view',
-                'despachos': 'despachos.view',
                 'flota': 'flota.view',
                 'flota-vehiculos': 'flota.view',
                 'remesas': 'remesas.view',
@@ -321,19 +312,6 @@ const AppContent: React.FC = () => {
                             permissions={userPermissions}
                             companyInfo={companyInfo}
                         />;
-                        case 'despachos': return <DespachosView
-                            invoices={filteredInvoices} 
-                            asociados={asociados}
-                            vehicles={vehicles}
-                            offices={offices}
-                            clients={clients}
-                            categories={categories}
-                            onAssignToVehicle={handleAssignToVehicle}
-                            onDispatchVehicle={handleDispatchVehicle}
-                            companyInfo={companyInfo}
-                            currentUser={currentUser}
-                            permissions={userPermissions}
-                        />;
                         case 'flota': return <FlotaView 
                             asociados={asociados} 
                             vehicles={vehicles} 
@@ -349,8 +327,6 @@ const AppContent: React.FC = () => {
                                 onUnassignInvoice={handleUnassignInvoice}
                                 onSaveVehicle={handleSaveVehicle}
                                 onDeleteVehicle={handleDeleteVehicle}
-                                onFinalizeTrip={handleFinalizeTrip}
-                                onUndoDispatch={onUndoDispatch}
                                 permissions={userPermissions}
                                 companyInfo={companyInfo}
                             /> : <div>Asociado no encontrado. <a href="#flota" className="text-primary-600 hover:underline">Volver a la lista</a>.</div>;

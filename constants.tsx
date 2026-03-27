@@ -1,7 +1,7 @@
 
 import React, {ElementType} from 'react';
 import { Page, Report } from './types';
-import { HomeIcon, FilePlusIcon, TruckIcon, BarChartIcon, SettingsIcon, ReceiptIcon, TagIcon, UsersIcon, BuildingOfficeIcon, ListBulletIcon, CreditCardIcon, BookOpenIcon, ArchiveBoxIcon, ShieldCheckIcon, WrenchScrewdriverIcon, BriefcaseIcon, ClipboardDocumentListIcon, SendIcon } from './components/icons/Icons';
+import { HomeIcon, FilePlusIcon, TruckIcon, BarChartIcon, SettingsIcon, ReceiptIcon, TagIcon, UsersIcon, BuildingOfficeIcon, ListBulletIcon, CreditCardIcon, BookOpenIcon, ArchiveBoxIcon, ShieldCheckIcon, WrenchScrewdriverIcon, BriefcaseIcon, ClipboardDocumentListIcon } from './components/icons/Icons';
 
 interface NavItem {
     id: Page;
@@ -17,7 +17,6 @@ export const NAV_ITEMS: NavItem[] = [
     { id: 'dashboard', label: 'Inicio', icon: HomeIcon, permissionKey: 'dashboard.view' },
     { id: 'shipping-guide', label: 'Crear Factura', icon: FilePlusIcon, permissionKey: 'shipping-guide.view' },
     { id: 'invoices', label: 'Facturas', icon: ReceiptIcon, permissionKey: 'invoices.view' },
-    { id: 'despachos', label: 'Despachos', icon: SendIcon, permissionKey: 'despachos.view' }, 
     { id: 'flota', label: 'Flota', icon: TruckIcon, permissionKey: 'flota.view' },
     { id: 'remesas', label: 'Remesas', icon: ClipboardDocumentListIcon, permissionKey: 'remesas.view' },
     { id: 'asociados', label: 'Asociados', icon: UsersIcon, permissionKey: 'asociados.view' },
@@ -98,10 +97,6 @@ export const ALL_PERMISSION_KEYS: string[] = [
     'invoices.void',
     'invoices.changeStatus',
     'invoices.manage_all_offices',
-    // Despachos (3)
-    'despachos.view',
-    'despachos.create',
-    'despachos.receive',
     // Flota (5)
     'flota.view',
     'flota.create',
@@ -194,9 +189,6 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'invoices.void': 'Anular Facturas',
     'invoices.changeStatus': 'Cambiar Estado de Facturas',
     'invoices.manage_all_offices': 'Gestionar Facturas de Todas las Oficinas',
-    'despachos.view': 'Ver Módulo de Despachos',
-    'despachos.create': 'Procesar Despachos (Salidas)',
-    'despachos.receive': 'Verificar y Recibir Carga',
     'flota.view': 'Ver Módulo de Flota',
     'flota.create': 'Añadir Vehículos a Flota',
     'flota.edit': 'Editar Vehículos de Flota',
@@ -280,7 +272,6 @@ const operatorPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'shipping-guide.view': true,
     'invoices.view': true, 'invoices.create': true, 'invoices.edit': true, 'invoices.changeStatus': true, 'invoices.void': true, 'invoices.delete': true,
-    'despachos.view': true, 'despachos.create': true, 'despachos.receive': true,
     'flota.view': true, 'flota.create': true, 'flota.edit': true, 'flota.delete': true, 'flota.dispatch': true,
     'remesas.view': true, 'remesas.create': true, 'remesas.delete': true,
     'clientes.view': true, 'clientes.create': true, 'clientes.edit': true, 'clientes.delete': true,
@@ -324,7 +315,6 @@ const accountantPermissions: Record<string, boolean> = {
     'expenses.manage_all_offices': true,
     'shipping-guide.view': false,
     'invoices.view': false,
-    'despachos.view': false,
     'flota.view': false,
     'remesas.view': false,
     'asociados.view': false,

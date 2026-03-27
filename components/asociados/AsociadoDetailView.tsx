@@ -87,7 +87,7 @@ const AsociadoDetailView: React.FC<AsociadoDetailViewProps> = (props) => {
                     title: 'Actualización exitosa',
                     message: 'Socio actualizado correctamente.'
                 });
-                setCurrentAsociado(savedAsociado);
+                onBack(); // Redirigir a la búsqueda tras actualizar
             } else {
                 addToast({
                     type: 'success',
