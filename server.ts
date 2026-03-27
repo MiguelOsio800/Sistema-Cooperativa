@@ -61,10 +61,10 @@ async function startServer() {
 
     // Proxy other requests to the external backend
     const EXTERNAL_API_URL = 'https://4wt9b8zl-5000.use2.devtunnels.ms/api';
-
-    app.all("/api/*", async (req, res) => {
-        const endpoint = req.url.replace('/api', '');
-        const targetUrl = `${EXTERNAL_API_URL}${endpoint}`;
+    
+    app.all("/api/*endpoint", async (req, res) => {
+        const endpoint = req.params.endpoint || '';
+        const targetUrl = `${EXTERNAL_API_URL}/${endpoint}`;
         
         try {
             const fetchOptions: RequestInit = {
@@ -110,7 +110,8 @@ async function startServer() {
     } else {
         const distPath = path.join(process.cwd(), 'dist');
         app.use(express.static(distPath));
-        app.get('*', (req, res) => {
+        
+        app.get('*all', (req, res) => {
             res.sendFile(path.join(distPath, 'index.html'));
         });
     }
