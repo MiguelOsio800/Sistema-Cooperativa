@@ -130,7 +130,7 @@ const FlotaVehiculosPorAsociadoView: React.FC<FlotaVehiculosPorAsociadoViewProps
                                                             {vehicle.status === 'Disponible' && (
                                                                 <button 
                                                                     onClick={async () => await onUnassignInvoice(inv.id)}
-                                                                    className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                    className="text-red-500 hover:text-red-700 transition-colors p-1"
                                                                     title="Remover envío del vehículo"
                                                                 >
                                                                     <XIcon className="w-4 h-4"/>

@@ -179,7 +179,7 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                                                 {assignedInvoices.map(inv => (
                                                     <li key={inv.id} className="flex justify-between items-center group p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700/50">
                                                         <span>Factura #{inv.invoiceNumber}</span>
-                                                        <button onClick={async () => await onUnassignInvoice(inv.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Remover">
+                                                        <button onClick={async () => await onUnassignInvoice(inv.id)} className="text-red-500 hover:text-red-700 transition-colors p-1" title="Remover">
                                                             <XIcon className="w-4 h-4"/>
                                                         </button>
                                                     </li>

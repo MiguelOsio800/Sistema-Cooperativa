@@ -239,19 +239,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
             },
             handleAssignToVehicle: async (ids, vId) => {
-                const resp = await apiFetch<{updatedInvoices: Invoice[]}>(`/vehicles/${vId}/assign-invoices`, { method: 'POST', body: JSON.stringify({invoiceIds: ids}) });
-                const updatedInvoices = resp.updatedInvoices || [];
-                if (Array.isArray(updatedInvoices)) {
+                const resp = await apiFetch<any>(`/vehicles/${vId}/assign-invoices`, { method: 'POST', body: JSON.stringify({invoiceIds: ids}) });
+                let updatedInvoices = resp?.updatedInvoices;
+                if (!updatedInvoices && Array.isArray(resp)) {
+                    updatedInvoices = resp;
+                }
+                
+                if (Array.isArray(updatedInvoices) && updatedInvoices.length > 0) {
                     const map = new Map(updatedInvoices.map(i => [i.id, i]));
                     setInvoices(p => p.map(i => map.get(i.id) || i));
+                } else {
+                    // Fallback: fetch all invoices to ensure sync
+                    const allInvoices = await apiFetch<Invoice[]>('/invoices', []);
+                    if (Array.isArray(allInvoices)) {
+                        setInvoices(allInvoices);
+                    }
                 }
                 if (currentUser) logAction(currentUser, 'ASIGNAR_VEHICULO', `Asignó ${ids.length} facturas al vehículo ID ${vId}`, vId);
             },
             handleUnassignInvoice: async (id) => {
                 const inv = invoices.find(i => i.id === id);
-                const resp = await apiFetch<{updatedInvoice: Invoice}>(`/vehicles/${inv?.vehicleId}/unassign-invoice`, { method: 'POST', body: JSON.stringify({invoiceId: id}) });
-                if (resp && resp.updatedInvoice) {
-                    setInvoices(p => p.map(i => i.id === id ? resp.updatedInvoice : i));
+                if (!inv) return;
+                const resp = await apiFetch<any>(`/vehicles/${inv.vehicleId}/unassign-invoice`, { method: 'POST', body: JSON.stringify({invoiceId: id}) });
+                
+                const updatedInvoice = resp?.updatedInvoice || (resp?.id ? resp : null);
+                
+                if (updatedInvoice) {
+                    setInvoices(p => p.map(i => i.id === id ? updatedInvoice : i));
+                } else {
+                    // Fallback: fetch all invoices to ensure sync
+                    const allInvoices = await apiFetch<Invoice[]>('/invoices', []);
+                    if (Array.isArray(allInvoices)) {
+                        setInvoices(allInvoices);
+                    }
                 }
                 if (currentUser) logAction(currentUser, 'DESASIGNAR_VEHICULO', `Desasignó factura ${id} del vehículo`, id);
             },
