@@ -250,7 +250,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setInvoices(p => p.map(i => map.get(i.id) || i));
                 } else {
                     // Fallback: fetch all invoices to ensure sync
-                    const allInvoices = await apiFetch<Invoice[]>('/invoices', []);
+                    const allInvoices = await apiFetch<Invoice[]>('/invoices');
                     if (Array.isArray(allInvoices)) {
                         setInvoices(allInvoices);
                     }
@@ -260,19 +260,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleUnassignInvoice: async (id) => {
                 const inv = invoices.find(i => i.id === id);
                 if (!inv) return;
-                const resp = await apiFetch<any>(`/vehicles/${inv.vehicleId}/unassign-invoice`, { method: 'POST', body: JSON.stringify({invoiceId: id}) });
                 
-                const updatedInvoice = resp?.updatedInvoice || (resp?.id ? resp : null);
-                
-                if (updatedInvoice) {
-                    setInvoices(p => p.map(i => i.id === id ? updatedInvoice : i));
-                } else {
-                    // Fallback: fetch all invoices to ensure sync
-                    const allInvoices = await apiFetch<Invoice[]>('/invoices', []);
+                // Optimistic update for immediate UI feedback
+                setInvoices(prev => prev.map(i => i.id === id ? { ...i, vehicleId: null, shippingStatus: 'Pendiente para Despacho' } : i));
+
+                try {
+                    const resp = await apiFetch<any>(`/vehicles/${inv.vehicleId}/unassign-invoice`, { method: 'POST', body: JSON.stringify({invoiceId: id}) });
+                    
+                    const updatedInvoice = resp?.updatedInvoice || (resp?.id ? resp : null);
+                    
+                    if (updatedInvoice) {
+                        setInvoices(p => p.map(i => i.id === id ? updatedInvoice : i));
+                    } else {
+                        // Fallback: fetch all invoices to ensure sync
+                        const allInvoices = await apiFetch<Invoice[]>('/invoices');
+                        if (Array.isArray(allInvoices)) {
+                            setInvoices(allInvoices);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error unassigning invoice:", error);
+                    // Rollback on error
+                    const allInvoices = await apiFetch<Invoice[]>('/invoices');
                     if (Array.isArray(allInvoices)) {
                         setInvoices(allInvoices);
                     }
                 }
+                
                 if (currentUser) logAction(currentUser, 'DESASIGNAR_VEHICULO', `Desasignó factura ${id} del vehículo`, id);
             },
             handleDispatchVehicle: async (vId, invoiceIds, exchangeRate, asociadoId) => {
@@ -286,6 +300,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     })
                 });
                 
+                // Optimistic update to ensure invoices are marked as 'En Tránsito' immediately
+                setInvoices(prev => prev.map(inv => 
+                    invoiceIds.includes(inv.id) ? { ...inv, shippingStatus: 'En Tránsito' } : inv
+                ));
+
                 const [newVehicles, newRemesas, newInvoices] = await Promise.all([
                     fetchSafe<Vehicle[]>('/vehicles', []),
                     fetchSafe<Remesa[]>('/remesas', []),
@@ -351,19 +370,36 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados, 'RECIBO_PAGO'),
             handleDeleteRemesa: async (id) => {
                 const item = remesas.find(i => i.id === id);
-                await apiFetch(`/remesas/${id}`, { method: 'DELETE' });
-                
-                const [newVehicles, newRemesas, newInvoices] = await Promise.all([
-                    fetchSafe<Vehicle[]>('/vehicles', []),
-                    fetchSafe<Remesa[]>('/remesas', []),
-                    fetchSafe<Invoice[]>('/invoices', [])
-                ]);
-                
-                setVehicles(newVehicles);
-                setRemesas(newRemesas);
-                setInvoices(newInvoices);
-                setInventory(deriveInventoryFromInvoices(newInvoices));
-                if (currentUser && item) logAction(currentUser, 'ELIMINAR_REMESA', `Eliminó remesa ${item.remesaNumber}`, id);
+                if (!item) return;
+
+                // Optimistic update: mark invoices as 'Pendiente para Despacho' immediately
+                setInvoices(prev => prev.map(inv => 
+                    item.invoiceIds.includes(inv.id) ? { ...inv, shippingStatus: 'Pendiente para Despacho' } : inv
+                ));
+                setRemesas(prev => prev.filter(r => r.id !== id));
+
+                try {
+                    await apiFetch(`/remesas/${id}`, { method: 'DELETE' });
+                    
+                    // Refetch to ensure total sync with backend
+                    const [newVehicles, newRemesas, newInvoices] = await Promise.all([
+                        fetchSafe<Vehicle[]>('/vehicles', []),
+                        fetchSafe<Remesa[]>('/remesas', []),
+                        fetchSafe<Invoice[]>('/invoices', [])
+                    ]);
+                    
+                    setVehicles(newVehicles);
+                    setRemesas(newRemesas);
+                    setInvoices(newInvoices);
+                    setInventory(deriveInventoryFromInvoices(newInvoices));
+                    
+                    if (currentUser) logAction(currentUser, 'ELIMINAR_REMESA', `Eliminó remesa ${item.remesaNumber}`, id);
+                    addToast({ type: 'success', title: 'Remesa Eliminada', message: 'La remesa ha sido eliminada y las facturas están disponibles nuevamente.' });
+                } catch (error) {
+                    // Rollback on error
+                    await fetchData();
+                    addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar la remesa.' });
+                }
             },
             handleSaveAsientoManual: async (a) => {
                 const body = {

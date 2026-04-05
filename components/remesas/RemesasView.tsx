@@ -49,7 +49,16 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
         return vehicles.filter(v => v.asociadoId === selectedAsociadoId);
     }, [vehicles, selectedAsociadoId]);
 
-    const availableInvoices = invoices.filter(inv => !inv.vehicleId && inv.shippingStatus === 'Pendiente para Despacho' && inv.status === 'Activa');
+    const availableInvoices = useMemo(() => {
+        const dispatchedInvoiceIds = new Set(remesas.flatMap(r => r.invoiceIds));
+        return invoices.filter(inv => 
+            !inv.vehicleId && 
+            inv.shippingStatus === 'Pendiente para Despacho' && 
+            inv.status === 'Activa' &&
+            (!inv.remesaId || inv.remesaId === null) &&
+            !dispatchedInvoiceIds.has(inv.id)
+        );
+    }, [invoices, remesas]);
 
     const filteredRemesas = useMemo(() => {
         let filtered = remesas;
@@ -80,10 +89,8 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
         const vehicle = vehicles.find(v => v.id === vehicleId);
         if (!vehicle) return;
         
-        // FIX: Only dispatch invoices that are 'Pendiente para Despacho'
-        // This prevents invoices that are already in a previous remesa ('En Tránsito' or 'Entregada')
-        // from being spawned/duplicated into a new remesa.
-        const assignedInvoices = invoices.filter(inv => inv.vehicleId === vehicleId && inv.shippingStatus === 'Pendiente para Despacho');
+        // FIX: Only dispatch invoices that are 'Pendiente para Despacho' and NOT already in a remesa
+        const assignedInvoices = getAssignedInvoices(vehicleId);
         
         if (assignedInvoices.length === 0) {
             alert("No hay facturas pendientes para despachar en este vehículo.");
@@ -107,7 +114,15 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
     };
 
     const getAssignedInvoices = (vehicleId: string) => {
-        return invoices.filter(inv => inv.vehicleId === vehicleId && inv.shippingStatus === 'Pendiente para Despacho');
+        // Get all invoice IDs that are already in a remesa
+        // This is a safety check to prevent duplication if the backend status is out of sync
+        const dispatchedInvoiceIds = new Set(remesas.flatMap(r => r.invoiceIds));
+        
+        return invoices.filter(inv => 
+            inv.vehicleId === vehicleId && 
+            inv.shippingStatus === 'Pendiente para Despacho' &&
+            !dispatchedInvoiceIds.has(inv.id)
+        );
     };
     
     const getVehicleRemesas = (vehicleId: string) => {

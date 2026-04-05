@@ -4,7 +4,7 @@ import { Invoice, Vehicle, Office } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { calculateInvoiceChargeableWeight } from '../../utils/financials';
-import { ExclamationTriangleIcon, TruckIcon } from '../icons/Icons';
+import { ExclamationTriangleIcon, TruckIcon, XIcon } from '../icons/Icons';
 
 interface AssignInvoiceModalProps {
     isOpen: boolean;
@@ -91,32 +91,79 @@ const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose
                     )}
                 </div>
 
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
-                    {availableInvoices.length > 0 ? availableInvoices.map(invoice => {
-                        const weight = calculateInvoiceChargeableWeight(invoice);
-                        return (
-                            <div
-                                key={invoice.id}
-                                onClick={() => handleToggleInvoice(invoice.id)}
-                                className={`p-3 border rounded-lg cursor-pointer flex items-center justify-between transition-all ${
-                                    selectedInvoiceIds.includes(invoice.id)
-                                    ? 'bg-green-50 dark:bg-green-900/30 border-green-400 ring-2 ring-green-300'
-                                    : 'bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                                }`}
-                            >
-                                <div>
-                                    <p className="font-semibold text-primary-600 dark:text-primary-400">{invoice.invoiceNumber}</p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300">{invoice.clientName}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-sm">{getOfficeName(invoice.guide.destinationOfficeId)}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">{weight.toFixed(2)} kg</p>
-                                </div>
-                            </div>
-                        )
-                    }) : (
-                        <p className="text-center text-gray-500 dark:text-gray-400 py-8">No hay facturas listas para despacho.</p>
-                    )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Available Invoices */}
+                    <div className="space-y-2">
+                        <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Facturas Disponibles</h3>
+                        <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+                            {availableInvoices.filter(inv => !selectedInvoiceIds.includes(inv.id)).length > 0 ? (
+                                availableInvoices.filter(inv => !selectedInvoiceIds.includes(inv.id)).map(invoice => {
+                                    const weight = calculateInvoiceChargeableWeight(invoice);
+                                    return (
+                                        <div
+                                            key={invoice.id}
+                                            onClick={() => handleToggleInvoice(invoice.id)}
+                                            className="p-3 border rounded-lg cursor-pointer flex items-center justify-between transition-all bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                        >
+                                            <div>
+                                                <p className="font-semibold text-primary-600 dark:text-primary-400">{invoice.invoiceNumber}</p>
+                                                <p className="text-sm text-gray-600 dark:text-gray-300">{invoice.clientName}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm">{getOfficeName(invoice.guide.destinationOfficeId)}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">{weight.toFixed(2)} kg</p>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            ) : (
+                                <p className="text-center text-gray-500 dark:text-gray-400 py-8 text-sm">No hay facturas disponibles para seleccionar.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Selected Invoices */}
+                    <div className="space-y-2">
+                        <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Facturas Seleccionadas ({selectedInvoiceIds.length})</h3>
+                        <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+                            {selectedInvoiceIds.length > 0 ? (
+                                selectedInvoiceIds.map(id => {
+                                    const invoice = availableInvoices.find(inv => inv.id === id);
+                                    if (!invoice) return null;
+                                    const weight = calculateInvoiceChargeableWeight(invoice);
+                                    return (
+                                        <div
+                                            key={invoice.id}
+                                            className="p-3 border rounded-lg flex items-center justify-between transition-all bg-green-50 dark:bg-green-900/30 border-green-400 ring-1 ring-green-300"
+                                        >
+                                            <div>
+                                                <p className="font-semibold text-primary-600 dark:text-primary-400">{invoice.invoiceNumber}</p>
+                                                <p className="text-sm text-gray-600 dark:text-gray-300">{invoice.clientName}</p>
+                                            </div>
+                                            <div className="text-right flex items-center gap-3">
+                                                <div>
+                                                    <p className="text-sm">{getOfficeName(invoice.guide.destinationOfficeId)}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">{weight.toFixed(2)} kg</p>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleInvoice(invoice.id);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                                                    title="Quitar factura"
+                                                >
+                                                    <XIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            ) : (
+                                <p className="text-center text-gray-500 dark:text-gray-400 py-8 text-sm">No has seleccionado ninguna factura.</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
             
