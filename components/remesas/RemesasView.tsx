@@ -9,6 +9,7 @@ import RemesaDocumentModal from './RemesaDocumentModal';
 import { calculateInvoiceChargeableWeight } from '../../utils/financials';
 import AssignInvoiceModal from '../flota/AssignInvoiceModal';
 import Input from '../ui/Input';
+import { useConfirm } from '../../contexts/ConfirmationContext';
 
 interface RemesasViewProps {
     remesas: Remesa[];
@@ -33,6 +34,8 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
         onAssignToVehicle, onUnassignInvoice, onDispatchVehicle, onDeleteRemesa,
         permissions, companyInfo 
     } = props;
+
+    const { confirm } = useConfirm();
 
     const [selectedAsociadoId, setSelectedAsociadoId] = useState<string>('');
     const [startDate, setStartDate] = useState('');
@@ -111,6 +114,32 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
     const handleOpenManifestModal = (remesa: Remesa) => {
         setRemesaForManifest(remesa);
         setIsManifestModalOpen(true);
+    };
+
+    const handleUnassignClick = async (invId: string) => {
+        const isConfirmed = await confirm({
+            title: '¿Remover Factura?',
+            message: '¿Está seguro de que desea remover esta factura de la carga actual?',
+            confirmText: 'Sí, remover',
+            cancelText: 'Cancelar',
+            variant: 'danger'
+        });
+        if (isConfirmed) {
+            await onUnassignInvoice(invId);
+        }
+    };
+
+    const handleDeleteRemesaClick = async (remesaId: string) => {
+        const isConfirmed = await confirm({
+            title: '¿Eliminar Remesa?',
+            message: 'Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar esta remesa?',
+            confirmText: 'Sí, eliminar',
+            cancelText: 'Cancelar',
+            variant: 'danger'
+        });
+        if (isConfirmed) {
+            await onDeleteRemesa(remesaId);
+        }
     };
 
     const getAssignedInvoices = (vehicleId: string) => {
@@ -194,7 +223,7 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                                                 {assignedInvoices.map(inv => (
                                                     <li key={inv.id} className="flex justify-between items-center group p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700/50">
                                                         <span>Factura #{inv.invoiceNumber}</span>
-                                                        <button onClick={async () => await onUnassignInvoice(inv.id)} className="text-red-500 hover:text-red-700 transition-colors p-1" title="Remover">
+                                                        <button onClick={() => handleUnassignClick(inv.id)} className="text-red-500 hover:text-red-700 transition-colors p-1" title="Remover">
                                                             <XIcon className="w-4 h-4"/>
                                                         </button>
                                                     </li>
@@ -227,9 +256,7 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                                                         <td className="px-2 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">{rem.totalAmount.toLocaleString('es-VE')} Bs.</td>
                                                         <td className="px-2 py-2 text-right space-x-1">
                                                             <Button size="sm" variant="secondary" onClick={() => handleOpenManifestModal(rem)}><EyeIcon className="w-4 h-4"/></Button>
-                                                            {permissions['remesas.delete'] && <Button size="sm" variant="danger" onClick={async () => {
-                                                                await onDeleteRemesa(rem.id);
-                                                            }}><TrashIcon className="w-4 h-4"/></Button>}
+                                                            {permissions['remesas.delete'] && <Button size="sm" variant="danger" onClick={() => handleDeleteRemesaClick(rem.id)}><TrashIcon className="w-4 h-4"/></Button>}
                                                         </td>
                                                     </tr>
                                                 ))}

@@ -12,6 +12,7 @@ import GenerarDeudaProduccionModal from './GenerarDeudaProduccionModal';
 import ReciboPagoAsociadoModal from './ReciboPagoAsociadoModal';
 import { useData } from '../../contexts/DataContext';
 import { useConfig } from '../../contexts/ConfigContext';
+import { useConfirm } from '../../contexts/ConfirmationContext';
 
 interface AsociadosPagosViewProps {
     asociados: Asociado[];
@@ -31,7 +32,13 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
     const { vehicles, remesas, invoices } = useData();
     const { shippingTypes } = useConfig();
 
-    const [selectedAsociadoId, setSelectedAsociadoId] = useState<string>('');
+    const [selectedAsociadoId, setSelectedAsociadoId] = useState<string>(() => {
+        const hash = window.location.hash;
+        if (hash.startsWith('#asociados-pagos/')) {
+            return hash.split('/')[1] || '';
+        }
+        return '';
+    });
     const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
     const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
     const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
@@ -40,6 +47,8 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
     const [isDeudaProduccionModalOpen, setIsDeudaProduccionModalOpen] = useState(false);
     const [viewReciboModalOpen, setViewReciboModalOpen] = useState(false);
     const [selectedRecibo, setSelectedRecibo] = useState<ReciboPagoAsociado | null>(null);
+
+    const { confirm } = useConfirm();
 
     const meses = [
         { value: '01', label: 'Enero' },
@@ -67,23 +76,9 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
             return { pagosPendientes: [], recibosAsociado: [], totalDeuda: 0 };
         }
         
-        // Filtramos estrictamente por asociado y el periodo seleccionado
-        const misPagos = pagos.filter(p => {
-            if (String(p.asociadoId) !== String(selectedAsociadoId)) return false;
-            
-            const dateToUse = p.createdAt || p.fecha;
-            if (!dateToUse) return false;
-            
-            const date = new Date(dateToUse);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            
-            return String(year) === selectedYear && month === selectedMonth;
-        });
-        
-        // REGLA: Solo lo que está en 'Pendiente' va a la lista de deudas y al saldo deudor
-        const pendientes = misPagos
-            .filter(p => p.status === 'Pendiente')
+        // REGLA: Solo lo que está en 'Pendiente' va a la lista de deudas y al saldo deudor, sin importar el mes
+        const pendientes = pagos
+            .filter(p => String(p.asociadoId) === String(selectedAsociadoId) && p.status === 'Pendiente')
             .sort((a, b) => (String(a.id) > String(b.id) ? -1 : 1));
         
         const misRecibos = recibos
@@ -250,7 +245,16 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                                                     onClick={async (e) => {
                                                         e.stopPropagation();
                                                         e.preventDefault();
-                                                        await onDeletePago(p.id);
+                                                        const isConfirmed = await confirm({
+                                                            title: '¿Eliminar Deuda?',
+                                                            message: 'Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar esta deuda?',
+                                                            confirmText: 'Sí, eliminar',
+                                                            cancelText: 'Cancelar',
+                                                            variant: 'danger'
+                                                        });
+                                                        if (isConfirmed) {
+                                                            await onDeletePago(p.id);
+                                                        }
                                                     }}
                                                     title="Eliminar Deuda"
                                                 >

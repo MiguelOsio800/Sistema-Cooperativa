@@ -14,38 +14,10 @@ interface EstadisticasAsociadosViewProps {
 const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ asociados, pagos }) => {
-    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
-    const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
-
-    const meses = [
-        { value: '01', label: 'Enero' },
-        { value: '02', label: 'Febrero' },
-        { value: '03', label: 'Marzo' },
-        { value: '04', label: 'Abril' },
-        { value: '05', label: 'Mayo' },
-        { value: '06', label: 'Junio' },
-        { value: '07', label: 'Julio' },
-        { value: '08', label: 'Agosto' },
-        { value: '09', label: 'Septiembre' },
-        { value: '10', label: 'Octubre' },
-        { value: '11', label: 'Noviembre' },
-        { value: '12', label: 'Diciembre' },
-    ];
-
-    const años = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 2 + i));
-    
     const { solventes, deudores, totalDeudaBs, totalDeudaUsd } = useMemo(() => {
         const deudoresMap = new Map<string, { asociado: Asociado, deudaBs: number, deudaUsd: number }>();
         
-        // Filtramos pagos por periodo
-        const filteredPagos = pagos.filter(p => {
-            const dateToUse = p.createdAt || p.fecha;
-            if (!dateToUse) return false;
-            const date = new Date(dateToUse);
-            return String(date.getFullYear()) === selectedYear && String(date.getMonth() + 1).padStart(2, '0') === selectedMonth;
-        });
-
-        filteredPagos.forEach(pago => {
+        pagos.forEach(pago => {
             if (pago.status === 'Pendiente') {
                 if (!deudoresMap.has(pago.asociadoId)) {
                     const asociado = asociados.find(a => a.id === pago.asociadoId);
@@ -97,23 +69,6 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <CardTitle>Estadísticas de Pagos de Asociados</CardTitle>
-                        <div className="flex items-center gap-2">
-                            <FilterIcon className="w-4 h-4 text-gray-400" />
-                            <select 
-                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                                value={selectedMonth}
-                                onChange={(e) => setSelectedMonth(e.target.value)}
-                            >
-                                {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                            </select>
-                            <select 
-                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                                value={selectedYear}
-                                onChange={(e) => setSelectedYear(e.target.value)}
-                            >
-                                {años.map(a => <option key={a} value={a}>{a}</option>)}
-                            </select>
-                        </div>
                     </div>
                 </CardHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 items-center">
@@ -175,8 +130,13 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
                     </CardHeader>
                     <ul className="space-y-2 max-h-96 overflow-y-auto pr-2">
                         {deudores.map(({ asociado, deudaBs, deudaUsd }) => (
-                            <li key={asociado.id} className="p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-md text-sm flex justify-between items-center">
-                                <span>{asociado.nombre}</span>
+                            <li 
+                                key={asociado.id} 
+                                className="p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-md text-sm flex justify-between items-center cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors"
+                                onClick={() => window.location.hash = `asociados-pagos/${asociado.id}`}
+                                title={`Ir a pagos de ${asociado.nombre}`}
+                            >
+                                <span className="font-medium text-yellow-900 dark:text-yellow-100">{asociado.nombre}</span>
                                 <div className="text-right">
                                     <span className="font-bold text-yellow-900 dark:text-yellow-100 block">{formatCurrency(deudaBs)}</span>
                                     <span className="text-xs text-yellow-800/70 dark:text-yellow-200/70 block">${deudaUsd.toFixed(2)} USD</span>
