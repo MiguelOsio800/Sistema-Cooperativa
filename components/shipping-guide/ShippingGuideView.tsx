@@ -4,7 +4,7 @@ import { Invoice, Client, Category, Office, ShippingType, PaymentMethod, Company
 import InvoiceForm from '../invoices/InvoiceForm';
 
 interface ShippingGuideViewProps {
-    onSaveInvoice: (invoice: Omit<Invoice, 'status' | 'paymentStatus' | 'shippingStatus'>) => Promise<Invoice | null>;
+    onSaveInvoice: (invoice: Omit<Invoice, 'status' | 'shippingStatus'>) => Promise<Invoice | null>;
     categories: Category[];
     clients: Client[];
     offices: Office[];

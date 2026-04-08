@@ -5,6 +5,7 @@ import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import { PlusIcon, EyeIcon, TrashIcon, ClipboardDocumentListIcon, XIcon, PlayIcon, FileTextIcon } from '../icons/Icons';
 import Select from '../ui/Select';
+import AsociadoSearchInput from '../asociados/AsociadoSearchInput';
 import RemesaDocumentModal from './RemesaDocumentModal';
 import { calculateInvoiceChargeableWeight } from '../../utils/financials';
 import AssignInvoiceModal from '../flota/AssignInvoiceModal';
@@ -166,10 +167,11 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Seleccione un asociado para ver sus vehículos, asignar cargas y generar remesas.</p>
                 </CardHeader>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                     <Select label="Seleccionar Asociado" value={selectedAsociadoId} onChange={e => setSelectedAsociadoId(e.target.value)}>
-                        <option value="">-- Elija un Asociado --</option>
-                        {asociados.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-                    </Select>
+                     <AsociadoSearchInput 
+                        asociados={asociados} 
+                        value={selectedAsociadoId} 
+                        onAsociadoSelect={a => setSelectedAsociadoId(a.id)} 
+                    />
                     <Input label="Desde" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                     <Input label="Hasta" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                 </div>

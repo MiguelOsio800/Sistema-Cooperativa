@@ -300,7 +300,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
 
                         <div className="bg-gray-50 border border-gray-200 p-2 mb-4 text-[10px]">
                             <div className="grid grid-cols-3 gap-2 mb-2">
-                                <div><span className="font-bold">Oficina Destino:</span> {destOffice?.name || 'N/A'}</div>
+                                <div><span className="font-bold">Destino:</span> {destOffice?.name || invoice.guide.destinationOfficeId || 'N/A'}</div>
                                 <div className="col-span-2"><span className="font-bold">Destino Específico / Ruta:</span> {invoice.guide.specificDestination || 'N/A'}</div>
                             </div>
                             <div className="grid grid-cols-4 gap-2">

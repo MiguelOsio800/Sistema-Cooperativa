@@ -7,6 +7,7 @@ import Button from '../ui/Button';
 import { PlusIcon, ReceiptIcon, ArrowLeftIcon, UserIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, EyeIcon, TrashIcon, CheckCircleIcon } from '../icons/Icons';
 import PagoAsociadoFormModal from './PagoAsociadoFormModal';
 import RegistrarPagoModal from './RegistrarPagoModal';
+import AsociadoSearchInput from './AsociadoSearchInput';
 import Select from '../ui/Select';
 import GenerarDeudaProduccionModal from './GenerarDeudaProduccionModal';
 import ReciboPagoAsociadoModal from './ReciboPagoAsociadoModal';
@@ -152,10 +153,13 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                         </div>
                     </div>
                     <div className="max-w-md mt-2">
-                        <Select label="" value={selectedAsociadoId} onChange={e => setSelectedAsociadoId(e.target.value)}>
-                            <option value="">-- Busque y seleccione un asociado --</option>
-                            {asociados.map(a => <option key={a.id} value={a.id}>{a.nombre} - {a.codigo}</option>)}
-                        </Select>
+                        <AsociadoSearchInput 
+                            asociados={asociados} 
+                            value={selectedAsociadoId} 
+                            onAsociadoSelect={a => setSelectedAsociadoId(a.id)} 
+                            label=""
+                            placeholder="Busque y seleccione un asociado..."
+                        />
                     </div>
                 </CardHeader>
 

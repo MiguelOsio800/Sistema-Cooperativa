@@ -32,7 +32,7 @@ interface AsociadosGestionViewProps {
 }
 
 const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
-    const { permissions, onSaveAsociado, onDeleteAsociado, onSavePago } = props;
+    const { permissions, onSaveAsociado, onDeleteAsociado, onSavePago, asociados } = props;
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedAsociado, setSelectedAsociado] = useState<Asociado | null>(null);
     
@@ -49,24 +49,39 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
 
     const { addToast } = useToast();
 
-    const fetchAsociados = useCallback(async () => {
+    const fetchAsociados = useCallback(() => {
         setIsLoading(true);
         try {
-            const res = await apiFetch<any>(`/asociados?page=${page}&limit=${limit}&search=${encodeURIComponent(searchTerm)}`);
-            if (res && res.data) {
-                setAsociadosData(res.data);
-                setTotal(res.total || 0);
-            } else if (Array.isArray(res)) {
-                setAsociadosData(res);
-                setTotal(res.length);
+            let filtered = [...asociados];
+            
+            if (searchTerm) {
+                const lowerSearch = searchTerm.toLowerCase();
+                filtered = filtered.filter(a => 
+                    (a.codigo && a.codigo.toLowerCase().includes(lowerSearch)) ||
+                    (a.nombre && a.nombre.toLowerCase().includes(lowerSearch)) ||
+                    (a.cedula && a.cedula.toLowerCase().includes(lowerSearch))
+                );
             }
+            
+            // Sort by codigo by default
+            filtered.sort((a, b) => {
+                const codA = a.codigo || '';
+                const codB = b.codigo || '';
+                return codA.localeCompare(codB);
+            });
+
+            const startIndex = (page - 1) * limit;
+            const paginated = filtered.slice(startIndex, startIndex + limit);
+            
+            setAsociadosData(paginated);
+            setTotal(filtered.length);
         } catch (error) {
-            console.error('Error fetching asociados:', error);
+            console.error('Error processing asociados:', error);
             addToast({ type: 'error', title: 'Error', message: 'No se pudieron cargar los asociados.' });
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, searchTerm, addToast]);
+    }, [asociados, page, limit, searchTerm, addToast]);
 
     useEffect(() => {
         fetchAsociados();

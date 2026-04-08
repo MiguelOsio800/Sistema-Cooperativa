@@ -128,7 +128,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             if (isAdmin || perms['asociados.view']) {
-                const asocsResponse = await fetchSafe<any>('/asociados', { data: [], total: 0 });
+                const asocsResponse = await fetchSafe<any>('/asociados?limit=1000', { data: [], total: 0 });
                 const asocs = Array.isArray(asocsResponse) ? asocsResponse : (asocsResponse.data || []);
                 setAsociados(asocs);
                 promises.push(fetchSafe<ReciboPagoAsociado[]>('/asociados/recibos', []).then(setRecibosPagoAsociados));
@@ -161,16 +161,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             delete payload.id;
         }
 
-        const saved = await apiFetch<T>(url, { method, body: JSON.stringify(payload) });
-        stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === saved.id ? saved : i) : [saved, ...prev]);
-        
-        if (currentUser) {
-            const action = isUpdating ? `ACTUALIZAR_${entityName}` : `CREAR_${entityName}`;
-            const details = `${isUpdating ? 'Actualizó' : 'Creó'} ${entityName.toLowerCase()} ${saved.name || saved.id}`;
-            logAction(currentUser, action, details, saved.id);
+        try {
+            const saved = await apiFetch<T>(url, { method, body: JSON.stringify(payload) });
+            stateSetter(prev => isUpdating ? prev.map(i => (i as any).id === saved.id ? saved : i) : [saved, ...prev]);
+            
+            if (currentUser) {
+                const action = isUpdating ? `ACTUALIZAR_${entityName}` : `CREAR_${entityName}`;
+                const details = `${isUpdating ? 'Actualizó' : 'Creó'} ${entityName.toLowerCase()} ${(saved as any).name || (saved as any).nombre || (saved as any).placa || saved.id}`;
+                logAction(currentUser, action, details, saved.id);
+            }
+            
+            addToast({ 
+                type: 'success', 
+                title: `${isUpdating ? 'Actualizado' : 'Creado'}`, 
+                message: `${entityName} guardado correctamente.` 
+            });
+
+            return saved;
+        } catch (error: any) {
+            addToast({ 
+                type: 'error', 
+                title: 'Error', 
+                message: `No se pudo guardar ${entityName.toLowerCase()}: ${error.message}` 
+            });
+            throw error;
         }
-        
-        return saved;
     };
 
     return (
@@ -179,17 +194,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             asociados, certificados, pagosAsociados, recibosPagoAsociados, remesas, asientosManuales, isLoading,
             handleSaveClient: (c) => handleGenericSave(c, '/clients', setClients, 'CLIENTE'),
             handleDeleteClient: async (id) => {
-                const item = clients.find(i => i.id === id);
-                await apiFetch(`/clients/${id}`, { method: 'DELETE' });
-                setClients(p => p.filter(i => i.id !== id));
-                if (currentUser && item) logAction(currentUser, 'ELIMINAR_CLIENTE', `Eliminó cliente ${item.name || item.id}`, id);
+                try {
+                    const item = clients.find(i => i.id === id);
+                    await apiFetch(`/clients/${id}`, { method: 'DELETE' });
+                    setClients(p => p.filter(i => i.id !== id));
+                    if (currentUser && item) logAction(currentUser, 'ELIMINAR_CLIENTE', `Eliminó cliente ${item.name || item.id}`, id);
+                    addToast({ type: 'success', title: 'Eliminado', message: 'Cliente eliminado correctamente.' });
+                } catch (error: any) {
+                    addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar el cliente.' });
+                }
             },
             handleSaveSupplier: (s) => handleGenericSave(s, '/suppliers', setSuppliers, 'PROVEEDOR'),
             handleDeleteSupplier: async (id) => {
-                const item = suppliers.find(i => i.id === id);
-                await apiFetch(`/suppliers/${id}`, { method: 'DELETE' });
-                setSuppliers(p => p.filter(i => i.id !== id));
-                if (currentUser && item) logAction(currentUser, 'ELIMINAR_PROVEEDOR', `Eliminó proveedor ${item.name || item.id}`, id);
+                try {
+                    const item = suppliers.find(i => i.id === id);
+                    await apiFetch(`/suppliers/${id}`, { method: 'DELETE' });
+                    setSuppliers(p => p.filter(i => i.id !== id));
+                    if (currentUser && item) logAction(currentUser, 'ELIMINAR_PROVEEDOR', `Eliminó proveedor ${item.name || item.id}`, id);
+                    addToast({ type: 'success', title: 'Eliminado', message: 'Proveedor eliminado correctamente.' });
+                } catch (error: any) {
+                    addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar el proveedor.' });
+                }
             },
             handleSaveInvoice: async (d) => {
                 const inv = await apiFetch<Invoice>('/invoices', { method: 'POST', body: JSON.stringify(d) });
@@ -343,10 +368,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             },
             handleSaveAsociado: (a) => handleGenericSave(a, '/asociados', setAsociados, 'ASOCIADO'),
             handleDeleteAsociado: async (id) => {
-                const item = asociados.find(i => i.id === id);
-                await apiFetch(`/asociados/${id}`, { method: 'DELETE' });
-                setAsociados(p => p.filter(i => i.id !== id));
-                if (currentUser && item) logAction(currentUser, 'ELIMINAR_ASOCIADO', `Eliminó asociado ${item.nombre}`, id);
+                try {
+                    const item = asociados.find(i => i.id === id);
+                    await apiFetch(`/asociados/${id}`, { method: 'DELETE' });
+                    setAsociados(p => p.filter(i => i.id !== id));
+                    if (currentUser && item) logAction(currentUser, 'ELIMINAR_ASOCIADO', `Eliminó asociado ${item.nombre}`, id);
+                    addToast({ type: 'success', title: 'Eliminado', message: 'Asociado eliminado correctamente.' });
+                } catch (error: any) {
+                    addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar el asociado.' });
+                }
             },
             handleSaveCertificado: async (c) => {
                 const saved = await handleGenericSave(c, '/asociados/certificados', setCertificados, 'CERTIFICADO');
@@ -362,10 +392,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             },
             handleSavePagoAsociado: (p) => handleGenericSave(p, '/asociados/pagos', setPagosAsociados, 'PAGO_ASOCIADO'),
             handleDeletePagoAsociado: async (id) => {
-                const item = pagosAsociados.find(i => i.id === id);
-                await apiFetch(`/asociados/pagos/${id}`, { method: 'DELETE' });
-                setPagosAsociados(p => p.filter(i => i.id !== id));
-                if (currentUser && item) logAction(currentUser, 'ELIMINAR_PAGO_ASOCIADO', `Eliminó pago de asociado ${item.concepto}`, id);
+                try {
+                    const item = pagosAsociados.find(i => i.id === id);
+                    await apiFetch(`/asociados/pagos/${id}`, { method: 'DELETE' });
+                    setPagosAsociados(p => p.filter(i => i.id !== id));
+                    if (currentUser && item) logAction(currentUser, 'ELIMINAR_PAGO_ASOCIADO', `Eliminó pago de asociado ${item.concepto}`, id);
+                    addToast({ type: 'success', title: 'Eliminado', message: 'Deuda eliminada correctamente.' });
+                } catch (error: any) {
+                    addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar la deuda.' });
+                }
             },
             handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados, 'RECIBO_PAGO'),
             handleDeleteRemesa: async (id) => {

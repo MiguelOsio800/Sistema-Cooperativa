@@ -80,6 +80,7 @@ export const SYSTEM_REPORTS: Report[] = [
     { id: 'cuadre_caja', title: 'Reporte de Cuadre de Caja' },
     { id: 'reporte_kilogramos', title: 'Reporte de Kilogramos Movilizados' },
     { id: 'reporte_envios_vehiculo', title: 'Reporte de Envíos por Vehículo' },
+    { id: 'reporte_comisiones', title: 'Reporte de Comisiones' },
 ];
 
 export const OFFICES: string[] = ['Caracas - San Agustín', 'Valencia - San Blas', 'Barquisimeto - Centro'];
