@@ -311,7 +311,6 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                 {/* Summary Section */}
                                 <div className="grid grid-cols-2 gap-8 mt-4 text-black text-[10px]">
                                     <div className="pr-4">
-                                        <div className="flex justify-between py-1 text-black"><span className="text-black">Destino</span><span className="text-black">{formatCurrency(totalDestino)}</span></div>
                                         <div className="flex justify-between py-1 text-black"><span className="text-black">Coop.</span><span className="text-black">{formatCurrency(financials.pagado.favorCooperativa + financials.destino.favorCooperativa)}</span></div>
                                         <div className="flex justify-between py-1 text-black"><span className="text-black">Seguro</span><span className="text-black">{formatCurrency(financials.pagado.seguro + financials.destino.seguro)}</span></div>
                                         <div className="flex justify-between py-1 text-black"><span className="text-black">Ipostel</span><span className="text-black">{formatCurrency(financials.pagado.ipostel + financials.destino.ipostel)}</span></div>
@@ -329,14 +328,24 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                         </div>
                                         <div className="flex justify-between py-2 border-t-2 border-black font-bold text-[11px] mt-2 text-black bg-gray-50 p-1">
                                             <span className="text-black">
-                                                {saldoDiferencia < 0 
-                                                    ? "Saldo a pagar a la Cooperativa (Deuda del Socio):" 
-                                                    : saldoDiferencia > 0 
-                                                        ? "Saldo a favor del Socio:" 
-                                                        : "Saldo neutral (Sin diferencia):"}
+                                                {totalDestino === 0 
+                                                    ? "Saldo a favor del Socio:" 
+                                                    : totalPagado === 0 
+                                                        ? "Saldo a pagar a la Cooperativa:" 
+                                                        : saldoDiferencia < 0 
+                                                            ? "Saldo a pagar a la Cooperativa:" 
+                                                            : saldoDiferencia > 0 
+                                                                ? "Saldo a favor del Socio:" 
+                                                                : "Saldo neutral:"}
                                             </span>
-                                            <span className={`text-black ${saldoDiferencia < 0 ? 'text-red-600' : saldoDiferencia > 0 ? 'text-primary-600' : ''}`}>
-                                                {formatCurrency(Math.abs(saldoDiferencia))}
+                                            <span className={`text-black ${totalPagado === 0 || saldoDiferencia < 0 ? 'text-red-600' : ''}`}>
+                                                {totalDestino === 0 
+                                                    ? formatCurrency(financials.pagado.favorAsociado + financials.destino.favorAsociado)
+                                                    : totalPagado === 0
+                                                        ? `-${formatCurrency(financials.pagado.favorCooperativa + financials.destino.favorCooperativa)}`
+                                                        : saldoDiferencia < 0
+                                                            ? `-${formatCurrency(Math.abs(saldoDiferencia))}`
+                                                            : formatCurrency(saldoDiferencia)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">

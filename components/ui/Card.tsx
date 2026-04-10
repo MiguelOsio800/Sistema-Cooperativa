@@ -7,8 +7,9 @@ interface CardProps {
 }
 
 const Card: React.FC<CardProps> = ({ children, className = '' }) => {
+    const overflowClass = className.includes('overflow-') ? '' : 'overflow-hidden';
     return (
-        <div className={`bg-white dark:bg-gray-800/50 rounded-xl shadow-md overflow-hidden ${className}`}>
+        <div className={`bg-white dark:bg-gray-800/50 rounded-xl shadow-md ${overflowClass} ${className}`}>
             <div className="p-6">
                 {children}
             </div>

@@ -56,7 +56,7 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
 
                 {/* Asociado Info */}
                 <div className="my-6">
-                    <h3 className="font-semibold text-lg text-black">Recibido de:</h3>
+                    <h3 className="font-semibold text-lg text-black">{recibo.montoTotalBs < 0 ? 'Pagado a:' : 'Recibido de:'}</h3>
                     <div className="mt-2 p-3 border rounded-md bg-gray-50 grid grid-cols-2 gap-x-4 gap-y-1">
                         <div className="text-black"><strong>Asociado:</strong> {asociado.nombre}</div>
                         <div className="text-black"><strong>Código:</strong> {asociado.codigo}</div>
@@ -79,7 +79,7 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
                             {pagosCubiertos.map(p => (
                                 <tr key={p.id} className="border-b">
                                     <td className="px-3 py-2 text-black">{p.concepto}</td>
-                                    <td className="px-3 py-2 text-right font-mono text-black">{formatCurrency(p.montoBs)}</td>
+                                    <td className="px-3 py-2 text-right font-mono text-black">{formatCurrency(Math.abs(p.montoBs))}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -112,14 +112,14 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
                     <div className="w-full max-w-xs space-y-2">
                         <div className="flex justify-between items-center bg-gray-800 text-white p-3 rounded-lg">
                             <span className="text-lg font-bold">MONTO TOTAL:</span>
-                            <span className="text-xl font-extrabold">{formatCurrency(recibo.montoTotalBs)}</span>
+                            <span className="text-xl font-extrabold">{formatCurrency(Math.abs(recibo.montoTotalBs))}</span>
                         </div>
                         {recibo.tasaBcv > 0 && (
                             <div className="flex flex-col items-end px-2 text-sm text-gray-600">
                                 <div className="flex justify-between w-full">
                                     <span>Equivalente en USD:</span>
                                     <span className="font-bold text-black">
-                                        $ {(recibo.montoTotalUsd || (recibo.montoTotalBs / recibo.tasaBcv)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        $ {Math.abs(recibo.montoTotalUsd || (recibo.montoTotalBs / recibo.tasaBcv)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                 </div>
                                 <div className="text-[10px] italic">

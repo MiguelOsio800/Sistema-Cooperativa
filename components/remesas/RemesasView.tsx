@@ -161,7 +161,7 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
 
     return (
         <div className="space-y-6">
-            <Card>
+            <Card className="overflow-visible z-10 relative">
                 <CardHeader>
                     <CardTitle>Gestión de Remesas</CardTitle>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Seleccione un asociado para ver sus vehículos, asignar cargas y generar remesas.</p>

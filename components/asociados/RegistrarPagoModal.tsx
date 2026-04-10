@@ -47,7 +47,11 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
         return detallesPago.reduce((sum, d) => sum + d.monto, 0);
     }, [detallesPago]);
 
-    const diferencia = totalAPagar - totalPagado;
+    // If totalAPagar is negative (Coop owes Socio), we expect the user to enter a positive payment amount.
+    // We compare the absolute values to see if the payment matches the debt.
+    const isCoopDebt = totalAPagar < 0;
+    const expectedPayment = Math.abs(totalAPagar);
+    const diferencia = expectedPayment - totalPagado;
 
     useEffect(() => {
         if (isOpen) {
@@ -59,9 +63,9 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
     useEffect(() => {
         // When total to pay changes, update the first payment detail amount automatically
         if (detallesPago.length === 1) {
-            setDetallesPago([{ ...detallesPago[0], monto: totalAPagar }]);
+            setDetallesPago([{ ...detallesPago[0], monto: expectedPayment }]);
         }
-    }, [totalAPagar]);
+    }, [expectedPayment]);
 
     const handleTogglePago = (pagoId: string) => {
         setSelectedPagoIds(prev =>
@@ -127,11 +131,11 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
                                     <span>{pago.concepto}</span>
                                     <div className="text-right">
                                         <span className="font-semibold block">
-                                            {formatCurrency((pago.tasaCambio && pago.montoUsd) ? (pago.montoUsd * pago.tasaCambio) : pago.montoBs)}
+                                            {formatCurrency(Math.abs((pago.tasaCambio && pago.montoUsd) ? (pago.montoUsd * pago.tasaCambio) : pago.montoBs))}
                                         </span>
                                         {pago.tasaCambio && pago.montoUsd && (
                                             <span className="text-[10px] text-gray-500 block">
-                                                ${pago.montoUsd.toFixed(2)} x {pago.tasaCambio}
+                                                ${Math.abs(pago.montoUsd).toFixed(2)} x {pago.tasaCambio}
                                             </span>
                                         )}
                                     </div>
@@ -174,8 +178,8 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
             {/* Totales y Submit */}
             <div className="mt-6 pt-4 border-t dark:border-gray-700 space-y-2">
                 <div className="flex justify-between font-semibold text-lg">
-                    <span>Total a Pagar:</span>
-                    <span>{formatCurrency(totalAPagar)}</span>
+                    <span>{isCoopDebt ? 'Total a Pagar al Socio:' : 'Total a Pagar a la Coop:'}</span>
+                    <span className={isCoopDebt ? 'text-red-600' : ''}>{formatCurrency(expectedPayment)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg">
                     <span>Total Pagado:</span>
