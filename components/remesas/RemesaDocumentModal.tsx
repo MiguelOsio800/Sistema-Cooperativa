@@ -39,10 +39,36 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
     const totalPagado = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-pagado').reduce((sum, inv) => sum + inv.totalAmount, 0);
     const totalDestino = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-destino').reduce((sum, inv) => sum + inv.totalAmount, 0);
 
+    const saldoDiferencia = totalPagado - totalDestino;
+
     const sumaTotalAbsoluta = totalPagado + totalDestino;
         
     const currentRate = remesa.exchangeRate || companyInfo.bcvRate || 1;
     const referenciaDolares = currentRate > 0 ? (sumaTotalAbsoluta / currentRate).toFixed(2) : '0.00';
+
+    const getOfficeName = (id: string) => offices.find(o => o.id === id)?.name || id;
+
+    // Grouping logic for invoices
+    type RenderItem = { type: 'header', title: string } | { type: 'invoice', invoice: Invoice };
+
+    const renderItems = useMemo(() => {
+        const items: RenderItem[] = [];
+        const groups: { [key: string]: Invoice[] } = {};
+        
+        remesaInvoices.forEach(inv => {
+            const officeName = getOfficeName(inv.guide.destinationOfficeId);
+            if (!groups[officeName]) groups[officeName] = [];
+            groups[officeName].push(inv);
+        });
+
+        Object.keys(groups).sort().forEach(zone => {
+            items.push({ type: 'header', title: zone });
+            groups[zone].forEach(inv => {
+                items.push({ type: 'invoice', invoice: inv });
+            });
+        });
+        return items;
+    }, [remesaInvoices, offices]);
 
     // Totals for the top table
     const topTableTotals = remesaInvoices.reduce((acc, inv) => {
@@ -51,7 +77,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
         return acc;
     }, { pza: 0 });
 
-    // Helper to chunk invoices for pagination
+    // Helper to chunk items for pagination
     const chunkArray = (arr: any[], size: number) => {
         const chunks = [];
         for (let i = 0; i < arr.length; i += size) {
@@ -61,14 +87,14 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
     };
 
     const ITEMS_PER_PAGE = 25;
-    const invoiceChunks = chunkArray(remesaInvoices, ITEMS_PER_PAGE);
+    const itemChunks = chunkArray(renderItems, ITEMS_PER_PAGE);
 
     const handleDownloadPdf = async () => {
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
 
-        for (let i = 0; i < invoiceChunks.length; i++) {
+        for (let i = 0; i < itemChunks.length; i++) {
             const pageId = `remesa-page-${i}`;
             const input = document.getElementById(pageId);
             if (!input) continue;
@@ -94,7 +120,6 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
 
     if (!isOpen) return null;
 
-    const getOfficeName = (id: string) => offices.find(o => o.id === id)?.name || id;
     const originOfficeName = remesaInvoices.length > 0 ? getOfficeName(remesaInvoices[0].guide.originOfficeId) : '';
 
     return (
@@ -102,7 +127,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
             {/* Wrapper to handle scrolling for the fixed-width document */}
             <div className="flex flex-col items-center bg-gray-100 dark:bg-gray-800 py-4 rounded-lg overflow-auto max-h-[75vh] gap-4">
                 
-                {invoiceChunks.map((chunk, pageIndex) => (
+                {itemChunks.map((chunk, pageIndex) => (
                     <div 
                         key={pageIndex}
                         id={`remesa-page-${pageIndex}`}
@@ -128,7 +153,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                 <p className="text-black"><strong>LIQUIDACION #:</strong> {remesa.remesaNumber}</p>
                                 <p className="text-black"><strong>Emisión:</strong> {new Date().toLocaleDateString('es-VE')}</p>
                                 <p className="text-black"><strong>Hora:</strong> {new Date().toLocaleTimeString('es-VE')}</p>
-                                <p className="text-black"><strong>Página:</strong> {pageIndex + 1} de {invoiceChunks.length}</p>
+                                <p className="text-black"><strong>Página:</strong> {pageIndex + 1} de {itemChunks.length}</p>
                             </div>
                         </div>
 
@@ -151,18 +176,28 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                             <thead className="border-t-2 border-b-2 border-black">
                                 <tr>
                                     <th className="text-left py-1 text-black w-[10%]">FACTURA</th>
-                                    <th className="text-left py-1 text-black w-[12%]">ORIGEN</th>
                                     <th className="text-center py-1 text-black w-[4%]">TP</th>
-                                    <th className="text-left py-1 text-black w-[18%] pl-1">DESTINATARIO</th>
+                                    <th className="text-left py-1 text-black w-[22%] pl-1">DESTINATARIO</th>
                                     <th className="text-center py-1 text-black w-[5%]">Pzas</th>
-                                    <th className="text-left pl-2 py-1 text-black w-[21%]">ENCOMIENDA</th>
+                                    <th className="text-left pl-2 py-1 text-black w-[29%]">ENCOMIENDA</th>
                                     <th className="text-right py-1 text-black w-[10%]">PAGADO</th>
                                     <th className="text-right py-1 text-black w-[10%]">CREDITO</th>
                                     <th className="text-right py-1 text-black w-[10%]">DESTINO</th>
                                 </tr>
                             </thead>
                             <tbody className="text-black">
-                                {chunk.map(inv => {
+                                {chunk.map((item, idx) => {
+                                    if (item.type === 'header') {
+                                        return (
+                                            <tr key={`header-${idx}`} className="bg-gray-100">
+                                                <td colSpan={8} className="py-1 px-2 font-bold text-black border-b border-black uppercase tracking-wider">
+                                                    ZONA: {item.title}
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    const inv = item.invoice;
                                     const totalPackages = inv.guide.merchandise.reduce((sum, m) => sum + m.quantity, 0);
                                     const desc = inv.guide.merchandise[0]?.description || 'PAQUETE';
                                     const receiverName = inv.guide.receiver?.name || 'N/A';
@@ -173,7 +208,6 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                     return (
                                         <tr key={inv.id} className="text-black border-b border-gray-100 last:border-0">
                                             <td className="py-1 text-black font-mono">{inv.invoiceNumber.replace('F-','')}</td>
-                                            <td className="py-1 text-black truncate pr-1">{getOfficeName(inv.guide.originOfficeId).split(' ')[0]}</td>
                                             <td className="py-1 text-center text-black font-bold">{tpCode}</td>
                                             <td className="py-1 text-black truncate pl-1 uppercase" style={{ fontSize: '9px' }}>{receiverName}</td>
                                             <td className="py-1 text-center text-black">{totalPackages}</td>
@@ -185,10 +219,10 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                     );
                                 })}
                             </tbody>
-                            {pageIndex === invoiceChunks.length - 1 && (
+                            {pageIndex === itemChunks.length - 1 && (
                                 <tfoot className="border-t border-black font-bold text-black">
                                     <tr>
-                                        <td colSpan={4} className="py-1 text-right text-black pr-2">Total piezas</td>
+                                        <td colSpan={3} className="py-1 text-right text-black pr-2">Total piezas</td>
                                         <td className="py-1 text-center text-black">{topTableTotals.pza}</td>
                                         <td className="py-1"></td>
                                         <td className="py-1 text-right text-black">{formatCurrency(totalPagado)}</td>
@@ -200,7 +234,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                         </table>
 
                         {/* Totals and Signatures - Only on the last page */}
-                        {pageIndex === invoiceChunks.length - 1 && (
+                        {pageIndex === itemChunks.length - 1 && (
                             <>
                                 {/* Subtotals Lines */}
                                 <div className="flex justify-between border-b border-dotted border-black py-1 font-bold text-black mt-2 text-[10px]">
@@ -294,8 +328,16 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                             <span className="text-black">{formatCurrency(financials.pagado.favorAsociado + financials.destino.favorAsociado)}</span>
                                         </div>
                                         <div className="flex justify-between py-2 border-t-2 border-black font-bold text-[11px] mt-2 text-black bg-gray-50 p-1">
-                                            <span className="text-black">Cuenta por cobrar al asociado:</span>
-                                            <span className="text-black">0.00</span>
+                                            <span className="text-black">
+                                                {saldoDiferencia < 0 
+                                                    ? "Saldo a pagar a la Cooperativa (Deuda del Socio):" 
+                                                    : saldoDiferencia > 0 
+                                                        ? "Saldo a favor del Socio:" 
+                                                        : "Saldo neutral (Sin diferencia):"}
+                                            </span>
+                                            <span className={`text-black ${saldoDiferencia < 0 ? 'text-red-600' : saldoDiferencia > 0 ? 'text-primary-600' : ''}`}>
+                                                {formatCurrency(Math.abs(saldoDiferencia))}
+                                            </span>
                                         </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">
                                             <span className="text-black">Referencia $:</span>

@@ -20,6 +20,7 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
     const [lastEdited, setLastEdited] = useState<'bs' | 'usd'>('bs');
 
     const bcvRate = companyInfo.bcvRate || 1;
+    const currentRate = formData.tasaCambio ?? bcvRate;
 
     useEffect(() => {
         if (isOpen) {
@@ -41,16 +42,16 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
     }, [pago, isOpen, asociadoId, bcvRate]);
 
     useEffect(() => {
-        if (lastEdited === 'bs' && typeof montoBs === 'number' && bcvRate > 0) {
-            setMontoUsd(parseFloat((montoBs / bcvRate).toFixed(2)));
+        if (lastEdited === 'bs' && typeof montoBs === 'number' && currentRate > 0) {
+            setMontoUsd(parseFloat((montoBs / currentRate).toFixed(2)));
         }
-    }, [montoBs, bcvRate, lastEdited]);
+    }, [montoBs, currentRate, lastEdited]);
 
     useEffect(() => {
-        if (lastEdited === 'usd' && typeof montoUsd === 'number' && bcvRate > 0) {
-            setMontoBs(parseFloat((montoUsd * bcvRate).toFixed(2)));
+        if (lastEdited === 'usd' && typeof montoUsd === 'number' && currentRate > 0) {
+            setMontoBs(parseFloat((montoUsd * currentRate).toFixed(2)));
         }
-    }, [montoUsd, bcvRate, lastEdited]);
+    }, [montoUsd, currentRate, lastEdited]);
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,14 +69,20 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
         setMontoUsd(e.target.value === '' ? '' : parseFloat(e.target.value));
     };
 
+    const handleTasaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newRate = e.target.value === '' ? 0 : parseFloat(e.target.value);
+        setFormData(prev => ({ ...prev, tasaCambio: newRate }));
+    };
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const rate = formData.tasaCambio || bcvRate;
         const finalData = {
             ...formData,
             montoBs: typeof montoBs === 'number' ? montoBs : 0,
             montoUsd: typeof montoUsd === 'number' ? montoUsd : 0,
-            tasaCambio: formData.tasaCambio || bcvRate,
+            tasaCambio: rate,
             fecha: formData.fecha || new Date().toISOString().split('T')[0]
         };
         onSave(finalData as PagoAsociado);
@@ -92,7 +99,7 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
                         <Input name="fecha" label="Fecha" type="date" value={formData.fecha || ''} onChange={handleChange} required />
                     </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      <div>
                         <Input 
                             label="Importe (Bs.)" 
@@ -111,7 +118,17 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
                             value={montoUsd} 
                             onChange={handleMontoUsdChange}
                         />
-                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">Tasa BCV: {bcvRate}</p>
+                    </div>
+                    <div>
+                        <Input 
+                            label="Tasa BCV" 
+                            type="number" 
+                            step="0.01" 
+                            value={formData.tasaCambio ?? bcvRate} 
+                            onChange={handleTasaChange}
+                            required
+                        />
+                        <p className="text-[10px] text-gray-500 mt-1">Tasa para esta transacción</p>
                     </div>
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -140,7 +140,7 @@ export const calculateDetailedRemesaFinancials = (
         // Flete Puro is the base for distribution
         const fletePuro = total - insuranceCost - ipostel - handling - iva;
 
-        target.flete += total; // The user wants Flete column to be the totalAmount
+        target.flete += fletePuro; 
         target.seguro += insuranceCost;
         target.ipostel += ipostel;
         target.manejo += handling;

@@ -45,7 +45,23 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
     const originOffice = offices?.find(o => o.id === invoice.guide.originOfficeId);
     const destOffice = offices?.find(o => o.id === invoice.guide.destinationOfficeId);
     
-    const financials = useMemo(() => calculateFinancialDetails(invoice.guide, companyInfo), [invoice, companyInfo]);
+    const financials = useMemo(() => {
+        const baseFinancials = calculateFinancialDetails(invoice.guide, companyInfo);
+        
+        const handling = invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : baseFinancials.handling;
+        const ipostel = invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : baseFinancials.ipostel;
+        const total = invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : baseFinancials.total;
+        
+        const subtotal = (baseFinancials.freight - baseFinancials.discount) + baseFinancials.insuranceCost + handling;
+        
+        return {
+            ...baseFinancials,
+            handling,
+            ipostel,
+            subtotal,
+            total
+        };
+    }, [invoice, companyInfo]);
 
     const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const formatUsd = (amount: number) => `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
