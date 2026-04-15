@@ -7,6 +7,7 @@ import Button from '../ui/Button';
 import { PlusIcon, ReceiptIcon, ArrowLeftIcon, UserIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, EyeIcon, TrashIcon, CheckCircleIcon } from '../icons/Icons';
 import PagoAsociadoFormModal from './PagoAsociadoFormModal';
 import RegistrarPagoModal from './RegistrarPagoModal';
+import AsociadoSearchInput from './AsociadoSearchInput';
 import Select from '../ui/Select';
 import GenerarDeudaProduccionModal from './GenerarDeudaProduccionModal';
 import ReciboPagoAsociadoModal from './ReciboPagoAsociadoModal';
@@ -152,10 +153,13 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                         </div>
                     </div>
                     <div className="max-w-md mt-2">
-                        <Select label="" value={selectedAsociadoId} onChange={e => setSelectedAsociadoId(e.target.value)}>
-                            <option value="">-- Busque y seleccione un asociado --</option>
-                            {asociados.map(a => <option key={a.id} value={a.id}>{a.nombre} - {a.codigo}</option>)}
-                        </Select>
+                        <AsociadoSearchInput 
+                            asociados={asociados} 
+                            value={selectedAsociadoId} 
+                            onAsociadoSelect={a => setSelectedAsociadoId(a.id)} 
+                            label=""
+                            placeholder="Busque y seleccione un asociado..."
+                        />
                     </div>
                 </CardHeader>
 
@@ -216,14 +220,18 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                             </CardHeader>
                             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                                 {pagosPendientes.length > 0 ? pagosPendientes.map(p => {
+                                    const isCoopDebt = p.montoBs < 0;
+                                    const displayAmount = Math.abs(p.montoBs);
+                                    const displayUsd = p.montoUsd ? Math.abs(p.montoUsd) : undefined;
+                                    
                                     return (
-                                        <div key={p.id} className="p-3 rounded-md border-l-4 flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500">
+                                        <div key={p.id} className={`p-3 rounded-md border-l-4 flex justify-between items-center ${isCoopDebt ? 'bg-red-50 dark:bg-red-900/30 border-red-500' : 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500'}`}>
                                             <div className="flex-grow">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <p className="font-semibold text-yellow-800 dark:text-yellow-200">{p.concepto}</p>
+                                                        <p className={`font-semibold ${isCoopDebt ? 'text-red-800 dark:text-red-200' : 'text-yellow-800 dark:text-yellow-200'}`}>{p.concepto}</p>
                                                         <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-xs text-yellow-700 dark:text-yellow-300">Fecha: {p.fecha}</span>
+                                                            <span className={`text-xs ${isCoopDebt ? 'text-red-700 dark:text-red-300' : 'text-yellow-700 dark:text-yellow-300'}`}>Fecha: {p.fecha}</span>
                                                             {p.tasaCambio && (
                                                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                                                     Tasa: {p.tasaCambio}
@@ -231,9 +239,9 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <p className="font-bold text-right text-yellow-900 dark:text-yellow-100">
-                                                        {formatCurrency(p.montoBs)}
-                                                        {p.montoUsd && <span className="block text-xs font-normal text-yellow-800/80 dark:text-yellow-200/80">(${p.montoUsd.toFixed(2)})</span>}
+                                                    <p className={`font-bold text-right ${isCoopDebt ? 'text-red-900 dark:text-red-100' : 'text-yellow-900 dark:text-yellow-100'}`}>
+                                                        {formatCurrency(displayAmount)}
+                                                        {displayUsd && <span className={`block text-xs font-normal ${isCoopDebt ? 'text-red-800/80 dark:text-red-200/80' : 'text-yellow-800/80 dark:text-yellow-200/80'}`}>(${displayUsd.toFixed(2)})</span>}
                                                     </p>
                                                 </div>
                                             </div>

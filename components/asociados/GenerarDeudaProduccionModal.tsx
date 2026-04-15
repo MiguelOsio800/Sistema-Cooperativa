@@ -52,38 +52,27 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
         });
 
         let totalFacturado = 0;
-        let totalDebt = 0;
+        let totalPagadoGeneral = 0;
+        let totalDestinoGeneral = 0;
 
         relevantRemesas.forEach(remesa => {
             totalFacturado += remesa.totalAmount;
             
-            // Para cada remesa, calculamos la deuda basada en sus facturas
-            remesa.invoiceIds.forEach(invId => {
-                const invoice = invoices.find(inv => String(inv.id) === String(invId));
-                if (!invoice) return;
-
-                const shippingType = shippingTypes.find(st => String(st.id) === String(invoice.guide.shippingTypeId));
-                const stName = shippingType?.name.toLowerCase() || '';
-
-                let percentage = 0.30; // 30% por defecto (Remesas Normales / No Asociados)
-
-                // Reglas específicas:
-                // Franquicia: 15%
-                // Viaje Expreso / Mudanzas: 15%
-                if (stName.includes('franquicia') || stName.includes('expreso') || stName.includes('mudanza')) {
-                    percentage = 0.15;
-                }
-
-                // Si el asociado es "No Asociado", el usuario dijo 30% para la cooperativa
-                if (asociado.nombre.toLowerCase().includes('no asociado')) {
-                    percentage = 0.30;
-                }
-
-                totalDebt += invoice.totalAmount * percentage;
-            });
+            const remesaInvoices = invoices.filter(inv => remesa.invoiceIds.includes(inv.id));
+            
+            const pagado = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-pagado').reduce((sum, inv) => sum + inv.totalAmount, 0);
+            const destino = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-destino').reduce((sum, inv) => sum + inv.totalAmount, 0);
+            
+            totalPagadoGeneral += pagado;
+            totalDestinoGeneral += destino;
         });
 
-        setCalculation({ total: totalFacturado, debt: totalDebt });
+        // Saldo neto: Destino - Pagado
+        // Si Destino > Pagado (Positivo): El socio le debe a la cooperativa.
+        // Si Pagado > Destino (Negativo): La cooperativa le debe al socio.
+        const netBalance = totalDestinoGeneral - totalPagadoGeneral;
+
+        setCalculation({ total: totalFacturado, debt: netBalance });
     };
     
     const handleSubmit = async (e: React.FormEvent) => {
@@ -104,13 +93,18 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
                 fecha: new Date().toISOString().split('T')[0]
             };
         } else { // Carga
-            if (!calculation || calculation.debt <= 0) {
-                addToast({ type: 'warning', title: 'Cálculo Requerido', message: 'Debe calcular la deuda antes de generarla.' });
+            if (!calculation || calculation.debt === 0) {
+                addToast({ type: 'warning', title: 'Cálculo Requerido', message: 'Debe calcular la deuda antes de generarla o el saldo neto es 0.' });
                 return;
             }
+            
+            const isCoopDebt = calculation.debt < 0;
+            
             newPago = {
                 asociadoId: asociado.id,
-                concepto: `Producción de Carga Semanal (${startDate} al ${endDate})`,
+                concepto: isCoopDebt 
+                    ? `Se le debe al socio por producción (${startDate} al ${endDate})` 
+                    : `Producción de Carga Semanal (${startDate} al ${endDate})`,
                 cuotas: 'Única',
                 montoBs: calculation.debt,
                 montoUsd: calculation.debt / bcvRate,

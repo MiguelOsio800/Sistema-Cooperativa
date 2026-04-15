@@ -7,6 +7,7 @@ import Select from '../ui/Select';
 import FinancialSummary from '../shipping-guide/FinancialSummary';
 import { PlusCircleIcon, TrashIcon, SaveIcon, XCircleIcon, SendIcon } from '../icons/Icons';
 import ClientSearchInput from './ClientSearchInput';
+import DestinationSearchInput from './DestinationSearchInput';
 import { calculateFinancialDetails } from '../../utils/financials';
 import { useToast } from '../ui/ToastProvider';
 import { apiFetch } from '../../utils/api';
@@ -29,7 +30,7 @@ type BaseFormProps = {
 
 type CreateFormProps = BaseFormProps & {
     invoice?: null;
-    onSave: (invoice: Omit<Invoice, 'status' | 'paymentStatus' | 'shippingStatus'>) => Promise<Invoice | null>;
+    onSave: (invoice: Omit<Invoice, 'status' | 'shippingStatus'>) => Promise<Invoice | null>;
 };
 
 type EditFormProps = BaseFormProps & {
@@ -112,24 +113,10 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
     }, [offices, shippingTypes, paymentMethods, categories, invoice, canManageAllOffices, currentUser]);
 
     useEffect(() => {
-        const totalFreight = guide.merchandise.reduce((acc, item) => {
-            const realWeightPerUnit = Number(item.weight) || 0;
-            const volWeightPerUnit = (Number(item.length) * Number(item.width) * Number(item.height)) / 5000;
-            const chargeableWeightPerUnit = Math.max(realWeightPerUnit, volWeightPerUnit);
-            const totalChargeableWeight = chargeableWeightPerUnit * (Number(item.quantity) || 1);
-            return acc + totalChargeableWeight * (companyInfo.costPerKg || 0);
-        }, 0);
-        
-        if (guide.baseFreightAmount !== totalFreight) {
-            setGuide(g => ({...g, baseFreightAmount: totalFreight}));
-        }
-    }, [guide.merchandise, companyInfo.costPerKg]);
-
-    useEffect(() => {
         const newFinancials = calculateFinancialDetails(guide, companyInfo);
         setFinancials(newFinancials);
     }, [guide, companyInfo]);
-    
+
     // Sincronizar Valor Declarado con el Flete si el usuario no ingresa uno manual
     useEffect(() => {
         if (guide.declaredValue !== guide.baseFreightAmount && !guide.hasInsurance) {
@@ -289,6 +276,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                 totalAmount: financials.total,
                 guide: guide,
                 createdByName: creatorName,
+                paymentStatus: guide.paymentType === 'flete-pagado' ? 'Pagada' : 'Pendiente',
                 ...financialData 
             };
         }
@@ -306,7 +294,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         if (invoice) { // Edit mode
             savedInvoice = await (onSave as EditFormProps['onSave'])(invoiceObject as Invoice);
         } else { // Create mode
-            savedInvoice = await (onSave as CreateFormProps['onSave'])(invoiceObject as Omit<Invoice, 'status' | 'paymentStatus' | 'shippingStatus'>);
+            savedInvoice = await (onSave as CreateFormProps['onSave'])(invoiceObject as Omit<Invoice, 'status' | 'shippingStatus'>);
         }
 
         if (savedInvoice) {
@@ -369,7 +357,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
         if (invoice) { // Edit mode
             savedInvoice = await (onSave as EditFormProps['onSave'])(invoiceObject as Invoice);
         } else { // Create mode
-            savedInvoice = await (onSave as CreateFormProps['onSave'])(invoiceObject as Omit<Invoice, 'status' | 'paymentStatus' | 'shippingStatus'>);
+            savedInvoice = await (onSave as CreateFormProps['onSave'])(invoiceObject as Omit<Invoice, 'status' | 'shippingStatus'>);
         }
 
         if (savedInvoice) {
@@ -488,9 +476,12 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                     {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
                                 </Select>
                                 <div className="space-y-4">
-                                    <Select label="Oficina de Destino" value={guide.destinationOfficeId} onChange={e => setGuide(g => ({...g, destinationOfficeId: e.target.value}))} error={errors.destinationOfficeId}>
-                                        {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
-                                    </Select>
+                                    <DestinationSearchInput
+                                        offices={offices}
+                                        value={guide.destinationOfficeId}
+                                        onChange={val => setGuide(g => ({...g, destinationOfficeId: val}))}
+                                        error={errors.destinationOfficeId}
+                                    />
                                     <Input 
                                         label="Destino Específico / Ruta" 
                                         placeholder="Ej: Entrega en domicilio, San Agustín..." 

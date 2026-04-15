@@ -108,6 +108,9 @@ export interface DetailedFinancials {
         favorAsociado: number;
     };
     totalDestino: number; // Total amount to be collected at destination (for reference)
+    saldoFinal: number;
+    conceptoSaldo: 'A pagar a la cooperativa' | 'A pagar al socio' | 'Ceros';
+    modalidadSaldo: 'Destino' | 'Pagado' | 'Iguales';
 }
 
 export const calculateDetailedRemesaFinancials = (
@@ -121,8 +124,13 @@ export const calculateDetailedRemesaFinancials = (
     const result: DetailedFinancials = {
         pagado: { ...init },
         destino: { ...init },
-        totalDestino: 0
+        totalDestino: 0,
+        saldoFinal: 0,
+        conceptoSaldo: 'Ceros',
+        modalidadSaldo: 'Iguales'
     };
+
+    let totalPagado = 0;
 
     const isNoAsociado = asociado?.nombre.toLowerCase().includes('no asociado') || asociado?.nombre.toLowerCase().includes('no asociados');
 
@@ -140,7 +148,7 @@ export const calculateDetailedRemesaFinancials = (
         // Flete Puro is the base for distribution
         const fletePuro = total - insuranceCost - ipostel - handling - iva;
 
-        target.flete += total; // The user wants Flete column to be the totalAmount
+        target.flete += fletePuro; 
         target.seguro += insuranceCost;
         target.ipostel += ipostel;
         target.manejo += handling;
@@ -174,8 +182,31 @@ export const calculateDetailedRemesaFinancials = (
 
         if (inv.guide.paymentType === 'flete-destino') {
             result.totalDestino += total;
+        } else {
+            totalPagado += total;
         }
     });
+
+    // Lógica de negocio para el saldo final
+    if (result.totalDestino > totalPagado) {
+        result.modalidadSaldo = 'Destino';
+        result.conceptoSaldo = 'A pagar a la cooperativa';
+        // Fórmula cruzada: Total Coop Destino - Favor Socio Pagado
+        const totalDestinoCoop = result.destino.favorCooperativa + result.destino.manejo + result.destino.seguro + result.destino.ipostel + result.destino.iva;
+        const rawSaldo = totalDestinoCoop - result.pagado.favorAsociado;
+        result.saldoFinal = -Math.abs(rawSaldo); // Se fuerza a negativo para indicar deuda a la cooperativa
+    } else if (totalPagado > result.totalDestino) {
+        result.modalidadSaldo = 'Pagado';
+        result.conceptoSaldo = 'A pagar al socio';
+        // Fórmula cruzada: Total Coop Pagado - Favor Socio Destino
+        const totalPagadoCoop = result.pagado.favorCooperativa + result.pagado.manejo + result.pagado.seguro + result.pagado.ipostel + result.pagado.iva;
+        const rawSaldo = totalPagadoCoop - result.destino.favorAsociado;
+        result.saldoFinal = Math.abs(rawSaldo); // Se fuerza a positivo para indicar saldo a favor del socio
+    } else {
+        result.modalidadSaldo = 'Iguales';
+        result.conceptoSaldo = 'Ceros';
+        result.saldoFinal = 0;
+    }
 
     return result;
 };
