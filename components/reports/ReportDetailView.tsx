@@ -15,6 +15,8 @@ import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useSystem } from '../../contexts/SystemContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useConfig } from '../../contexts/ConfigContext';
 
 
 interface ReportDetailViewProps {
@@ -28,6 +30,7 @@ interface ReportDetailViewProps {
     vehicles: Vehicle[];
     categories: Category[];
     asociados: Asociado[];
+    shippingTypes: ShippingType[];
 }
 
 const formatCurrency = (amount: number = 0) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -63,8 +66,9 @@ const ReportCompanyHeader: React.FC<{ companyInfo: CompanyInfo, reportTitle: str
     </div>
 );
 
-const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, clients, expenses, offices, companyInfo, paymentMethods, vehicles, asociados }) => {
-    const { currentUser } = useSystem();
+const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, clients, expenses, offices, companyInfo, paymentMethods, vehicles, asociados, shippingTypes }) => {
+    const { currentUser } = useAuth();
+    const { roles } = useConfig();
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -481,7 +485,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 return null;
         }
 
-        return { dataToExport, sheetName, totalsRow, headers, isAoa };
+        return { dataToExport, sheetName, totalsRow, headers, isAoa, sourceData };
     };
 
     const handleExport = () => {
@@ -528,7 +532,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
         const exportData = getExportDataForReport();
         if (!exportData) return;
 
-        const { dataToExport, sheetName, totalsRow, headers, isAoa } = exportData;
+        const { dataToExport, sheetName, totalsRow, headers, isAoa, sourceData } = exportData;
 
         try {
             const pdf = new jsPDF('l', 'pt', 'a4'); // Landscape for better fit
@@ -674,6 +678,95 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         }
                     }
                 });
+
+                if (report.id === 'general_envios') {
+                    let fletePagado = 0;
+                    let fleteDestino = 0;
+                    let credito = 0;
+                    let ipostelTotal = 0;
+                    let seguroTotal = 0;
+                    let manejoTotal = 0;
+                    let mudanza = 0;
+
+                    (sourceData as Invoice[]).forEach(inv => {
+                        const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                        const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
+                        const isMudanza = st?.name.toLowerCase().includes('mudanza');
+
+                        if (isMudanza) {
+                            mudanza += fin.freight;
+                        } else {
+                            if (inv.guide.paymentType === 'flete-pagado') {
+                                fletePagado += fin.freight;
+                            } else if (inv.guide.paymentType === 'flete-destino') {
+                                fleteDestino += fin.freight;
+                            }
+                        }
+                        
+                        ipostelTotal += fin.ipostel;
+                        seguroTotal += fin.insuranceCost;
+                        manejoTotal += fin.handling;
+                    });
+
+                    const empresaPagado = fletePagado * 0.30;
+                    const empresaDestino = fleteDestino * 0.30;
+
+                    const totalGeneral = fletePagado + fleteDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
+                    const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+                    const totalEmpresa = totalGeneral - totalGastosOficina;
+
+                    // @ts-ignore
+                    const finalY = pdf.lastAutoTable?.finalY || currentY + 100;
+                    
+                    const summaryData = [
+                        [{ content: "PARAMETROS", styles: { fontStyle: 'bold', borderBottom: '1px solid black' } }, { content: "PRODUCCIÓN", styles: { fontStyle: 'bold', borderBottom: '1px solid black' } }, { content: "EMPRESA", styles: { fontStyle: 'bold', borderBottom: '1px solid black' } }],
+                        ["FLETE PAGADO", `Bs. ${fletePagado.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `Bs. ${empresaPagado.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                        ["FLETE DESTINO", `Bs. ${fleteDestino.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `Bs. ${empresaDestino.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                        ["CREDITO", `Bs. ${credito.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
+                        ["IPOSTEL", `Bs. ${ipostelTotal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
+                        ["SEGURO", `Bs. ${seguroTotal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
+                        ["MANEJO", `Bs. ${manejoTotal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
+                        ["MUDANZA", `Bs. ${mudanza.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
+                        [{ content: "", colSpan: 3, styles: { minCellHeight: 5 } }],
+                        ["TOTAL GENERAL:", `Bs. ${totalGeneral.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
+                        ["REF $:", refDolares.toFixed(2), ""],
+                        [{ content: "", colSpan: 3, styles: { minCellHeight: 5 } }],
+                        ["TOTAL GASTOS OFICINA:", `Bs. ${totalGastosOficina.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, { content: `${currentUser?.name || 'NOMBRE APELLIDO DEL USUARIO'}\n${roles.find(r => r.id === currentUser?.roleId)?.name || 'OFICINISTA O ROL'}`, styles: { halign: 'center', valign: 'bottom', fontSize: 7, cellPadding: { top: 15 } } }],
+                        [{ content: "", colSpan: 3, styles: { minCellHeight: 5 } }],
+                        ["TOTAL EMPRESA:", `Bs. ${totalEmpresa.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""]
+                    ];
+
+                    autoTable(pdf, {
+                        startY: finalY + 10,
+                        body: summaryData,
+                        theme: 'plain',
+                        styles: { fontSize: 8, cellPadding: 2 },
+                        columnStyles: {
+                            0: { cellWidth: 60 },
+                            1: { cellWidth: 60 },
+                            2: { cellWidth: 60 }
+                        },
+                        didDrawCell: function(data) {
+                            if (data.row.index === 12 && data.column.index === 2) {
+                                // Draw signature line
+                                pdf.setDrawColor(0, 0, 0);
+                                pdf.setLineWidth(0.5);
+                                pdf.line(data.cell.x + 5, data.cell.y + 10, data.cell.x + data.cell.width - 5, data.cell.y + 10);
+                            }
+                            if (data.row.index === 0) {
+                                pdf.setDrawColor(0, 0, 0);
+                                pdf.setLineWidth(0.5);
+                                pdf.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                            }
+                            if (data.row.index === 9 || data.row.index === 14) {
+                                pdf.setDrawColor(0, 0, 0);
+                                pdf.setLineWidth(0.5);
+                                pdf.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+                            }
+                        }
+                    });
+                }
             }
 
             pdf.save(`${sheetName}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -1067,6 +1160,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             let headers: string[] = [];
             let body;
             let footer;
+            let summary = null;
             
             switch (report.id) {
                 case 'general_envios':
@@ -1074,6 +1168,121 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.destinationOfficeId)?.name}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td><td className="px-2 py-2">{inv.paymentStatus}</td><td className="px-2 py-2">{inv.shippingStatus}</td></tr>));
                     const generalTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td><td colSpan={2}></td></tr></tfoot>);
+                    
+                    let fletePagado = 0;
+                    let fleteDestino = 0;
+                    let credito = 0;
+                    let ipostelTotal = 0;
+                    let seguroTotal = 0;
+                    let manejoTotal = 0;
+                    let mudanza = 0;
+
+                    (reportData as Invoice[]).forEach(inv => {
+                        const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                        const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
+                        const isMudanza = st?.name.toLowerCase().includes('mudanza');
+
+                        if (isMudanza) {
+                            mudanza += fin.freight;
+                        } else {
+                            if (inv.guide.paymentType === 'flete-pagado') {
+                                fletePagado += fin.freight;
+                            } else if (inv.guide.paymentType === 'flete-destino') {
+                                fleteDestino += fin.freight;
+                            }
+                        }
+                        
+                        ipostelTotal += fin.ipostel;
+                        seguroTotal += fin.insuranceCost;
+                        manejoTotal += fin.handling;
+                    });
+
+                    const empresaPagado = fletePagado * 0.30;
+                    const empresaDestino = fleteDestino * 0.30;
+
+                    const totalGeneral = fletePagado + fleteDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
+                    const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+                    const totalEmpresa = totalGeneral - totalGastosOficina;
+
+                    summary = (
+                        <div className="mt-8 pt-4 w-full max-w-3xl text-black">
+                            <div className="grid grid-cols-3 gap-4 mb-2 text-sm font-bold border-b-2 border-black pb-2">
+                                <div>PARAMETROS</div>
+                                <div>PRODUCCIÓN</div>
+                                <div>EMPRESA</div>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>FLETE PAGADO</div>
+                                    <div>{formatCurrency(fletePagado)}</div>
+                                    <div>{formatCurrency(empresaPagado)}</div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>FLETE DESTINO</div>
+                                    <div>{formatCurrency(fleteDestino)}</div>
+                                    <div>{formatCurrency(empresaDestino)}</div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>CREDITO</div>
+                                    <div>{formatCurrency(credito)}</div>
+                                    <div></div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>IPOSTEL</div>
+                                    <div>{formatCurrency(ipostelTotal)}</div>
+                                    <div></div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>SEGURO</div>
+                                    <div>{formatCurrency(seguroTotal)}</div>
+                                    <div></div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>MANEJO</div>
+                                    <div>{formatCurrency(manejoTotal)}</div>
+                                    <div></div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>MUDANZA</div>
+                                    <div>{formatCurrency(mudanza)}</div>
+                                    <div></div>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4 pt-4 border-t-2 border-black text-sm">
+                                <div className="grid grid-cols-3 gap-4 mb-2">
+                                    <div>TOTAL GENERAL:</div>
+                                    <div>{formatCurrency(totalGeneral)}</div>
+                                    <div></div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 mb-6">
+                                    <div>REF $:</div>
+                                    <div>{refDolares.toFixed(2)}</div>
+                                    <div></div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 items-end">
+                                    <div>TOTAL GASTOS<br/>OFICINA:</div>
+                                    <div>{formatCurrency(totalGastosOficina)}</div>
+                                    <div className="text-center">
+                                        <div className="border-b border-black w-full mb-2"></div>
+                                        <div className="text-xs uppercase">
+                                            {currentUser?.name || 'NOMBRE APELLIDO DEL USUARIO'}<br/>
+                                            {roles.find(r => r.id === currentUser?.roleId)?.name || 'OFICINISTA O ROL'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4 pt-4 border-t-2 border-black text-sm">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>TOTAL EMPRESA:</div>
+                                    <div>{formatCurrency(totalEmpresa)}</div>
+                                    <div></div>
+                                </div>
+                            </div>
+                        </div>
+                    );
                     break;
                 case 'libro_venta':
                      headers = ["Fecha", "Factura", "Control", "Cliente", "RIF", "Total", "Base", "IVA", "IPOSTEL"];
@@ -1176,6 +1385,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     <div className="pagination-controls mt-4">
                         <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} itemsPerPage={ITEMS_PER_PAGE} />
                     </div>
+                    {summary}
                 </>
             );
         }

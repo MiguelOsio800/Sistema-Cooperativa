@@ -370,7 +370,7 @@ const AppContent: React.FC = () => {
                                     return <div className="text-center p-8 text-gray-500">No tiene permisos para ver este reporte.</div>;
                                 }
                             }
-                            return viewingReport ? <ReportDetailView report={viewingReport} invoices={filteredInvoices} clients={clients} expenses={filteredExpenses} offices={viewableOffices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} /> : <div>Reporte no encontrado</div>;
+                            return viewingReport ? <ReportDetailView report={viewingReport} invoices={filteredInvoices} clients={clients} expenses={filteredExpenses} offices={viewableOffices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} shippingTypes={shippingTypes} /> : <div>Reporte no encontrado</div>;
                         case 'categories': return <CategoryView categories={categories} onSave={handleSaveCategory} onDelete={onDeleteCategory} permissions={userPermissions} />;
                         case 'clientes': return <ClientsView clients={clients} onSave={handleSaveClient} onDelete={handleDeleteClient} permissions={userPermissions} />;
                         case 'proveedores': return <SuppliersView suppliers={suppliers} onSave={handleSaveSupplier} onDelete={handleDeleteSupplier} permissions={userPermissions} />;
