@@ -12,6 +12,8 @@ import { useData } from '../../contexts/DataContext';
 import { apiFetch } from '../../utils/api';
 import ConfirmationModal from '../ui/ConfirmationModal';
 
+import AsociadoSearchInput from './AsociadoSearchInput';
+
 interface AsociadosGestionViewProps {
     asociados: Asociado[];
     onSaveAsociado: (asociado: Asociado) => Promise<void>;
@@ -176,13 +178,12 @@ const AsociadosGestionView: React.FC<AsociadosGestionViewProps> = (props) => {
                         </div>
                     </div>
                     <div className="mt-4 max-w-lg">
-                        <Input 
+                        <AsociadoSearchInput 
+                            asociados={asociados}
+                            value={selectedAsociado?.id || ''}
+                            onAsociadoSelect={handleSelectAsociado}
+                            placeholder="Buscar por código, nombre o cédula..."
                             label=""
-                            id="search-asociados" 
-                            placeholder="Buscar por código, nombre o cédula..." 
-                            value={searchTerm} 
-                            onChange={e => setSearchTerm(e.target.value)} 
-                            icon={<SearchIcon className="w-4 h-4 text-gray-400"/>} 
                         />
                     </div>
                 </CardHeader>

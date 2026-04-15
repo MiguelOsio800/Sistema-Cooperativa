@@ -188,20 +188,20 @@ export const calculateDetailedRemesaFinancials = (
     });
 
     // Lógica de negocio para el saldo final
-    const totalFavorCoop = result.pagado.favorCooperativa + result.destino.favorCooperativa;
-
     if (result.totalDestino > totalPagado) {
         result.modalidadSaldo = 'Destino';
         result.conceptoSaldo = 'A pagar a la cooperativa';
-        // Fórmula exacta solicitada: (Favor Coop TOTAL + Manejo Destino + Seguro Destino + Ipostel Destino) - Favor Soc Destino
-        const rawSaldo = (totalFavorCoop + result.destino.manejo + result.destino.seguro + result.destino.ipostel) - result.destino.favorAsociado;
-        result.saldoFinal = rawSaldo; // Se permite el negativo cuando el socio le debe a la cooperativa
+        // Fórmula cruzada: Total Coop Destino - Favor Socio Pagado
+        const totalDestinoCoop = result.destino.favorCooperativa + result.destino.manejo + result.destino.seguro + result.destino.ipostel + result.destino.iva;
+        const rawSaldo = totalDestinoCoop - result.pagado.favorAsociado;
+        result.saldoFinal = -Math.abs(rawSaldo); // Se fuerza a negativo para indicar deuda a la cooperativa
     } else if (totalPagado > result.totalDestino) {
         result.modalidadSaldo = 'Pagado';
         result.conceptoSaldo = 'A pagar al socio';
-        // Fórmula para Pagado (usando solo el bloque pagado como se solicitó originalmente)
-        const rawSaldo = (result.pagado.favorCooperativa + result.pagado.manejo + result.pagado.seguro + result.pagado.ipostel) - result.pagado.favorAsociado;
-        result.saldoFinal = Math.abs(rawSaldo);
+        // Fórmula cruzada: Total Coop Pagado - Favor Socio Destino
+        const totalPagadoCoop = result.pagado.favorCooperativa + result.pagado.manejo + result.pagado.seguro + result.pagado.ipostel + result.pagado.iva;
+        const rawSaldo = totalPagadoCoop - result.destino.favorAsociado;
+        result.saldoFinal = Math.abs(rawSaldo); // Se fuerza a positivo para indicar saldo a favor del socio
     } else {
         result.modalidadSaldo = 'Iguales';
         result.conceptoSaldo = 'Ceros';

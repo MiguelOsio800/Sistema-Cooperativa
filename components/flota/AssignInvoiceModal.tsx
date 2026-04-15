@@ -18,6 +18,7 @@ interface AssignInvoiceModalProps {
 
 const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose, onAssign, vehicle, availableInvoices, allInvoices, offices }) => {
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const { currentLoadKg, selectedInvoicesWeight, newTotalLoad, isOverloaded } = useMemo(() => {
         // Calculate what is already on the truck
@@ -94,10 +95,19 @@ const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Available Invoices */}
                     <div className="space-y-2">
-                        <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Facturas Disponibles</h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Facturas Disponibles</h3>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Buscar por número..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-3 py-1.5 text-sm border rounded-md focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                        />
                         <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
-                            {availableInvoices.filter(inv => !selectedInvoiceIds.includes(inv.id)).length > 0 ? (
-                                availableInvoices.filter(inv => !selectedInvoiceIds.includes(inv.id)).map(invoice => {
+                            {availableInvoices.filter(inv => !selectedInvoiceIds.includes(inv.id) && inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 ? (
+                                availableInvoices.filter(inv => !selectedInvoiceIds.includes(inv.id) && inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())).map(invoice => {
                                     const weight = calculateInvoiceChargeableWeight(invoice);
                                     return (
                                         <div
