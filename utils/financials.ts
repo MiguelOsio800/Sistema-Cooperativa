@@ -108,6 +108,9 @@ export interface DetailedFinancials {
         favorAsociado: number;
     };
     totalDestino: number; // Total amount to be collected at destination (for reference)
+    saldoFinal: number;
+    conceptoSaldo: 'A pagar a la cooperativa' | 'A pagar al socio' | 'Ceros';
+    modalidadSaldo: 'Destino' | 'Pagado' | 'Iguales';
 }
 
 export const calculateDetailedRemesaFinancials = (
@@ -121,8 +124,13 @@ export const calculateDetailedRemesaFinancials = (
     const result: DetailedFinancials = {
         pagado: { ...init },
         destino: { ...init },
-        totalDestino: 0
+        totalDestino: 0,
+        saldoFinal: 0,
+        conceptoSaldo: 'Ceros',
+        modalidadSaldo: 'Iguales'
     };
+
+    let totalPagado = 0;
 
     const isNoAsociado = asociado?.nombre.toLowerCase().includes('no asociado') || asociado?.nombre.toLowerCase().includes('no asociados');
 
@@ -174,8 +182,31 @@ export const calculateDetailedRemesaFinancials = (
 
         if (inv.guide.paymentType === 'flete-destino') {
             result.totalDestino += total;
+        } else {
+            totalPagado += total;
         }
     });
+
+    // Lógica de negocio para el saldo final
+    const totalFavorCoop = result.pagado.favorCooperativa + result.destino.favorCooperativa;
+
+    if (result.totalDestino > totalPagado) {
+        result.modalidadSaldo = 'Destino';
+        result.conceptoSaldo = 'A pagar a la cooperativa';
+        // Fórmula exacta solicitada: (Favor Coop TOTAL + Manejo Destino + Seguro Destino + Ipostel Destino) - Favor Soc Destino
+        const rawSaldo = (totalFavorCoop + result.destino.manejo + result.destino.seguro + result.destino.ipostel) - result.destino.favorAsociado;
+        result.saldoFinal = rawSaldo; // Se permite el negativo cuando el socio le debe a la cooperativa
+    } else if (totalPagado > result.totalDestino) {
+        result.modalidadSaldo = 'Pagado';
+        result.conceptoSaldo = 'A pagar al socio';
+        // Fórmula para Pagado (usando solo el bloque pagado como se solicitó originalmente)
+        const rawSaldo = (result.pagado.favorCooperativa + result.pagado.manejo + result.pagado.seguro + result.pagado.ipostel) - result.pagado.favorAsociado;
+        result.saldoFinal = Math.abs(rawSaldo);
+    } else {
+        result.modalidadSaldo = 'Iguales';
+        result.conceptoSaldo = 'Ceros';
+        result.saldoFinal = 0;
+    }
 
     return result;
 };

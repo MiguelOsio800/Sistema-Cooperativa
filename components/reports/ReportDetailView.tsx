@@ -14,6 +14,7 @@ import Select from '../ui/Select';
 import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useSystem } from '../../contexts/SystemContext';
 
 
 interface ReportDetailViewProps {
@@ -63,6 +64,7 @@ const ReportCompanyHeader: React.FC<{ companyInfo: CompanyInfo, reportTitle: str
 );
 
 const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, clients, expenses, offices, companyInfo, paymentMethods, vehicles, asociados }) => {
+    const { currentUser } = useSystem();
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -304,42 +306,106 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                  const reportDataObj = (sourceData as any[])[0];
                  if (!reportDataObj) return null;
 
-                 const pmData = reportDataObj.paymentMethods || [];
                  const invoicesData = reportDataObj.invoices || [];
-                 
-                 const totalInc = pmData.reduce((sum: number, d: any) => sum + d.income, 0);
-                 const totalExp = pmData.reduce((sum: number, d: any) => sum + d.expense, 0);
-                 
                  const wsData: any[][] = [];
                  
-                 // --- Sección de Resumen ---
-                 wsData.push(["RESUMEN DE CAJA"]);
-                 wsData.push(["Método de Pago", "Ingresos", "Egresos", "Saldo"]);
+                 wsData.push([{ content: "FACTURAS DEL DÍA", colSpan: 6, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center' } }]);
+                 wsData.push([
+                     { content: "Factura N°", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'center' } }, 
+                     { content: "Flete", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
+                     { content: "Seguro", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
+                     { content: "Manejo", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
+                     { content: "Ipostel", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
+                     { content: "Total Envío", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }
+                 ]);
                  
-                 pmData.forEach((d: any) => {
-                     wsData.push([d.name, d.income, d.expense, d.income - d.expense]);
-                 });
+                 let sumFlete = 0, sumFleteUSD = 0;
+                 let sumSeguro = 0, sumSeguroUSD = 0;
+                 let sumManejo = 0, sumManejoUSD = 0;
+                 let sumIpostel = 0, sumIpostelUSD = 0;
+                 let sumTotalEnvio = 0, sumTotalEnvioUSD = 0;
                  
-                 wsData.push(["TOTALES", totalInc, totalExp, totalInc - totalExp]);
-                 wsData.push([]); // Fila vacía
-                 wsData.push(["Producción del Día", reportDataObj.produccionDelDia]);
-                 wsData.push([]); // Fila vacía
-                 wsData.push([]); // Fila vacía
-                 
-                 // --- Sección de Facturas ---
-                 wsData.push(["FACTURAS DEL DÍA"]);
-                 wsData.push(["Fecha", "Factura N°", "Guía", "Cliente", "Estado Pago", "Monto"]);
-                 
+                 let totalPagadas = 0, totalPagadasUSD = 0;
+                 let totalCobroDestino = 0;
+                 let totalCredito = 0;
+
                  invoicesData.forEach((inv: Invoice) => {
+                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                     const rate = inv.exchangeRate || companyInfo.exchangeRate || 1;
+                     
+                     const handling = inv.Montomanejo !== undefined ? inv.Montomanejo : fin.handling;
+                     const ipostel = inv.ipostelFee !== undefined ? inv.ipostelFee : fin.ipostel;
+                     const freight = fin.freight;
+                     const insuranceCost = fin.insuranceCost;
+                     const totalEnvio = freight + insuranceCost + handling + ipostel;
+                     
+                     sumFlete += freight; sumFleteUSD += freight / rate;
+                     sumSeguro += insuranceCost; sumSeguroUSD += insuranceCost / rate;
+                     sumManejo += handling; sumManejoUSD += handling / rate;
+                     sumIpostel += ipostel; sumIpostelUSD += ipostel / rate;
+                     sumTotalEnvio += totalEnvio; sumTotalEnvioUSD += totalEnvio / rate;
+                     
+                     let status = 'Pagadas';
+                     if (inv.guide.paymentType === 'flete-destino') status = 'Cobro a Destino';
+                     else {
+                         const pm = paymentMethods.find(p => p.id === inv.guide.paymentMethodId);
+                         const isCredito = pm?.type === 'Credito' || pm?.name?.toLowerCase().includes('credito') || pm?.name?.toLowerCase().includes('crédito');
+                         if (isCredito) status = 'Crédito';
+                     }
+                     
+                     if (status === 'Cobro a Destino') totalCobroDestino += inv.totalAmount;
+                     else if (status === 'Crédito') totalCredito += inv.totalAmount;
+                     else {
+                         totalPagadas += inv.totalAmount;
+                         totalPagadasUSD += inv.totalAmount / rate;
+                     }
+
                      wsData.push([
-                         inv.date, 
-                         inv.invoiceNumber, 
-                         inv.guide.guideNumber, 
-                         inv.clientName, 
-                         inv.paymentStatus, 
-                         inv.totalAmount
+                         { content: inv.invoiceNumber, styles: { halign: 'center', valign: 'middle' } }, 
+                         { content: `Bs. ${freight.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(freight / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
+                         { content: `Bs. ${insuranceCost.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(insuranceCost / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
+                         { content: `Bs. ${handling.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(handling / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
+                         { content: `Bs. ${ipostel.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(ipostel / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
+                         { content: `Bs. ${totalEnvio.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(totalEnvio / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right', fontStyle: 'bold' } }
                      ]);
                  });
+                 
+                 wsData.push([
+                     { content: "TOTALES", styles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [245, 245, 245] } }, 
+                     { content: `Bs. ${sumFlete.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumFleteUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
+                     { content: `Bs. ${sumSeguro.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumSeguroUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
+                     { content: `Bs. ${sumManejo.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumManejoUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
+                     { content: `Bs. ${sumIpostel.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumIpostelUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
+                     { content: `Bs. ${sumTotalEnvio.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumTotalEnvioUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } }
+                 ]);
+                 
+                 wsData.push([{ content: "", colSpan: 6, styles: { minCellHeight: 15, fillColor: [255, 255, 255], lineWidth: 0 } }]);
+                 
+                 wsData.push([{ content: "SUBTOTALES ENVIADAS", colSpan: 6, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center' } }]);
+                 wsData.push([
+                     { content: "Facturas Pagadas", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle' } }, 
+                     { content: `Bs. ${totalPagadas.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 128, 0] } }
+                 ]);
+                 wsData.push([
+                     { content: "Facturas Cobro a Destino", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle' } }, 
+                     { content: `Bs. ${totalCobroDestino.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 255] } }
+                 ]);
+                 wsData.push([
+                     { content: "Facturas a Crédito", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle' } }, 
+                     { content: `Bs. ${totalCredito.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [255, 140, 0] } }
+                 ]);
+                 
+                 wsData.push([{ content: "", colSpan: 6, styles: { minCellHeight: 15, fillColor: [255, 255, 255], lineWidth: 0 } }]);
+                 
+                 wsData.push([{ content: "CUADRE", colSpan: 6, styles: { fillColor: [200, 220, 255], fontStyle: 'bold', halign: 'center' } }]);
+                 wsData.push([
+                     { content: "Monto en Caja (Bs)", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle', fillColor: [240, 248, 255] } }, 
+                     { content: `Bs. ${totalPagadas.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fontSize: 10, fillColor: [240, 248, 255] } }
+                 ]);
+                 wsData.push([
+                     { content: "Referencia en Divisas ($)", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle', fillColor: [240, 248, 255] } }, 
+                     { content: `$ ${totalPagadasUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fontSize: 10, fillColor: [240, 248, 255] } }
+                 ]);
 
                  dataToExport = wsData;
                  isAoa = true;
@@ -425,7 +491,22 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
         const { dataToExport, sheetName, totalsRow, isAoa } = exportData;
 
         if (isAoa) {
-            const ws = XLSX.utils.aoa_to_sheet(dataToExport);
+            // Sanitize data for Excel (remove jspdf-autotable object structure and extract raw values)
+            const plainData = dataToExport.map(row => 
+                row.map((cell: any) => {
+                    if (cell && typeof cell === 'object' && 'content' in cell) {
+                        const content = cell.content;
+                        if (typeof content === 'string' && content.includes('\n')) {
+                            // Extract just the Bs part for Excel (first line)
+                            return content.split('\n')[0];
+                        }
+                        return content;
+                    }
+                    return cell;
+                })
+            );
+
+            const ws = XLSX.utils.aoa_to_sheet(plainData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, ws, sheetName);
             XLSX.writeFile(workbook, `${sheetName}_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -516,18 +597,38 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     startY: currentY,
                     body: dataToExport,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 3 },
+                    styles: { fontSize: 7, cellPadding: 2 },
                     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
-                    didParseCell: function(data) {
-                        // Bold rows that look like headers or totals
-                        if (data.row.raw && typeof data.row.raw[0] === 'string') {
-                            const val = data.row.raw[0].toUpperCase();
-                            if (val === 'RESUMEN DE CAJA' || val === 'FACTURAS DEL DÍA' || val === 'TOTALES' || val === 'MÉTODO DE PAGO') {
-                                data.cell.styles.fontStyle = 'bold';
-                                if (val === 'RESUMEN DE CAJA' || val === 'FACTURAS DEL DÍA') {
-                                    data.cell.styles.fillColor = [220, 220, 220];
-                                }
+                    columnStyles: {
+                        0: { cellWidth: 60 }, // Factura N°
+                        1: { cellWidth: 'auto' }, // Flete
+                        2: { cellWidth: 'auto' }, // Seguro
+                        3: { cellWidth: 'auto' }, // Manejo
+                        4: { cellWidth: 'auto' }, // Ipostel
+                        5: { cellWidth: 'auto' }, // Total Envío
+                    },
+                    didDrawPage: function (data) {
+                        if (isAoa && data.pageNumber === data.pageCount) {
+                            // @ts-ignore - jspdf-autotable adds lastAutoTable to jsPDF instance
+                            const finalY = pdf.lastAutoTable?.finalY || data.cursor?.y || currentY + 100;
+                            let signatureY = finalY + 60;
+                            
+                            // Check if signature fits on the current page
+                            const pageHeight = pdf.internal.pageSize.getHeight();
+                            if (signatureY + 50 > pageHeight) {
+                                pdf.addPage();
+                                signatureY = 60; // Reset Y for new page
                             }
+                            
+                            pdf.setDrawColor(150, 150, 150);
+                            pdf.line(pageWidth / 2 - 100, signatureY, pageWidth / 2 + 100, signatureY);
+                            pdf.setFontSize(10);
+                            pdf.setTextColor(0, 0, 0);
+                            pdf.setFont("helvetica", "bold");
+                            pdf.text("Firma del Oficinista", pageWidth / 2, signatureY + 15, { align: 'center' });
+                            pdf.setFont("helvetica", "normal");
+                            pdf.setTextColor(100, 100, 100);
+                            pdf.text(currentUser?.name || 'Usuario Desconocido', pageWidth / 2, signatureY + 30, { align: 'center' });
                         }
                     }
                 });
@@ -605,6 +706,58 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const totalExpense = reportDataObj.paymentMethods.reduce((sum: number, pm: any) => sum + pm.expense, 0);
                     const saldoFinal = totalIncome - totalExpense;
 
+                    let sumFlete = 0, sumFleteUSD = 0;
+                    let sumSeguro = 0, sumSeguroUSD = 0;
+                    let sumManejo = 0, sumManejoUSD = 0;
+                    let sumIpostel = 0, sumIpostelUSD = 0;
+                    let sumTotalEnvio = 0, sumTotalEnvioUSD = 0;
+                    
+                    let totalPagadas = 0, totalPagadasUSD = 0;
+                    let totalCobroDestino = 0;
+                    let totalCredito = 0;
+
+                    const invoiceRows = reportDataObj.invoices.map((inv: Invoice) => {
+                        const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                        const rate = inv.exchangeRate || companyInfo.exchangeRate || 1;
+                        
+                        const handling = inv.Montomanejo !== undefined ? inv.Montomanejo : fin.handling;
+                        const ipostel = inv.ipostelFee !== undefined ? inv.ipostelFee : fin.ipostel;
+                        const freight = fin.freight;
+                        const insuranceCost = fin.insuranceCost;
+                        const totalEnvio = freight + insuranceCost + handling + ipostel;
+                        
+                        sumFlete += freight; sumFleteUSD += freight / rate;
+                        sumSeguro += insuranceCost; sumSeguroUSD += insuranceCost / rate;
+                        sumManejo += handling; sumManejoUSD += handling / rate;
+                        sumIpostel += ipostel; sumIpostelUSD += ipostel / rate;
+                        sumTotalEnvio += totalEnvio; sumTotalEnvioUSD += totalEnvio / rate;
+                        
+                        let status = 'Pagadas';
+                        if (inv.guide.paymentType === 'flete-destino') status = 'Cobro a Destino';
+                        else {
+                            const pm = paymentMethods.find(p => p.id === inv.guide.paymentMethodId);
+                            const isCredito = pm?.type === 'Credito' || pm?.name?.toLowerCase().includes('credito') || pm?.name?.toLowerCase().includes('crédito');
+                            if (isCredito) status = 'Crédito';
+                        }
+                        
+                        if (status === 'Cobro a Destino') totalCobroDestino += inv.totalAmount;
+                        else if (status === 'Crédito') totalCredito += inv.totalAmount;
+                        else {
+                            totalPagadas += inv.totalAmount;
+                            totalPagadasUSD += inv.totalAmount / rate;
+                        }
+
+                        return {
+                            id: inv.id,
+                            invoiceNumber: inv.invoiceNumber,
+                            freight, freightUSD: freight / rate,
+                            insuranceCost, insuranceCostUSD: insuranceCost / rate,
+                            handling, handlingUSD: handling / rate,
+                            ipostel, ipostelUSD: ipostel / rate,
+                            totalEnvio, totalEnvioUSD: totalEnvio / rate
+                        };
+                    });
+
                     return (
                         <div className="space-y-6">
                             {/* Report Header with Date */}
@@ -673,39 +826,130 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                             </div>
 
                             {/* Invoices List */}
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-8 mb-4">Facturas de Producción</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-8 mb-4">Detalle por Factura</h3>
                             <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
                                 <table className="min-w-full text-sm text-left text-gray-500 dark:text-gray-400">
                                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                                         <tr>
                                             <th className="px-4 py-3">Factura N°</th>
-                                            <th className="px-4 py-3">Guía</th>
-                                            <th className="px-4 py-3">Cliente</th>
-                                            <th className="px-4 py-3">Estado Pago</th>
-                                            <th className="px-4 py-3 text-right">Monto</th>
+                                            <th className="px-4 py-3 text-right">Flete</th>
+                                            <th className="px-4 py-3 text-right">Seguro</th>
+                                            <th className="px-4 py-3 text-right">Manejo</th>
+                                            <th className="px-4 py-3 text-right">Ipostel</th>
+                                            <th className="px-4 py-3 text-right">Total Envío</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                        {reportDataObj.invoices.map((inv: Invoice) => (
-                                            <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{inv.invoiceNumber}</td>
-                                                <td className="px-4 py-3">{inv.guide.guideNumber}</td>
-                                                <td className="px-4 py-3">{inv.clientName}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${inv.paymentStatus === 'Pagada' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
-                                                        {inv.paymentStatus}
-                                                    </span>
+                                        {invoiceRows.map((row: any) => (
+                                            <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{row.invoiceNumber}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div>{formatCurrency(row.freight)}</div>
+                                                    <div className="text-xs text-gray-400">${row.freightUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(inv.totalAmount)}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div>{formatCurrency(row.insuranceCost)}</div>
+                                                    <div className="text-xs text-gray-400">${row.insuranceCostUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div>{formatCurrency(row.handling)}</div>
+                                                    <div className="text-xs text-gray-400">${row.handlingUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div>{formatCurrency(row.ipostel)}</div>
+                                                    <div className="text-xs text-gray-400">${row.ipostelUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
+                                                    <div>{formatCurrency(row.totalEnvio)}</div>
+                                                    <div className="text-xs text-gray-400">${row.totalEnvioUSD.toFixed(2)}</div>
+                                                </td>
                                             </tr>
                                         ))}
-                                        {reportDataObj.invoices.length === 0 && (
+                                        {invoiceRows.length === 0 && (
                                             <tr>
-                                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No hay facturas en este período.</td>
+                                                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No hay facturas en este período.</td>
+                                            </tr>
+                                        )}
+                                        {invoiceRows.length > 0 && (
+                                            <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                                                <td className="px-4 py-3 text-gray-900 dark:text-white">TOTALES GENERALES</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumFlete)}</div>
+                                                    <div className="text-xs text-gray-500">${sumFleteUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumSeguro)}</div>
+                                                    <div className="text-xs text-gray-500">${sumSeguroUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumManejo)}</div>
+                                                    <div className="text-xs text-gray-500">${sumManejoUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumIpostel)}</div>
+                                                    <div className="text-xs text-gray-500">${sumIpostelUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                    <div>{formatCurrency(sumTotalEnvio)}</div>
+                                                    <div className="text-xs text-gray-500">${sumTotalEnvioUSD.toFixed(2)}</div>
+                                                </td>
                                             </tr>
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                                {/* Subtotales Enviadas */}
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Subtotales Enviadas</h3>
+                                    <Card className="p-0 overflow-hidden">
+                                        <table className="min-w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                                <tr className="bg-white dark:bg-gray-800">
+                                                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">Facturas Pagadas</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-green-600">{formatCurrency(totalPagadas)}</td>
+                                                </tr>
+                                                <tr className="bg-gray-50 dark:bg-gray-800/50">
+                                                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">Facturas Cobro a Destino</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-blue-600">{formatCurrency(totalCobroDestino)}</td>
+                                                </tr>
+                                                <tr className="bg-white dark:bg-gray-800">
+                                                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">Facturas a Crédito</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-orange-600">{formatCurrency(totalCredito)}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </Card>
+                                </div>
+
+                                {/* Cuadre */}
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Cuadre</h3>
+                                    <Card className="p-0 overflow-hidden bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                                        <table className="min-w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                            <tbody className="divide-y divide-blue-200 dark:divide-blue-800">
+                                                <tr>
+                                                    <td className="px-4 py-4 font-bold text-blue-900 dark:text-blue-100">Monto en Caja (Bs)</td>
+                                                    <td className="px-4 py-4 text-right font-bold text-xl text-blue-900 dark:text-blue-100">{formatCurrency(totalPagadas)}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="px-4 py-4 font-bold text-blue-900 dark:text-blue-100">Referencia en Divisas ($)</td>
+                                                    <td className="px-4 py-4 text-right font-bold text-xl text-blue-900 dark:text-blue-100">${totalPagadasUSD.toFixed(2)}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </Card>
+                                </div>
+                            </div>
+
+                            {/* Firma del Oficinista */}
+                            <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700 flex justify-center">
+                                <div className="text-center w-64">
+                                    <div className="border-b border-gray-400 dark:border-gray-500 mb-2 h-8"></div>
+                                    <p className="font-bold text-gray-900 dark:text-white">Firma del Oficinista</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{currentUser?.name || 'Usuario Desconocido'}</p>
+                                </div>
                             </div>
                         </div>
                     );
