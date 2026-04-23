@@ -255,7 +255,12 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                                                         <td className="px-2 py-2 font-mono text-gray-800 dark:text-gray-200">{rem.remesaNumber}</td>
                                                         <td className="px-2 py-2 text-gray-800 dark:text-gray-200">{rem.date}</td>
                                                         <td className="px-2 py-2 text-center text-gray-800 dark:text-gray-200">{rem.invoiceIds.length}</td>
-                                                        <td className="px-2 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">{rem.totalAmount.toLocaleString('es-VE')} Bs.</td>
+                                                        <td className="px-2 py-2 text-right font-semibold text-gray-800 dark:text-gray-200">
+                                                            {rem.totalAmount.toLocaleString('es-VE')} Bs.
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400 font-normal mt-0.5">
+                                                                {companyInfo.bcvRate > 0 && `$${(rem.totalAmount / (rem.exchangeRate || companyInfo.bcvRate)).toFixed(2)}`}
+                                                            </div>
+                                                        </td>
                                                         <td className="px-2 py-2 text-right space-x-1">
                                                             <Button size="sm" variant="secondary" onClick={() => handleOpenManifestModal(rem)}><EyeIcon className="w-4 h-4"/></Button>
                                                             {permissions['remesas.delete'] && <Button size="sm" variant="danger" onClick={() => handleDeleteRemesaClick(rem.id)}><TrashIcon className="w-4 h-4"/></Button>}
@@ -286,6 +291,8 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
                     allInvoices={invoices}
                     availableInvoices={availableInvoices}
                     offices={offices}
+                    companyInfo={companyInfo}
+                    shippingTypes={shippingTypes}
                 />
             )}
             

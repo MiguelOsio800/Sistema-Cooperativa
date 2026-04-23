@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-import { Report, Invoice, Client, Expense, Office, CompanyInfo, PaymentMethod, Vehicle, Category, ShippingStatus, PaymentStatus, Asociado } from '../../types';
+import { Report, Invoice, Client, Expense, Office, CompanyInfo, PaymentMethod, Vehicle, Category, ShippingStatus, PaymentStatus, Asociado, ShippingType } from '../../types';
 import Card, { CardTitle, CardHeader } from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -31,48 +31,60 @@ interface ReportDetailViewProps {
     categories: Category[];
     asociados: Asociado[];
     shippingTypes: ShippingType[];
+    reportOfficeId?: string | null;
 }
 
 const formatCurrency = (amount: number = 0) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const ITEMS_PER_PAGE = 20;
 
-const ReportCompanyHeader: React.FC<{ companyInfo: CompanyInfo, reportTitle: string, startDate: string, endDate: string }> = ({ companyInfo, reportTitle, startDate, endDate }) => (
+const ReportCompanyHeader: React.FC<{ companyInfo: CompanyInfo, reportTitle: string, startDate: string, endDate: string, officeName?: string }> = ({ companyInfo, reportTitle, startDate, endDate, officeName }) => (
     <div className="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-        <div className="flex justify-between items-start">
-            <div className="flex items-center gap-4">
-                {companyInfo.logoUrl ? (
-                    <img src={companyInfo.logoUrl} alt="Logo" className="h-16 w-16 object-contain" referrerPolicy="no-referrer" />
-                ) : (
-                    <div className="h-16 w-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold">LOGO</div>
-                )}
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase">{companyInfo.name || 'Nombre de Empresa'}</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">RIF: {companyInfo.rif || 'J-00000000-0'}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{companyInfo.address || 'Dirección no configurada'}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Tel: {companyInfo.phone || 'Teléfono no configurado'}</p>
+        <div className="flex items-start gap-4">
+            {companyInfo.logoUrl ? (
+                <img src={companyInfo.logoUrl} alt="Logo" className="h-16 w-16 object-contain" referrerPolicy="no-referrer" />
+            ) : (
+                <div className="h-16 w-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold">LOGO</div>
+            )}
+            <div className="flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase leading-tight">{companyInfo.name || 'Nombre de Empresa'}</h2>
+                    <h3 className="text-lg font-bold text-primary-600 dark:text-primary-400 uppercase">{reportTitle}</h3>
                 </div>
-            </div>
-            <div className="text-right">
-                <h3 className="text-lg font-bold text-primary-600 dark:text-primary-400 uppercase">{reportTitle}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {startDate && endDate ? `Desde: ${startDate} Hasta: ${endDate}` : 
-                     startDate ? `Desde: ${startDate}` : 
-                     endDate ? `Hasta: ${endDate}` : 'Todos los registros'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">Generado: {new Date().toLocaleDateString('es-VE')} {new Date().toLocaleTimeString('es-VE')}</p>
+                
+                <div className="grid grid-cols-2 mt-2">
+                    <div className="space-y-0.5">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">RIF: {companyInfo.rif || 'J-00000000-0'}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{companyInfo.address || 'Dirección no configurada'}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 font-semibold text-primary-600 dark:text-primary-400">OFICINA: {officeName || 'Todas las Sucursales'}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Tel: {companyInfo.phone || 'Teléfono no configurado'}</p>
+                    </div>
+                    <div className="text-right space-y-0.5">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold">
+                            {startDate && endDate ? `Desde: ${startDate} Hasta: ${endDate}` : 
+                            startDate ? `Desde: ${startDate}` : 
+                            endDate ? `Hasta: ${endDate}` : 'Todos los registros'}
+                        </p>
+                        <p className="text-xs text-gray-400 italic">Generado: {new Date().toLocaleDateString('es-VE')} {new Date().toLocaleTimeString('es-VE')}</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 );
 
-const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, clients, expenses, offices, companyInfo, paymentMethods, vehicles, asociados, shippingTypes }) => {
+const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, clients, expenses, offices, companyInfo, paymentMethods, vehicles, asociados, shippingTypes, reportOfficeId }) => {
     const { currentUser } = useAuth();
     const { roles } = useConfig();
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const reportRef = useRef<HTMLDivElement>(null);
+
+    const officeName = useMemo(() => {
+        if (!reportOfficeId || reportOfficeId === 'all') return 'Todas las Sucursales';
+        return offices.find(o => o.id === reportOfficeId)?.name || 'Sucursal';
+    }, [reportOfficeId, offices]);
 
     const dateFilteredInvoices = useMemo(() => {
         return invoices.filter(invoice => {
@@ -240,13 +252,14 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 }));
                 break;
             case 'libro_venta':
-                headers = ["Fecha", "N° Factura", "N° Control", "Nombre/Razón Social Cliente", "RIF/CI Cliente", "Venta Total", "Base Imponible", "IVA (16%)", "IPOSTEL"];
+                headers = ["Fecha", "N° Factura", "N° Control", "Oficina Origen", "Nombre/Razón Social Cliente", "RIF/CI Cliente", "Venta Total", "Base Imponible", "IVA (16%)", "IPOSTEL"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                    const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                     return inv.status === 'Anulada' ? {
-                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: inv.clientName, [headers[4]]: inv.clientIdNumber, [headers[5]]: "ANULADA", [headers[6]]: 0, [headers[7]]: 0, [headers[8]]: 0
+                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: originOffice, [headers[4]]: inv.clientName, [headers[5]]: inv.clientIdNumber, [headers[6]]: "ANULADA", [headers[7]]: 0, [headers[8]]: 0, [headers[9]]: 0
                     } : {
-                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: inv.clientName, [headers[4]]: inv.clientIdNumber, [headers[5]]: fin.total, [headers[6]]: fin.subtotal, [headers[7]]: fin.iva, [headers[8]]: fin.ipostel
+                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: originOffice, [headers[4]]: inv.clientName, [headers[5]]: inv.clientIdNumber, [headers[6]]: fin.total, [headers[7]]: fin.subtotal, [headers[8]]: fin.iva, [headers[9]]: fin.ipostel
                     };
                 });
                 const salesTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
@@ -258,11 +271,12 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 totalsRow = { [headers[3]]: "TOTALES", [headers[5]]: salesTotals.total, [headers[6]]: salesTotals.base, [headers[7]]: salesTotals.iva, [headers[8]]: salesTotals.ipostel };
                 break;
             case 'cuentas_cobrar':
-                headers = ["Fecha de Emisión", "N° Factura", "Cliente", "Teléfono del Cliente", "Días Vencidos", "Monto Pendiente"];
+                headers = ["Fecha de Emisión", "N° Factura", "Oficina", "Cliente", "Teléfono del Cliente", "Días Vencidos", "Monto Pendiente"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const days = Math.floor((new Date().getTime() - new Date(inv.date).getTime()) / (1000 * 3600 * 24));
                     const client = clients.find(c => c.idNumber === inv.clientIdNumber);
-                    return { [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.clientName, [headers[3]]: client?.phone, [headers[4]]: days, [headers[5]]: inv.totalAmount };
+                    const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
+                    return { [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: originOffice, [headers[3]]: inv.clientName, [headers[4]]: client?.phone, [headers[5]]: days, [headers[6]]: inv.totalAmount };
                 });
                 totalsRow = { [headers[2]]: "TOTAL", [headers[5]]: (sourceData as unknown as Invoice[]).reduce((sum, inv) => sum + inv.totalAmount, 0) };
                 break;
@@ -275,21 +289,22 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 totalsRow = { [headers[1]]: "TOTAL", [headers[6]]: (sourceData as unknown as Expense[]).reduce((sum, exp) => sum + exp.amount, 0) };
                 break;
             case 'facturas_anuladas':
-                headers = ["Fecha de Anulación", "N° Factura", "N° Control", "Cliente", "Monto Original"];
+                headers = ["Fecha de Anulación", "N° Factura", "N° Control", "Oficina Origen", "Cliente", "Monto Original"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => ({
-                    [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: inv.clientName, [headers[4]]: inv.totalAmount
+                    [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A', [headers[4]]: inv.clientName, [headers[5]]: inv.totalAmount
                 }));
                 break;
             case 'iva':
-                headers = ["Fecha", "N° Factura", "Cliente", "Monto Total", "IVA (16%)"];
+                headers = ["Fecha", "N° Factura", "Oficina Origen", "Cliente", "Monto Total", "IVA (16%)"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
                     return {
                         [headers[0]]: inv.date,
                         [headers[1]]: inv.invoiceNumber,
-                        [headers[2]]: inv.clientName,
-                        [headers[3]]: inv.totalAmount,
-                        [headers[4]]: fin.iva,
+                        [headers[2]]: offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A',
+                        [headers[3]]: inv.clientName,
+                        [headers[4]]: inv.totalAmount,
+                        [headers[5]]: fin.iva,
                     };
                 });
                 const ivaTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
@@ -446,13 +461,15 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 }));
                 break;
             case 'ipostel':
-                headers = ["Fecha", "Factura", "Cliente", "Kg", "Monto Total", "Base Aporte", "Aporte IPOSTEL"];
+                headers = ["Fecha", "Factura", "Oficina Origen", "Cliente", "Paquetes", "Kg", "Monto Total", "Base Aporte", "Aporte IPOSTEL"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                     const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
                     const kg = calculateInvoiceChargeableWeight(inv);
+                    const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
+                    const origen = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                     return {
-                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.clientName, [headers[3]]: kg, [headers[4]]: inv.totalAmount, [headers[5]]: ipostelBase, [headers[6]]: ipostelAmount
+                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: origen, [headers[3]]: inv.clientName, [headers[4]]: paquetes, [headers[5]]: kg, [headers[6]]: inv.totalAmount, [headers[7]]: ipostelBase, [headers[8]]: ipostelAmount
                     }
                 });
                 break;
@@ -564,35 +581,46 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 pdf.text("LOGO", 50, currentY + 30);
             }
 
-            // Company Info
+            // Company Info & Report Title
             pdf.setFontSize(14);
             pdf.setTextColor(0, 0, 0);
             pdf.setFont("helvetica", "bold");
-            pdf.text((companyInfo.name || 'Nombre de Empresa').toUpperCase(), 100, currentY + 15);
+            const companyName = (companyInfo.name || 'Nombre de Empresa').toUpperCase();
+            const reportTitleText = report.title.toUpperCase();
             
+            // Measure title for positioning
+            const titleWidth = pdf.getTextWidth(reportTitleText);
+            
+            // Draw Company Name
+            pdf.text(companyName, 100, currentY + 15);
+            
+            // Draw Report Title closer to company name if space allows, or at far right
+            pdf.setTextColor(59, 130, 246); // Primary blue for title to match on-screen
+            pdf.text(reportTitleText, pageWidth - 40, currentY + 15, { align: 'right' });
+
             pdf.setFontSize(10);
             pdf.setFont("helvetica", "normal");
             pdf.setTextColor(100, 100, 100);
             pdf.text(`RIF: ${companyInfo.rif || 'J-00000000-0'}`, 100, currentY + 30);
-            pdf.text(`${companyInfo.address || 'Dirección no configurada'}`, 100, currentY + 45);
-            pdf.text(`Tel: ${companyInfo.phone || 'Teléfono no configurado'}`, 100, currentY + 60);
-
-            // Report Title & Meta
-            pdf.setFontSize(14);
-            pdf.setTextColor(0, 0, 0);
-            pdf.setFont("helvetica", "bold");
-            pdf.text(report.title.toUpperCase(), pageWidth - 40, currentY + 15, { align: 'right' });
             
-            pdf.setFontSize(10);
-            pdf.setFont("helvetica", "normal");
-            pdf.setTextColor(100, 100, 100);
+            // Right side meta
             const dateStr = startDate && endDate ? `Desde: ${startDate} Hasta: ${endDate}` : 
                             startDate ? `Desde: ${startDate}` : 
                             endDate ? `Hasta: ${endDate}` : 'Todos los registros';
             pdf.text(dateStr, pageWidth - 40, currentY + 30, { align: 'right' });
-            pdf.text(`Generado: ${new Date().toLocaleDateString('es-VE')} ${new Date().toLocaleTimeString('es-VE')}`, pageWidth - 40, currentY + 45, { align: 'right' });
 
-            currentY += 80; // Move down for the table
+            pdf.text(`${companyInfo.address || 'Dirección no configurada'}`, 100, currentY + 45);
+            pdf.text(`Generado: ${new Date().toLocaleDateString('es-VE')} ${new Date().toLocaleTimeString('es-VE')}`, pageWidth - 40, currentY + 45, { align: 'right' });
+            
+            pdf.setFont("helvetica", "bold");
+            pdf.setTextColor(59, 130, 246); // Primary blue
+            pdf.text(`OFICINA: ${officeName.toUpperCase()}`, 100, currentY + 60);
+            
+            pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Tel: ${companyInfo.phone || 'Teléfono no configurado'}`, 100, currentY + 75);
+
+            currentY += 95; // Move down for the table
 
             // 2. Draw Table
             if (isAoa) {
@@ -612,7 +640,9 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         5: { cellWidth: 'auto' }, // Total Envío
                     },
                     didDrawPage: function (data) {
-                        if (isAoa && data.pageNumber === data.pageCount) {
+                        // @ts-ignore
+                        const pageCount = pdf.internal.getNumberOfPages();
+                        if (isAoa && data.pageNumber === pageCount) {
                             // @ts-ignore - jspdf-autotable adds lastAutoTable to jsPDF instance
                             const finalY = pdf.lastAutoTable?.finalY || data.cursor?.y || currentY + 100;
                             let signatureY = finalY + 60;
@@ -641,7 +671,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 const bodyData = dataToExport.map(row => headers.map(h => {
                     const val = row[h];
                     // Format numbers as currency if they look like money, except for Kg/Days/Counts
-                    if (typeof val === 'number' && !h.toLowerCase().includes('kg') && !h.toLowerCase().includes('días') && !h.toLowerCase().includes('n°')) {
+                    if (typeof val === 'number' && !h.toLowerCase().includes('kg') && !h.toLowerCase().includes('días') && !h.toLowerCase().includes('n°') && !h.toLowerCase().includes('paquetes')) {
                         return `Bs. ${val.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     }
                     return val !== undefined && val !== null ? val.toString() : '';
@@ -719,8 +749,8 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     // @ts-ignore
                     const finalY = pdf.lastAutoTable?.finalY || currentY + 100;
                     
-                    const summaryData = [
-                        [{ content: "PARAMETROS", styles: { fontStyle: 'bold', borderBottom: '1px solid black' } }, { content: "PRODUCCIÓN", styles: { fontStyle: 'bold', borderBottom: '1px solid black' } }, { content: "EMPRESA", styles: { fontStyle: 'bold', borderBottom: '1px solid black' } }],
+                    const summaryData: any[] = [
+                        [{ content: "PARAMETROS", styles: { fontStyle: 'bold', lineWidth: { bottom: 0.1 } } }, { content: "PRODUCCIÓN", styles: { fontStyle: 'bold', lineWidth: { bottom: 0.1 } } }, { content: "EMPRESA", styles: { fontStyle: 'bold', lineWidth: { bottom: 0.1 } } }],
                         ["FLETE PAGADO", `Bs. ${fletePagado.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `Bs. ${empresaPagado.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
                         ["FLETE DESTINO", `Bs. ${fleteDestino.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `Bs. ${empresaDestino.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
                         ["CREDITO", `Bs. ${credito.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
@@ -1164,10 +1194,10 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             
             switch (report.id) {
                 case 'general_envios':
-                    headers = ["Fecha", "N° Factura", "Cliente", "Destino", "Total", "Estado Pago", "Estado Envío"];
-                    body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.destinationOfficeId)?.name}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td><td className="px-2 py-2">{inv.paymentStatus}</td><td className="px-2 py-2">{inv.shippingStatus}</td></tr>));
+                    headers = ["Fecha", "N° Factura", "Cliente", "Origen", "Destino", "Total", "Estado Pago", "Estado Envío"];
+                    body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.destinationOfficeId)?.name}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td><td className="px-2 py-2">{inv.paymentStatus}</td><td className="px-2 py-2">{inv.shippingStatus}</td></tr>));
                     const generalTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td><td colSpan={2}></td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td><td colSpan={2}></td></tr></tfoot>);
                     
                     let fletePagado = 0;
                     let fleteDestino = 0;
@@ -1285,23 +1315,25 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     );
                     break;
                 case 'libro_venta':
-                     headers = ["Fecha", "Factura", "Control", "Cliente", "RIF", "Total", "Base", "IVA", "IPOSTEL"];
+                     headers = ["Fecha", "Factura", "Oficina", "Cliente", "RIF", "Total", "Base", "IVA", "IPOSTEL"];
                      body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
-                        return (<tr key={inv.id} className={inv.status === 'Anulada' ? 'text-red-500 line-through' : ''}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.controlNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{inv.clientIdNumber}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? 'ANULADA' : formatCurrency(fin.total)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.subtotal)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.iva)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.ipostel)}</td></tr>);
+                        const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
+                        return (<tr key={inv.id} className={inv.status === 'Anulada' ? 'text-red-500 line-through' : ''}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{inv.clientIdNumber}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? 'ANULADA' : formatCurrency(fin.total)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.subtotal)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.iva)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.ipostel)}</td></tr>);
                      });
                      const libroVentaTotals = (reportData as Invoice[]).reduce((acc, inv) => { if (inv.status !== 'Anulada') { const fin = calculateFinancialDetails(inv.guide, companyInfo); acc.total += fin.total; acc.base += fin.subtotal; acc.iva += fin.iva; acc.ipostel += fin.ipostel; } return acc; }, { total: 0, base: 0, iva: 0, ipostel: 0 });
                      footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.total)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.base)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.iva)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.ipostel)}</td></tr></tfoot>);
                      break;
                 case 'cuentas_cobrar':
-                    headers = ["Fecha Emisión", "Factura", "Cliente", "Teléfono", "Días Vencidos", "Monto Pendiente"];
+                    headers = ["Fecha Emisión", "Factura", "Oficina", "Cliente", "Teléfono", "Días Vencidos", "Monto Pendiente"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
                          const days = Math.floor((new Date().getTime() - new Date(inv.date).getTime()) / (1000 * 3600 * 24));
                          const client = clients.find(c => c.idNumber === inv.clientIdNumber);
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{client?.phone}</td><td className="px-2 py-2 text-center">{days}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(inv.totalAmount)}</td></tr>)
+                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
+                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{client?.phone}</td><td className="px-2 py-2 text-center">{days}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(inv.totalAmount)}</td></tr>)
                     });
                     const cxcTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTAL PENDIENTE</td><td className="px-2 py-3 text-right">{formatCurrency(cxcTotals.total)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={6} className="px-2 py-3 text-left">TOTAL PENDIENTE</td><td className="px-2 py-3 text-right">{formatCurrency(cxcTotals.total)}</td></tr></tfoot>);
                     break;
                 case 'cuentas_pagar':
                     headers = ["Fecha", "Proveedor", "RIF", "Factura Prov.", "Días Vencidos", "Monto Pendiente"];
@@ -1313,27 +1345,32 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTAL PENDIENTE</td><td className="px-2 py-3 text-right">{formatCurrency(cxpTotals.total)}</td></tr></tfoot>);
                     break;
                 case 'facturas_anuladas':
-                    headers = ["Fecha", "Factura", "Control", "Cliente", "Monto Original"];
-                    body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.controlNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td></tr>));
+                    headers = ["Fecha", "Factura", "Control", "Oficina", "Cliente", "Monto Original"];
+                    body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.controlNumber}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td></tr>));
                     const anuladasTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTAL ANULADO</td><td className="px-2 py-3 text-right">{formatCurrency(anuladasTotals.total)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTAL ANULADO</td><td className="px-2 py-3 text-right">{formatCurrency(anuladasTotals.total)}</td></tr></tfoot>);
                     break;
                 case 'ipostel':
-                    headers = ["Fecha", "Factura", "Cliente", "Kg", "Base Aporte", "Aporte IPOSTEL"];
+                    headers = ["Fecha", "Factura", "Oficina", "Cliente", "Paquetes", "Kg", "Base Aporte", "Aporte IPOSTEL"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
+                        const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                         const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                         const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
                         const kg = calculateInvoiceChargeableWeight(inv);
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{kg.toFixed(2)}</td><td className="px-2 py-2 text-right">{formatCurrency(ipostelBase)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(ipostelAmount)}</td></tr>)
+                        const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
+                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-center">{paquetes}</td><td className="px-2 py-2 text-right">{kg.toFixed(2)}</td><td className="px-2 py-2 text-right">{formatCurrency(ipostelBase)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(ipostelAmount)}</td></tr>)
                     });
-                    const ipostelTotals = (reportData as Invoice[]).reduce((acc, inv) => { const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel; const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0; const kg = calculateInvoiceChargeableWeight(inv); acc.kg += kg; acc.base += ipostelBase; acc.ipostel += ipostelAmount; return acc; }, { kg: 0, base: 0, ipostel: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={3} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{ipostelTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.base)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.ipostel)}</td></tr></tfoot>);
+                    const ipostelTotals = (reportData as Invoice[]).reduce((acc, inv) => { const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel; const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0; const kg = calculateInvoiceChargeableWeight(inv); const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0); acc.kg += kg; acc.base += ipostelBase; acc.ipostel += ipostelAmount; acc.paquetes += paquetes; return acc; }, { kg: 0, base: 0, ipostel: 0, paquetes: 0 });
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{ipostelTotals.paquetes}</td><td className="px-2 py-3 text-right">{ipostelTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.base)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.ipostel)}</td></tr></tfoot>);
                     break;
                 case 'seguro':
-                    headers = ["Fecha", "Factura", "Cliente", "Valor Declarado", "Costo Seguro"];
-                    body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.guide.declaredValue)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(calculateFinancialDetails(inv.guide, companyInfo).insuranceCost)}</td></tr>));
+                    headers = ["Fecha", "Factura", "Oficina", "Cliente", "Valor Declarado", "Costo Seguro"];
+                    body = (paginatedData as unknown as Invoice[]).map(inv => {
+                        const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
+                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.guide.declaredValue)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(calculateFinancialDetails(inv.guide, companyInfo).insuranceCost)}</td></tr>)
+                    });
                     const seguroTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.declared += inv.guide.declaredValue; acc.cost += calculateFinancialDetails(inv.guide, companyInfo).insuranceCost; return acc; }, { declared: 0, cost: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={3} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(seguroTotals.declared)}</td><td className="px-2 py-3 text-right">{formatCurrency(seguroTotals.cost)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(seguroTotals.declared)}</td><td className="px-2 py-3 text-right">{formatCurrency(seguroTotals.cost)}</td></tr></tfoot>);
                     break;
                 case 'clientes':
                     headers = ["RIF/CI", "Cliente", "Teléfono", "N° Envíos", "Monto Facturado"];
@@ -1342,33 +1379,35 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={3} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{clientesTotals.envios}</td><td className="px-2 py-3 text-right">{formatCurrency(clientesTotals.monto)}</td></tr></tfoot>);
                     break;
                 case 'reporte_kilogramos':
-                    headers = ["Fecha", "Nº Factura", "Cliente", "Total Kilogramos"];
-                     body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right font-semibold">{calculateInvoiceChargeableWeight(inv).toFixed(2)} Kg</td></tr>));
+                    headers = ["Fecha", "Nº Factura", "Oficina", "Cliente", "Total Kilogramos"];
+                     body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right font-semibold">{calculateInvoiceChargeableWeight(inv).toFixed(2)} Kg</td></tr>));
                     const kgTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.kg += calculateInvoiceChargeableWeight(inv); return acc; }, { kg: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={3} className="px-2 py-3 text-left">TOTAL KG MOVILIZADOS</td><td className="px-2 py-3 text-right">{kgTotals.kg.toFixed(2)} Kg</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTAL KG MOVILIZADOS</td><td className="px-2 py-3 text-right">{kgTotals.kg.toFixed(2)} Kg</td></tr></tfoot>);
                     break;
                 case 'iva':
-                    headers = ["Fecha", "N° Factura", "Cliente", "Monto Total", "IVA (16%)"];
+                    headers = ["Fecha", "N° Factura", "Oficina", "Cliente", "Monto Total", "IVA (16%)"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(fin.iva)}</td></tr>);
+                        const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
+                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(fin.iva)}</td></tr>);
                     });
                     const ivaTotals = (reportData as Invoice[]).reduce((acc, inv) => { const fin = calculateFinancialDetails(inv.guide, companyInfo); acc.total += inv.totalAmount; acc.iva += fin.iva; return acc; }, { total: 0, iva: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={3} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(ivaTotals.total)}</td><td className="px-2 py-3 text-right">{formatCurrency(ivaTotals.iva)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(ivaTotals.total)}</td><td className="px-2 py-3 text-right">{formatCurrency(ivaTotals.iva)}</td></tr></tfoot>);
                     break;
                 case 'reporte_comisiones':
-                    headers = ["Nro de Factura", "Kg", "Monto Flete"];
+                    headers = ["Nro de Factura", "Oficina", "Kg", "Monto Flete"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
+                        const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                         const kg = calculateInvoiceChargeableWeight(inv);
                         const freight = calculateFinancialDetails(inv.guide, companyInfo).freight;
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2 text-right">{kg.toFixed(2)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(freight)}</td></tr>);
+                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2 text-right">{kg.toFixed(2)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(freight)}</td></tr>);
                     });
                     const comisionesTotals = (reportData as Invoice[]).reduce((acc, inv) => {
                         acc.kg += calculateInvoiceChargeableWeight(inv);
                         acc.freight += calculateFinancialDetails(inv.guide, companyInfo).freight;
                         return acc;
                     }, { kg: 0, freight: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{comisionesTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(comisionesTotals.freight)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={2} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{comisionesTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(comisionesTotals.freight)}</td></tr></tfoot>);
                     break;
             }
 
@@ -1422,7 +1461,13 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     </div>
                 </CardHeader>
                 <div className="overflow-x-auto mt-4 text-black p-6 bg-white dark:bg-gray-900" ref={reportRef}>
-                    <ReportCompanyHeader companyInfo={companyInfo} reportTitle={report.title} startDate={startDate} endDate={endDate} />
+                    <ReportCompanyHeader 
+                        companyInfo={companyInfo} 
+                        reportTitle={report.title} 
+                        startDate={startDate} 
+                        endDate={endDate} 
+                        officeName={officeName}
+                    />
                     {renderReportContent()}
                 </div>
             </Card>

@@ -44,7 +44,8 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
     const sumaTotalAbsoluta = totalPagado + totalDestino;
         
     const currentRate = remesa.exchangeRate || companyInfo.bcvRate || 1;
-    const referenciaDolares = currentRate > 0 ? (Math.abs(financials.saldoFinal) / currentRate).toFixed(2) : '0.00';
+    const remesaTotalUsd = currentRate > 0 ? (remesa.totalAmount / currentRate).toFixed(2) : '0.00';
+    const saldoFinalUsd = currentRate > 0 ? (Math.abs(financials.saldoFinal) / currentRate).toFixed(2) : '0.00';
 
     const getOfficeName = (id: string) => offices.find(o => o.id === id)?.name || id;
 
@@ -56,9 +57,9 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
         const groups: { [key: string]: Invoice[] } = {};
         
         remesaInvoices.forEach(inv => {
-            const officeName = getOfficeName(inv.guide.destinationOfficeId);
-            if (!groups[officeName]) groups[officeName] = [];
-            groups[officeName].push(inv);
+            const zoneName = inv.specificDestination || getOfficeName(inv.guide.destinationOfficeId);
+            if (!groups[zoneName]) groups[zoneName] = [];
+            groups[zoneName].push(inv);
         });
 
         Object.keys(groups).sort().forEach(zone => {
@@ -404,9 +405,17 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                                 {formatCurrency(financials.saldoFinal)}
                                             </span>
                                         </div>
+                                        <div className="flex justify-between py-1 border-t border-black text-[10px] text-black">
+                                            <span className="text-black font-bold">Total Remesa:</span>
+                                            <span className="text-black font-bold">{formatCurrency(remesa.totalAmount)} Bs.</span>
+                                        </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">
-                                            <span className="text-black">Referencia $:</span>
-                                            <span className="text-black">{referenciaDolares}</span>
+                                            <span className="text-black">Total Remesa ($):</span>
+                                            <span className="text-black">${remesaTotalUsd}</span>
+                                        </div>
+                                        <div className="flex justify-between py-1 text-[10px] text-black">
+                                            <span className="text-black">Saldo en ($):</span>
+                                            <span className="text-black">${saldoFinalUsd}</span>
                                         </div>
                                     </div>
                                 </div>

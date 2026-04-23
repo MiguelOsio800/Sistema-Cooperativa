@@ -149,8 +149,11 @@ export interface Invoice {
     paymentStatus: PaymentStatus;
     shippingStatus: ShippingStatus;
     guide: ShippingGuide;
+    officeId?: string;
+    Office?: { id: string; name: string; code?: string; };
     vehicleId?: string;
     remesaId?: string;
+    Remesa?: Remesa;
     
     // Campos mapeados al Backend (Sequelize Model)
     clientEmail?: string | null;

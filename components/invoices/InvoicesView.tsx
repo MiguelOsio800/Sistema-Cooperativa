@@ -12,6 +12,7 @@ import PaginationControls from '../ui/PaginationControls';
 import { useData } from '../../contexts/DataContext';
 import QuickStatusModal from './QuickStatusModal';
 import { useConfirm } from '../../contexts/ConfirmationContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const paymentStatusOptions: PaymentStatus[] = ['Pendiente', 'Pagada'];
 const shippingStatusOptions: ShippingStatus[] = ['Pendiente para Despacho', 'En Tránsito', 'En Oficina Destino', 'Entregada'];
@@ -43,9 +44,12 @@ interface InvoicesViewProps {
 const ITEMS_PER_PAGE = 7;
 
 const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categories, userPermissions, onUpdateStatuses, onDeleteInvoice, companyInfo, initialFilter, offices }) => {
+    const { currentUser } = useAuth();
     const { handleCreateCreditNote, handleCreateDebitNote } = useData();
     const { confirm } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    const isAdminOrTech = currentUser?.roleId === 'role-admin' || currentUser?.roleId === 'role-tech';
     const [isQuickStatusModalOpen, setIsQuickStatusModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
@@ -174,9 +178,13 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">N° Factura</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cliente</th>
+                                {isAdminOrTech && (
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Oficina</th>
+                                )}
                                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Monto Total</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado Pago</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado Envío</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Remesa</th>
                                 <th scope="col" className="relative px-6 py-3"><span className="sr-only">Acciones</span></th>
                             </tr>
                         </thead>
@@ -186,6 +194,13 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600 dark:text-primary-400 cursor-pointer" onClick={() => openModal(invoice)}>{formatInvoiceNumber(invoice.invoiceNumber)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{invoice.date}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{invoice.clientName}</td>
+                                    {isAdminOrTech && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
+                                                {invoice.Office?.name || 'Oficina Principal'}
+                                            </span>
+                                        </td>
+                                    )}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 font-semibold text-right">{formatCurrency(invoice.totalAmount)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${paymentStatusColors[invoice.paymentStatus]}`}>
@@ -196,6 +211,21 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${shippingStatusColors[invoice.shippingStatus] || 'bg-gray-100'}`}>
                                             {invoice.shippingStatus}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        {invoice.remesaId ? (
+                                            <div className="relative group inline-block">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 cursor-help">
+                                                    Remesada
+                                                </span>
+                                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max bg-gray-900 text-white text-xs rounded py-1 px-2 z-10 shadow-lg">
+                                                    N°: {invoice.Remesa?.remesaNumber || 'N/A'}<br/>
+                                                    Fecha: {invoice.Remesa?.date || 'N/A'}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400 dark:text-gray-600">-</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                         {userPermissions['invoices.changeStatus'] && invoice.status === 'Activa' && (
@@ -227,13 +257,13 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                         </tbody>
                         <tfoot className="bg-gray-50 dark:bg-gray-700/50 font-semibold">
                             <tr>
-                                <td className="px-6 py-3 text-left text-sm text-gray-900 dark:text-gray-100" colSpan={3}>
+                                <td className="px-6 py-3 text-left text-sm text-gray-900 dark:text-gray-100" colSpan={isAdminOrTech ? 4 : 3}>
                                     Total de Facturas (Filtrados): {totalItems}
                                 </td>
                                 <td className="px-6 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
                                     {formatCurrency(totals.totalAmount)}
                                 </td>
-                                <td className="px-6 py-3" colSpan={3}></td>
+                                <td className="px-6 py-3" colSpan={4}></td>
                             </tr>
                         </tfoot>
                     </table>

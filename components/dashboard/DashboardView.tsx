@@ -2,11 +2,12 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
-import { DollarSignIcon, ReceiptIcon, ShieldCheckIcon, TruckIcon, ExclamationTriangleIcon, SettingsIcon, CheckCircleIcon, BookOpenIcon } from '../icons/Icons';
+import { ReceiptIcon, ShieldCheckIcon, TruckIcon, ExclamationTriangleIcon, SettingsIcon, CheckCircleIcon, BookOpenIcon, BuildingOfficeIcon, BanknotesIcon } from '../icons/Icons';
 import { Invoice, CompanyInfo, Office, Vehicle, ShippingStatus, Permissions } from '../../types';
 import { calculateFinancialDetails } from '../../utils/financials';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
+import { useAuth } from '../../contexts/AuthContext';
 
 // --- Helper Functions ---
 const formatCurrency = (amount: number) => {
@@ -175,7 +176,32 @@ type ChartConfigs = {
 };
 
 const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, companyInfo, offices, permissions }) => {
-    
+    const { currentUser } = useAuth();
+    const canManageAllOffices = permissions['invoices.manage_all_offices'] || currentUser?.roleId === 'role-admin' || currentUser?.roleId === 'role-tech';
+    const [selectedOfficeId, setSelectedOfficeId] = useState<string>(currentUser?.officeId || 'all');
+
+    // Default to 'all' only if they have permission and no specific office is assigned, 
+    // but the user specifically requested it to default to THEIR office.
+    React.useEffect(() => {
+        if (currentUser?.officeId && selectedOfficeId === 'all') {
+             // If we have a specific office, default to it first even if admin
+             setSelectedOfficeId(currentUser.officeId);
+        }
+    }, [currentUser?.officeId]);
+
+    const filteredInvoices = useMemo(() => {
+        // For PRODUCTION metrics (Charts & Cards), we filter by the office that CREATED the guide (Origin)
+        if (!canManageAllOffices) {
+            // Regular employees see ONLY their office production
+            const userOfficeId = currentUser?.officeId;
+            if (!userOfficeId) return invoices;
+            return invoices.filter(inv => inv.guide.originOfficeId === userOfficeId);
+        }
+        
+        if (selectedOfficeId === 'all') return invoices;
+        return invoices.filter(inv => inv.guide.originOfficeId === selectedOfficeId);
+    }, [invoices, selectedOfficeId, canManageAllOffices, currentUser]);
+
     const currentFullYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
     
@@ -260,10 +286,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
             }, { freight: 0, iva: 0, ipostel: 0, insuranceCost: 0 });
         };
 
-        const currentMonthStats = getMonthStats(currentMonth, currentYear, invoices);
+        const currentMonthStats = getMonthStats(currentMonth, currentYear, filteredInvoices);
         const prevMonthDate = new Date(now);
         prevMonthDate.setMonth(currentMonth - 1);
-        const prevMonthStats = getMonthStats(prevMonthDate.getMonth(), prevMonthDate.getFullYear(), invoices);
+        const prevMonthStats = getMonthStats(prevMonthDate.getMonth(), prevMonthDate.getFullYear(), filteredInvoices);
 
         const calcChange = (current: number, previous: number): { value: string; type: 'increase' | 'decrease' | 'neutral' } => {
             if (previous === 0) return { value: current > 0 ? "+100%" : "0%", type: current > 0 ? 'increase' : 'neutral' };
@@ -284,7 +310,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
         };
 
         const getInvoicesForPeriod = (config: ChartConfig): Invoice[] => {
-            return invoices.filter(inv => {
+            return filteredInvoices.filter(inv => {
                 if (!inv.date) return false;
                 const invDate = new Date(inv.date + 'T00:00:00');
                 switch (config.view) {
@@ -383,7 +409,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
             officeChartTitle,
         };
 
-    }, [invoices, companyInfo, offices, chartConfigs]);
+    }, [filteredInvoices, companyInfo, offices, chartConfigs]);
 
     const handlePieClick = (data: any) => {
         if (data && data.name) {
@@ -399,6 +425,31 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Panel de Control</h1>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Estadísticas y métricas operativas.</p>
+                </div>
+                
+                {canManageAllOffices && (
+                    <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pl-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm min-w-[280px]">
+                        <BuildingOfficeIcon className="h-5 w-5 text-primary-500" />
+                        <div className="flex-1">
+                            <Select 
+                                value={selectedOfficeId} 
+                                onChange={e => setSelectedOfficeId(e.target.value)}
+                                className="!border-0 !ring-0 !py-1 !shadow-none font-bold text-gray-700 dark:text-gray-200 bg-transparent"
+                            >
+                                <option value="all">Todas las Sucursales</option>
+                                {offices.map(office => (
+                                    <option key={office.id} value={office.id}>{office.name}</option>
+                                ))}
+                            </Select>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* Welcome Banner / Overview for Non-Invoice Users */}
             {!canViewStats && (
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -413,7 +464,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
             {canViewStats && (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard title="Total Flete (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.freight)} icon={TruckIcon} change={memoizedStats.freightChange.value} changeType={memoizedStats.freightChange.type} />
-                    <StatCard title="Total IVA (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.iva)} icon={DollarSignIcon} change={memoizedStats.ivaChange.value} changeType={memoizedStats.ivaChange.type} />
+                    <StatCard title="Total IVA (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.iva)} icon={BanknotesIcon} change={memoizedStats.ivaChange.value} changeType={memoizedStats.ivaChange.type} />
                     <StatCard title="Total Ipostel (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.ipostel)} icon={ReceiptIcon} change={memoizedStats.ipostelChange.value} changeType={memoizedStats.ipostelChange.type} />
                     <StatCard title="Total Seguro (Mes)" value={formatCurrency(memoizedStats.currentMonthStats.insuranceCost)} icon={ShieldCheckIcon} change={memoizedStats.insuranceChange.value} changeType={memoizedStats.insuranceChange.type} />
                 </div>
@@ -462,7 +513,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
                     </Card>
                  ) : null}
                 
-                {canViewStats && <AlertsPanel invoices={invoices} />}
+                {canViewStats && <AlertsPanel invoices={filteredInvoices} />}
             </div>
 
             {/* Other Charts */}

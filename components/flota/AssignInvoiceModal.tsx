@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
-import { Invoice, Vehicle, Office } from '../../types';
+import { Invoice, Vehicle, Office, CompanyInfo, ShippingType } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { calculateInvoiceChargeableWeight } from '../../utils/financials';
+import { calculateInvoiceChargeableWeight, calculateDetailedRemesaFinancials } from '../../utils/financials';
 import { ExclamationTriangleIcon, TruckIcon, XIcon } from '../icons/Icons';
 
 interface AssignInvoiceModalProps {
@@ -14,13 +14,16 @@ interface AssignInvoiceModalProps {
     availableInvoices: Invoice[];
     allInvoices: Invoice[]; // all invoices to calculate current load
     offices: Office[];
+    companyInfo: CompanyInfo;
+    shippingTypes: ShippingType[];
 }
 
-const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose, onAssign, vehicle, availableInvoices, allInvoices, offices }) => {
+const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose, onAssign, vehicle, availableInvoices, allInvoices, offices, companyInfo, shippingTypes }) => {
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+
     const [searchTerm, setSearchTerm] = useState('');
 
-    const { currentLoadKg, selectedInvoicesWeight, newTotalLoad, isOverloaded } = useMemo(() => {
+    const { currentLoadKg, selectedInvoicesWeight, newTotalLoad, isOverloaded, currentInvoices, selectedInvoices } = useMemo(() => {
         // Calculate what is already on the truck
         // FIX: Only count invoices that are "Pendiente para Despacho". 
         // Invoices that are "En Tránsito" or "Entregada" (already in a Remesa) should not count towards current loading capacity.
@@ -28,18 +31,27 @@ const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose
             .filter(i => i.vehicleId === vehicle.id && i.shippingStatus === 'Pendiente para Despacho')
             .reduce((sum, inv) => sum + calculateInvoiceChargeableWeight(inv), 0);
         
+        const currentInvoices = allInvoices.filter(i => i.vehicleId === vehicle.id && i.shippingStatus === 'Pendiente para Despacho');
+        
         // Calculate what is being selected
-        const selectedInvoicesWeight = selectedInvoiceIds.reduce((sum, id) => {
-            const invoice = availableInvoices.find(inv => inv.id === id);
-            return sum + (invoice ? calculateInvoiceChargeableWeight(invoice) : 0);
+        const selectedInvoices = selectedInvoiceIds.map(id => availableInvoices.find(inv => inv.id === id)).filter(Boolean) as Invoice[];
+        const selectedInvoicesWeight = selectedInvoices.reduce((sum, invoice) => {
+            return sum + calculateInvoiceChargeableWeight(invoice);
         }, 0);
         
         const newTotalLoad = currentLoadKg + selectedInvoicesWeight;
         const isOverloaded = vehicle.capacidadCarga > 0 && newTotalLoad > vehicle.capacidadCarga;
 
-        return { currentLoadKg, selectedInvoicesWeight, newTotalLoad, isOverloaded };
+        return { currentLoadKg, selectedInvoicesWeight, newTotalLoad, isOverloaded, currentInvoices, selectedInvoices };
     }, [allInvoices, availableInvoices, selectedInvoiceIds, vehicle]);
 
+    const financials = useMemo(() => {
+        const invoicesToCalculate = [...currentInvoices, ...selectedInvoices];
+        if (invoicesToCalculate.length === 0) return null;
+        return calculateDetailedRemesaFinancials(invoicesToCalculate, companyInfo, shippingTypes, undefined);
+    }, [currentInvoices, selectedInvoices, companyInfo, shippingTypes]);
+
+    const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const handleToggleInvoice = (invoiceId: string) => {
         setSelectedInvoiceIds(prev =>
@@ -91,6 +103,58 @@ const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose
                         </div>
                     )}
                 </div>
+
+                {/* Financial Summary */}
+                {financials && (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border dark:border-gray-700 text-sm">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="font-bold text-gray-700 dark:text-gray-300 border-b pb-1 mb-2">Totales Estimados</h4>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Pagado:</span>
+                                        <span className="font-semibold text-green-700 dark:text-green-400">
+                                            {formatCurrency(financials.pagado.favorCooperativa + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva + financials.pagado.favorAsociado)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Destino:</span>
+                                        <span className="font-semibold text-blue-700 dark:text-blue-400">
+                                            {formatCurrency(financials.totalDestino)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-1 mt-1 font-bold">
+                                        <span className="text-gray-800 dark:text-gray-200">Total Remesa:</span>
+                                        <span className="text-gray-800 dark:text-gray-200">
+                                            {formatCurrency((financials.pagado.favorCooperativa + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva + financials.pagado.favorAsociado) + financials.totalDestino)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-700 dark:text-gray-300 border-b pb-1 mb-2">Saldos Estimados</h4>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Favor Socio (Pagadas):</span>
+                                        <span className="font-semibold">{formatCurrency(financials.pagado.favorAsociado)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600 dark:text-gray-400">Favor Coop (Destino):</span>
+                                        <span className="font-semibold">{formatCurrency(financials.destino.favorCooperativa + financials.destino.seguro + financials.destino.ipostel + financials.destino.manejo + financials.destino.iva)}</span>
+                                    </div>
+                                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-1 mt-1 font-bold bg-white dark:bg-gray-900 rounded px-1">
+                                        <span className="text-gray-800 dark:text-gray-200">
+                                            {financials.conceptoSaldo === 'A pagar a la cooperativa' ? 'Saldo a la Coop:' : financials.conceptoSaldo === 'A pagar al socio' ? 'Saldo al Socio:' : 'Neutral'}
+                                        </span>
+                                        <span className={`text-gray-800 dark:text-gray-200 ${financials.saldoFinal < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                                            {formatCurrency(financials.saldoFinal)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Available Invoices */}

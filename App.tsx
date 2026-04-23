@@ -78,6 +78,7 @@ const AppContent: React.FC = () => {
     
     const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
     const [viewingReport, setViewingReport] = useState<Report | null>(null);
+    const [reportOfficeId, setReportOfficeId] = useState<string | null>(null);
     const [inventoryFilter, setInventoryFilter] = useState<string | null>(null);
     const [invoiceFilter, setInvoiceFilter] = useState<{ type: string, value: string } | null>(null);
     const [selectedAsociadoId, setSelectedAsociadoId] = useState<string | null>(null);
@@ -102,10 +103,13 @@ const AppContent: React.FC = () => {
             return invoices;
         }
         
-        // OFFICE RESTRICTION CHECK: Regular Operators
+        const userOfficeId = currentUser.officeId;
+        if (!userOfficeId) return [];
+        
+        // OFFICE RESTRICTION: Regular users only see invoices they created/own.
         return invoices.filter(invoice => 
-            invoice.guide.originOfficeId === currentUser.officeId || 
-            invoice.guide.destinationOfficeId === currentUser.officeId
+            invoice.officeId === userOfficeId || 
+            invoice.guide.originOfficeId === userOfficeId
         );
     }, [invoices, currentUser, hasGlobalAccess]);
 
@@ -179,6 +183,7 @@ const AppContent: React.FC = () => {
             
             setEditingInvoiceId(null);
             setViewingReport(null);
+            setReportOfficeId(null);
             setInventoryFilter(null);
             setInvoiceFilter(null);
             setSelectedAsociadoId(null);
@@ -247,6 +252,9 @@ const AppContent: React.FC = () => {
                 }
                  if(page === 'report-detail' && param) {
                     setViewingReport(SYSTEM_REPORTS.find(r => r.id === param) || null);
+                    if (subParam) {
+                        setReportOfficeId(subParam);
+                    }
                 }
                 setCurrentPage(page as Page);
             } else {
@@ -361,7 +369,7 @@ const AppContent: React.FC = () => {
                             companyInfo={companyInfo}
                             permissions={userPermissions}
                         />;
-                        case 'reports': return <ReportsView reports={SYSTEM_REPORTS} />;
+                        case 'reports': return <ReportsView reports={SYSTEM_REPORTS} invoices={filteredInvoices} offices={offices} companyInfo={companyInfo} />;
                         case 'report-detail': 
                             if (viewingReport?.id === 'reporte_asociados') {
                                 if (userPermissions['reports.associates.view']) {
@@ -370,7 +378,13 @@ const AppContent: React.FC = () => {
                                     return <div className="text-center p-8 text-gray-500">No tiene permisos para ver este reporte.</div>;
                                 }
                             }
-                            return viewingReport ? <ReportDetailView report={viewingReport} invoices={filteredInvoices} clients={clients} expenses={filteredExpenses} offices={viewableOffices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} shippingTypes={shippingTypes} /> : <div>Reporte no encontrado</div>;
+                            
+                            // Apply office filter if specified in the report URL
+                            const reportInvoices = reportOfficeId && reportOfficeId !== 'all' 
+                                ? filteredInvoices.filter(inv => inv.guide.originOfficeId === reportOfficeId)
+                                : filteredInvoices;
+
+                            return viewingReport ? <ReportDetailView report={viewingReport} invoices={reportInvoices} clients={clients} expenses={filteredExpenses} offices={viewableOffices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} shippingTypes={shippingTypes} reportOfficeId={reportOfficeId} /> : <div>Reporte no encontrado</div>;
                         case 'categories': return <CategoryView categories={categories} onSave={handleSaveCategory} onDelete={onDeleteCategory} permissions={userPermissions} />;
                         case 'clientes': return <ClientsView clients={clients} onSave={handleSaveClient} onDelete={handleDeleteClient} permissions={userPermissions} />;
                         case 'proveedores': return <SuppliersView suppliers={suppliers} onSave={handleSaveSupplier} onDelete={handleDeleteSupplier} permissions={userPermissions} />;
