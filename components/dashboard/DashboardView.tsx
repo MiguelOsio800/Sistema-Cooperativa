@@ -176,31 +176,14 @@ type ChartConfigs = {
 };
 
 const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, companyInfo, offices, permissions }) => {
-    const { currentUser } = useAuth();
-    const canManageAllOffices = permissions['invoices.manage_all_offices'] || currentUser?.roleId === 'role-admin' || currentUser?.roleId === 'role-tech';
-    const [selectedOfficeId, setSelectedOfficeId] = useState<string>(currentUser?.officeId || 'all');
-
-    // Default to 'all' only if they have permission and no specific office is assigned, 
-    // but the user specifically requested it to default to THEIR office.
-    React.useEffect(() => {
-        if (currentUser?.officeId && selectedOfficeId === 'all') {
-             // If we have a specific office, default to it first even if admin
-             setSelectedOfficeId(currentUser.officeId);
-        }
-    }, [currentUser?.officeId]);
+    const { currentUser, hasGlobalAccess } = useAuth();
+    // Default to 'all' so dashboard doesn't hide info initially.
+    const [selectedOfficeId, setSelectedOfficeId] = useState<string>('all');
 
     const filteredInvoices = useMemo(() => {
-        // For PRODUCTION metrics (Charts & Cards), we filter by the office that CREATED the guide (Origin)
-        if (!canManageAllOffices) {
-            // Regular employees see ONLY their office production
-            const userOfficeId = currentUser?.officeId;
-            if (!userOfficeId) return invoices;
-            return invoices.filter(inv => inv.guide.originOfficeId === userOfficeId);
-        }
-        
         if (selectedOfficeId === 'all') return invoices;
         return invoices.filter(inv => inv.guide.originOfficeId === selectedOfficeId);
-    }, [invoices, selectedOfficeId, canManageAllOffices, currentUser]);
+    }, [invoices, selectedOfficeId]);
 
     const currentFullYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
@@ -431,7 +414,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices, vehicles, compa
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Estadísticas y métricas operativas.</p>
                 </div>
                 
-                {canManageAllOffices && (
+                {hasGlobalAccess && (
                     <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pl-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm min-w-[280px]">
                         <BuildingOfficeIcon className="h-5 w-5 text-primary-500" />
                         <div className="flex-1">

@@ -13,6 +13,7 @@ interface AuthContextType {
     countdown: number;
     handleExtendSession: () => void;
     refreshUser: () => Promise<void>;
+    hasGlobalAccess: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -152,6 +153,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await fetchUserProfile();
     };
 
+    const hasGlobalAccess = ['role-admin', 'role-tecnologia', 'role-soporte'].includes(currentUser?.roleId || '');
+
     return (
         <AuthContext.Provider value={{ 
             isAuthenticated, 
@@ -162,7 +165,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isWarningModalOpen,
             countdown,
             handleExtendSession,
-            refreshUser
+            refreshUser,
+            hasGlobalAccess
         }}>
             {children}
         </AuthContext.Provider>

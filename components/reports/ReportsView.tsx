@@ -25,29 +25,15 @@ const ReportCard: React.FC<{ report: Report; onSelect: () => void }> = ({ report
 
 
 const ReportsView: React.FC<{ reports: Report[]; invoices: Invoice[]; offices: Office[]; companyInfo: CompanyInfo }> = ({ reports, invoices, offices, companyInfo }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, hasGlobalAccess } = useAuth();
     const { userPermissions } = useConfig();
-    const canManageAllOffices = userPermissions['invoices.manage_all_offices'] || currentUser?.roleId === 'role-admin' || currentUser?.roleId === 'role-tech';
-    const [selectedOfficeId, setSelectedOfficeId] = useState<string>(currentUser?.officeId || 'all');
-
-    // Sync selectedOfficeId when currentUser is loaded
-    React.useEffect(() => {
-        if (currentUser?.officeId && selectedOfficeId === 'all') {
-            setSelectedOfficeId(currentUser.officeId);
-        }
-    }, [currentUser?.officeId]);
+    
+    const [selectedOfficeId, setSelectedOfficeId] = useState<string>('all');
 
     const filteredInvoices = useMemo(() => {
-        // PRODUCTION LOGIC: In reports we summarize based on Origin Office
-        if (!canManageAllOffices) {
-            const myOfficeId = currentUser?.officeId;
-            if (!myOfficeId) return invoices;
-            return invoices.filter(inv => inv.guide.originOfficeId === myOfficeId);
-        }
-
         if (selectedOfficeId === 'all') return invoices;
         return invoices.filter(inv => inv.guide.originOfficeId === selectedOfficeId);
-    }, [invoices, selectedOfficeId, canManageAllOffices, currentUser]);
+    }, [invoices, selectedOfficeId]);
 
     const stats = useMemo(() => {
         const total = filteredInvoices.reduce((sum, inv) => {
@@ -78,7 +64,7 @@ const ReportsView: React.FC<{ reports: Report[]; invoices: Invoice[]; offices: O
                     <p className="text-gray-500 dark:text-gray-400">Consulte la información detallada de su operación.</p>
                 </div>
 
-                {canManageAllOffices && (
+                {hasGlobalAccess && (
                     <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pl-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm min-w-[280px]">
                         <BuildingOfficeIcon className="h-5 w-5 text-primary-500" />
                         <div className="flex-1">

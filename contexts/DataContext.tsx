@@ -89,6 +89,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             return await apiFetch<T>(endpoint);
         } catch (error: any) {
+            console.error(`FetchSafe error for ${endpoint}:`, error);
+            // Mostrar error en consola como ayuda para debugear
             return fallbackValue;
         }
     }, []);

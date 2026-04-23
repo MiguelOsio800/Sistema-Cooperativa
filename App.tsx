@@ -95,81 +95,13 @@ const AppContent: React.FC = () => {
                currentUser.roleId === 'role-accountant';
     }, [userPermissions, currentUser]);
 
-    // 1. Invoices
-    const filteredInvoices = useMemo(() => {
-        if (!currentUser) return [];
-        
-        if (hasGlobalAccess) {
-            return invoices;
-        }
-        
-        const userOfficeId = currentUser.officeId;
-        if (!userOfficeId) return [];
-        
-        // OFFICE RESTRICTION: Regular users only see invoices they created/own.
-        return invoices.filter(invoice => 
-            invoice.officeId === userOfficeId || 
-            invoice.guide.originOfficeId === userOfficeId
-        );
-    }, [invoices, currentUser, hasGlobalAccess]);
-
-    // 2. Expenses
-    const filteredExpenses = useMemo(() => {
-        if (!currentUser) return [];
-        
-        if (hasGlobalAccess || userPermissions['expenses.manage_all_offices']) {
-            return expenses;
-        }
-        
-        return expenses.filter(expense => expense.officeId === currentUser.officeId);
-    }, [expenses, currentUser, userPermissions, hasGlobalAccess]);
-
-    // 3. Inventory
-    const filteredInventory = useMemo(() => {
-        if (!currentUser) return [];
-        
-        if (hasGlobalAccess) {
-            return inventory;
-        }
-        
-        const allowedInvoiceIds = new Set(filteredInvoices.map(inv => inv.id));
-        
-        return inventory.filter(item => 
-            item.invoiceId && allowedInvoiceIds.has(item.invoiceId)
-        );
-    }, [inventory, filteredInvoices, currentUser, hasGlobalAccess]);
-
-    // 4. Remesas
-    const filteredRemesas = useMemo(() => {
-        if (!currentUser) return [];
-        
-        if (hasGlobalAccess) {
-            return remesas;
-        }
-        
-        const userOfficeId = currentUser.officeId;
-        const officeInvoiceIds = new Set(
-            invoices
-                .filter(inv => inv.guide.originOfficeId === userOfficeId)
-                .map(inv => inv.id)
-        );
-
-        return remesas.filter(remesa => 
-            remesa.invoiceIds.some(id => officeInvoiceIds.has(id))
-        );
-    }, [remesas, invoices, currentUser, hasGlobalAccess]);
-
-    // 5. Offices List
-    const viewableOffices = useMemo(() => {
-        if (!currentUser) return [];
-        
-        if (hasGlobalAccess || userPermissions['expenses.manage_all_offices']) {
-            return offices;
-        }
-        
-        return offices.filter(o => o.id === currentUser.officeId);
-    }, [offices, currentUser, hasGlobalAccess, userPermissions]);
-
+    // Backend ya filtra la data por seguridad. 
+    // Usamos las variables en su estado natural para conservar dependencias.
+    const filteredInvoices = invoices;
+    const filteredExpenses = expenses;
+    const filteredInventory = inventory;
+    const filteredRemesas = remesas;
+    const viewableOffices = offices;
 
     useEffect(() => {
         if (!isAuthenticated) return;

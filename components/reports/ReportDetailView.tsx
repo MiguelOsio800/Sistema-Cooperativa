@@ -74,7 +74,7 @@ const ReportCompanyHeader: React.FC<{ companyInfo: CompanyInfo, reportTitle: str
 );
 
 const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, clients, expenses, offices, companyInfo, paymentMethods, vehicles, asociados, shippingTypes, reportOfficeId }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, hasGlobalAccess } = useAuth();
     const { roles } = useConfig();
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -500,6 +500,19 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             default:
                 alert('La exportación para este reporte no está implementada.');
                 return null;
+        }
+
+        if (!hasGlobalAccess && !isAoa) {
+            const keysToRemove = headers.filter(h => h.toLowerCase().includes('oficina') || h.toLowerCase() === 'origen' || h.toLowerCase() === 'destino');
+            if (keysToRemove.length > 0) {
+                headers = headers.filter(h => !keysToRemove.includes(h));
+                dataToExport = dataToExport.map(row => {
+                    const newRow = { ...row };
+                    keysToRemove.forEach(k => delete newRow[k]);
+                    return newRow;
+                });
+                keysToRemove.forEach(k => delete totalsRow[k]);
+            }
         }
 
         return { dataToExport, sheetName, totalsRow, headers, isAoa, sourceData };
@@ -1409,6 +1422,32 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     }, { kg: 0, freight: 0 });
                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={2} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{comisionesTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(comisionesTotals.freight)}</td></tr></tfoot>);
                     break;
+            }
+
+            if (!hasGlobalAccess) {
+                const indicesToRemove = headers.map((h, i) => h.toLowerCase().includes('oficina') || h.toLowerCase() === 'origen' || h.toLowerCase() === 'destino' ? i : -1).filter(i => i !== -1);
+                
+                if (indicesToRemove.length > 0) {
+                    headers = headers.filter((_, i) => !indicesToRemove.includes(i));
+                    body = React.Children.map(body, tr => {
+                        if (!React.isValidElement(tr)) return tr;
+                        const tds = React.Children.toArray(tr.props.children).filter((_, index) => !indicesToRemove.includes(index));
+                        return React.cloneElement(tr, { children: tds } as any);
+                    });
+                     if (footer && React.isValidElement(footer)) {
+                        footer = React.cloneElement(footer, {
+                            children: React.Children.map(footer.props.children, tr => {
+                                if (!React.isValidElement(tr)) return tr;
+                                const tds: any[] = React.Children.toArray(tr.props.children);
+                                if (tds.length > 0 && React.isValidElement(tds[0])) {
+                                    const origColSpan = (tds[0].props as any).colSpan || 1;
+                                    tds[0] = React.cloneElement(tds[0], { colSpan: Math.max(1, origColSpan - indicesToRemove.length) } as any);
+                                }
+                                return React.cloneElement(tr, { children: tds } as any);
+                            })
+                        } as any);
+                    }
+                }
             }
 
             return (

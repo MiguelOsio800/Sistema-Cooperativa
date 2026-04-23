@@ -44,12 +44,11 @@ interface InvoicesViewProps {
 const ITEMS_PER_PAGE = 7;
 
 const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categories, userPermissions, onUpdateStatuses, onDeleteInvoice, companyInfo, initialFilter, offices }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, hasGlobalAccess } = useAuth();
     const { handleCreateCreditNote, handleCreateDebitNote } = useData();
     const { confirm } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
     
-    const isAdminOrTech = currentUser?.roleId === 'role-admin' || currentUser?.roleId === 'role-tech';
     const [isQuickStatusModalOpen, setIsQuickStatusModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
@@ -178,7 +177,7 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">N° Factura</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cliente</th>
-                                {isAdminOrTech && (
+                                {hasGlobalAccess && (
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Oficina</th>
                                 )}
                                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Monto Total</th>
@@ -194,7 +193,7 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600 dark:text-primary-400 cursor-pointer" onClick={() => openModal(invoice)}>{formatInvoiceNumber(invoice.invoiceNumber)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{invoice.date}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{invoice.clientName}</td>
-                                    {isAdminOrTech && (
+                                    {hasGlobalAccess && (
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
                                                 {invoice.Office?.name || 'Oficina Principal'}
@@ -257,7 +256,7 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                         </tbody>
                         <tfoot className="bg-gray-50 dark:bg-gray-700/50 font-semibold">
                             <tr>
-                                <td className="px-6 py-3 text-left text-sm text-gray-900 dark:text-gray-100" colSpan={isAdminOrTech ? 4 : 3}>
+                                <td className="px-6 py-3 text-left text-sm text-gray-900 dark:text-gray-100" colSpan={hasGlobalAccess ? 4 : 3}>
                                     Total de Facturas (Filtrados): {totalItems}
                                 </td>
                                 <td className="px-6 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
