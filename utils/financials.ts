@@ -37,7 +37,7 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
     
     // Cálculo del Peso Total
     const totalWeight = guide.merchandise.reduce((acc, item) => {
-        return acc + (parseFloat(String(item.weight)) || 0) * (parseFloat(String(item.quantity)) || 1);
+        return acc + (parseFloat(String(item.weight)) || 0);
     }, 0);
 
     /**
@@ -78,9 +78,8 @@ export const calculateInvoiceChargeableWeight = (invoice: Invoice): number => {
         const length = parseFloat(String(item.length)) || 0;
         const width = parseFloat(String(item.width)) || 0;
         const height = parseFloat(String(item.height)) || 0;
-        const quantity = parseFloat(String(item.quantity)) || 1;
         const volumetricWeight = (length * width * height) / 5000;
-        return acc + Math.max(realWeight, volumetricWeight) * quantity;
+        return acc + Math.max(realWeight, volumetricWeight);
     }, 0);
 };
 
