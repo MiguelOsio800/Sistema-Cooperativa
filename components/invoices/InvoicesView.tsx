@@ -72,8 +72,8 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
             if (shippingStatusFilter && invoice.shippingStatus !== shippingStatusFilter) return false;
             if (clientFilter && invoice.clientIdNumber !== clientFilter) return false;
             if (searchTerm && !(
-                invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                invoice.clientName.toLowerCase().includes(searchTerm.toLowerCase())
+                (invoice.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (invoice.clientName || '').toLowerCase().includes(searchTerm.toLowerCase())
             )) return false;
 
             return true;

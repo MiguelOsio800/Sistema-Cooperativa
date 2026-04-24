@@ -83,38 +83,6 @@ const ReportsView: React.FC<{ reports: Report[]; invoices: Invoice[]; offices: O
                 )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="flex items-center p-4">
-                    <div className="p-3 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 mr-4">
-                        <TruckIcon className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Facturas Emitidas</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.count}</p>
-                    </div>
-                </Card>
-                <Card className="flex items-center p-4">
-                    <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 mr-4 shrink-0">
-                        <BanknotesIcon className="h-6 w-6" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Ingresos Totales (Base)</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white truncate">Bs. {stats.total.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                </Card>
-                <Card className="flex items-center p-4">
-                    <div className="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 mr-4 shrink-0">
-                        <BuildingOfficeIcon className="h-6 w-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Oficina</p>
-                        <p className="text-[13px] sm:text-sm font-bold text-gray-900 dark:text-white uppercase leading-tight line-clamp-2" title={selectedOfficeId === 'all' ? 'Todas las Sucursales' : offices.find(o => o.id === selectedOfficeId)?.name}>
-                            {selectedOfficeId === 'all' ? 'Todas las Sucursales' : offices.find(o => o.id === selectedOfficeId)?.name || 'Sucursal'}
-                        </p>
-                    </div>
-                </Card>
-            </div>
-
             <Card>
                 <CardTitle>Reportes del Sistema</CardTitle>
                 <p className="text-gray-500 dark:text-gray-400 mt-1 mb-6">Seleccione un reporte para visualizar sus datos.</p>

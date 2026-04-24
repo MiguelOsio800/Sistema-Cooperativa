@@ -153,7 +153,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await fetchUserProfile();
     };
 
-    const hasGlobalAccess = ['role-admin', 'role-tecnologia', 'role-soporte'].includes(currentUser?.roleId || '');
+    const currentRoleId = (currentUser?.roleId || '').toLowerCase();
+    const hasGlobalAccess = currentRoleId.includes('admin') || currentRoleId.includes('tecno') || currentRoleId.includes('soport');
 
     return (
         <AuthContext.Provider value={{ 

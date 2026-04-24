@@ -89,8 +89,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             return await apiFetch<T>(endpoint);
         } catch (error: any) {
-            console.error(`FetchSafe error for ${endpoint}:`, error);
-            // Mostrar error en consola como ayuda para debugear
+            const msg = error.message || '';
+            // No loguear como error si es falta de permisos o endpoint no encontrado (ya manejado por el backend)
+            if (!msg.includes('permisos') && !msg.includes('403') && !msg.includes('404')) {
+                console.error(`FetchSafe error for ${endpoint}:`, error);
+            }
             return fallbackValue;
         }
     }, []);
@@ -110,37 +113,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLoading(true);
             dataLoadedForUserRef.current = currentUser?.id || 'authed';
             
-            const isAdmin = ['role-admin', 'role-tech'].includes(currentUser.roleId);
-            const perms = (currentUser as any).Role?.permissions || currentUser.permissions || {};
             const promises: Promise<any>[] = [];
 
-            if (isAdmin || perms['invoices.view']) promises.push(fetchSafe<Invoice[]>('/invoices', []).then(d => { setInvoices(d); setInventory(deriveInventoryFromInvoices(d)); }));
-            if (isAdmin || perms['clientes.view']) promises.push(fetchSafe<Client[]>('/clients', []).then(setClients));
-            if (isAdmin || perms['proveedores.view']) promises.push(fetchSafe<Supplier[]>('/suppliers', []).then(setSuppliers));
-            if (isAdmin || perms['flota.view']) promises.push(fetchSafe<Vehicle[]>('/vehicles', []).then(setVehicles));
-            if (isAdmin || perms['remesas.view']) promises.push(fetchSafe<Remesa[]>('/remesas', []).then(setRemesas));
-            if (isAdmin || perms['libro-contable.view']) {
-                promises.push(fetchSafe<Expense[]>('/expenses', []).then(setExpenses));
-                promises.push(fetchSafe<AsientoManual[]>('/asientos-manuales', []).then(setAsientosManuales));
-            }
-            
-            if (isAdmin || perms['inventario-bienes.view']) {
-                promises.push(fetchSafe<Asset[]>('/assets', []).then(setAssets));
-                promises.push(fetchSafe<AssetCategory[]>('/asset-categories', []).then(setAssetCategories));
-            }
+            // Peticiones base que SIEMPRE deben ejecutarse (El backend filtra por seguridad)
+            promises.push(fetchSafe<Invoice[]>('/invoices', []).then(d => { setInvoices(d); setInventory(deriveInventoryFromInvoices(d)); }));
+            promises.push(fetchSafe<Client[]>('/clients', []).then(setClients));
+            promises.push(fetchSafe<Supplier[]>('/suppliers', []).then(setSuppliers));
+            promises.push(fetchSafe<Vehicle[]>('/vehicles', []).then(setVehicles));
+            promises.push(fetchSafe<Remesa[]>('/remesas', []).then(setRemesas));
+            promises.push(fetchSafe<Asset[]>('/assets', []).then(setAssets));
+            promises.push(fetchSafe<AssetCategory[]>('/asset-categories', []).then(setAssetCategories));
+            promises.push(fetchSafe<Expense[]>('/expenses', []).then(setExpenses));
+            promises.push(fetchSafe<AsientoManual[]>('/asientos-manuales', []).then(setAsientosManuales));
 
-            if (isAdmin || perms['asociados.view']) {
-                const asocsResponse = await fetchSafe<any>('/asociados?limit=1000', { data: [], total: 0 });
-                const asocs = Array.isArray(asocsResponse) ? asocsResponse : (asocsResponse.data || []);
-                setAsociados(asocs);
-                promises.push(fetchSafe<ReciboPagoAsociado[]>('/asociados/recibos', []).then(setRecibosPagoAsociados));
-            }
+            // Para asociados y sus recibos:
+            const asocsResponse = await fetchSafe<any>('/asociados?limit=1000', { data: [], total: 0 });
+            const asocs = Array.isArray(asocsResponse) ? asocsResponse : (asocsResponse?.data || []);
+            setAsociados(asocs);
+            promises.push(fetchSafe<ReciboPagoAsociado[]>('/asociados/recibos', []).then(setRecibosPagoAsociados));
 
             await Promise.all(promises);
         } finally {
             setIsLoading(false);
         }
-    }, [isAuthenticated, currentUser, fetchSafe, addToast]);
+    }, [isAuthenticated, currentUser, fetchSafe]);
 
     useEffect(() => {
         if (!isAuthenticated) return;

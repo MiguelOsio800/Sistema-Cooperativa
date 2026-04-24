@@ -237,19 +237,24 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
         switch(report.id) {
             case 'general_envios':
-                headers = ["Fecha", "N° Factura", "N° Control", "Remitente", "Destinatario", "Oficina Origen", "Oficina Destino", "Monto Total", "Estado Pago", "Estado Envío"];
-                dataToExport = (sourceData as unknown as Invoice[]).map(inv => ({
-                    [headers[0]]: inv.date,
-                    [headers[1]]: inv.invoiceNumber,
-                    [headers[2]]: inv.controlNumber,
-                    [headers[3]]: inv.guide.sender.name,
-                    [headers[4]]: inv.guide.receiver.name,
-                    [headers[5]]: offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A',
-                    [headers[6]]: offices.find(o => o.id === inv.guide.destinationOfficeId)?.name || 'N/A',
-                    [headers[7]]: inv.totalAmount,
-                    [headers[8]]: inv.paymentStatus,
-                    [headers[9]]: inv.shippingStatus,
-                }));
+                headers = ["Fecha", "N° Factura", "N° Control", "Cliente", "Seguro", "Manejo", "Ipostel", "Kg", "Paquetes", "Monto Total"];
+                dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
+                    const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                    const kg = calculateInvoiceChargeableWeight(inv);
+                    const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
+                    return {
+                        [headers[0]]: inv.date,
+                        [headers[1]]: inv.invoiceNumber,
+                        [headers[2]]: inv.controlNumber,
+                        [headers[3]]: inv.clientName,
+                        [headers[4]]: fin.insuranceCost,
+                        [headers[5]]: fin.handling,
+                        [headers[6]]: fin.ipostel,
+                        [headers[7]]: kg,
+                        [headers[8]]: paquetes,
+                        [headers[9]]: inv.totalAmount,
+                    };
+                });
                 break;
             case 'libro_venta':
                 headers = ["Fecha", "N° Factura", "N° Control", "Oficina Origen", "Nombre/Razón Social Cliente", "RIF/CI Cliente", "Venta Total", "Base Imponible", "IVA (16%)", "IPOSTEL"];
@@ -1207,10 +1212,27 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             
             switch (report.id) {
                 case 'general_envios':
-                    headers = ["Fecha", "N° Factura", "Cliente", "Origen", "Destino", "Total", "Estado Pago", "Estado Envío"];
-                    body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.destinationOfficeId)?.name}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td><td className="px-2 py-2">{inv.paymentStatus}</td><td className="px-2 py-2">{inv.shippingStatus}</td></tr>));
+                    headers = ["Fecha", "N° Factura", "Cliente", "Seguro", "Manejo", "Ipostel", "Kg", "Paq.", "Total"];
+                    body = (paginatedData as unknown as Invoice[]).map(inv => {
+                        const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                        const kg = calculateInvoiceChargeableWeight(inv);
+                        const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
+                        return (
+                            <tr key={inv.id}>
+                                <td className="px-2 py-2">{inv.date}</td>
+                                <td className="px-2 py-2">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 max-w-[150px] truncate" title={inv.clientName}>{inv.clientName}</td>
+                                <td className="px-2 py-2 text-right">{formatCurrency(fin.insuranceCost)}</td>
+                                <td className="px-2 py-2 text-right">{formatCurrency(fin.handling)}</td>
+                                <td className="px-2 py-2 text-right">{formatCurrency(fin.ipostel)}</td>
+                                <td className="px-2 py-2 text-right">{kg.toFixed(2)}</td>
+                                <td className="px-2 py-2 text-center">{paquetes}</td>
+                                <td className="px-2 py-2 text-right font-medium">{formatCurrency(inv.totalAmount)}</td>
+                            </tr>
+                        );
+                    });
                     const generalTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td><td colSpan={2}></td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={8} className="px-2 py-3 text-left uppercase">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td></tr></tfoot>);
                     
                     let fletePagado = 0;
                     let fleteDestino = 0;
