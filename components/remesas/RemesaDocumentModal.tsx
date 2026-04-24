@@ -320,98 +320,70 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                 {/* Summary Section */}
                                 <div className="grid grid-cols-2 gap-8 mt-4 text-black text-[10px]">
                                     <div className="pr-4">
-                                        <div className="font-bold text-black mb-1">
-                                            {financials.modalidadSaldo === 'Pagado' ? 'PAGADO' : 'DESTINO'}
+                                        <div className="font-bold text-black mb-1 uppercase">
+                                            Cargos Cooperativa ({financials.totalDestino > 0 ? 'Destino' : 'Pagado'})
                                         </div>
                                         <div className="flex justify-between py-1 text-black">
-                                            <span className="text-black">Coop.</span>
+                                            <span className="text-black">Comisión Base</span>
                                             <span className="text-black">
-                                                {formatCurrency(financials.modalidadSaldo === 'Pagado' ? financials.pagado.favorCooperativa : financials.destino.favorCooperativa)}
+                                                {formatCurrency(financials.totalDestino > 0 ? financials.destino.favorCooperativa : financials.pagado.favorCooperativa)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 text-black">
                                             <span className="text-black">Seguro</span>
                                             <span className="text-black">
-                                                {formatCurrency(financials.modalidadSaldo === 'Pagado' ? financials.pagado.seguro : financials.destino.seguro)}
+                                                {formatCurrency(financials.totalDestino > 0 ? financials.destino.seguro : financials.pagado.seguro)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 text-black">
                                             <span className="text-black">Ipostel</span>
                                             <span className="text-black">
-                                                {formatCurrency(financials.modalidadSaldo === 'Pagado' ? financials.pagado.ipostel : financials.destino.ipostel)}
+                                                {formatCurrency(financials.totalDestino > 0 ? financials.destino.ipostel : financials.pagado.ipostel)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 text-black">
                                             <span className="text-black">Manejo</span>
                                             <span className="text-black">
-                                                {formatCurrency(financials.modalidadSaldo === 'Pagado' ? financials.pagado.manejo : financials.destino.manejo)}
+                                                {formatCurrency(financials.totalDestino > 0 ? financials.destino.manejo : financials.pagado.manejo)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 text-black">
                                             <span className="text-black">I.V.A.</span>
                                             <span className="text-black">
-                                                {formatCurrency(financials.modalidadSaldo === 'Pagado' ? financials.pagado.iva : financials.destino.iva)}
+                                                {formatCurrency(financials.totalDestino > 0 ? financials.destino.iva : financials.pagado.iva)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 font-bold text-black border-t border-black mt-1">
-                                            <span className="text-black">TOTAL</span>
+                                            <span className="text-black">TOTAL CARGOS</span>
                                             <span className="text-black">
-                                                {formatCurrency(
-                                                    financials.modalidadSaldo === 'Pagado'
-                                                        ? (financials.pagado.favorCooperativa + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva)
-                                                        : (financials.destino.favorCooperativa + financials.destino.seguro + financials.destino.ipostel + financials.destino.manejo + financials.destino.iva)
-                                                )}
+                                                {formatCurrency(financials.totalDestino > 0 ? financials.cargosDestino : financials.cargosPagado)}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="pl-4 border-l border-gray-300">
                                         <div className="flex justify-between py-1 font-bold text-black">
-                                            <span className="text-black">
-                                                {financials.modalidadSaldo === 'Pagado' ? 'TOTAL PAGADO' : 'TOTAL DESTINO'}
+                                            <span className="text-black uppercase">
+                                                {financials.totalPagado > 0 ? 'FAVOR SOCIO (PAGADO)' : 'TOTAL DESTINO'}
                                             </span>
                                             <span className="text-black">
-                                                {formatCurrency(
-                                                    financials.modalidadSaldo === 'Pagado'
-                                                        ? (financials.pagado.favorCooperativa + financials.pagado.seguro + financials.pagado.ipostel + financials.pagado.manejo + financials.pagado.iva)
-                                                        : (financials.destino.favorCooperativa + financials.destino.seguro + financials.destino.ipostel + financials.destino.manejo + financials.destino.iva)
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between py-1 border-t border-black font-bold text-black">
-                                            <span className="text-black">FAVOR SOCIO</span>
-                                            <span className="text-black">
-                                                {formatCurrency(
-                                                    financials.modalidadSaldo === 'Pagado'
-                                                        ? financials.destino.favorAsociado
-                                                        : financials.pagado.favorAsociado
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between py-1 font-bold text-black">
-                                            <span className="text-black"></span>
-                                            <span className="text-black">
-                                                {formatCurrency(financials.saldoFinal)}
+                                                {formatCurrency(financials.totalPagado > 0 ? financials.favorSocioPagado : financials.totalDestino)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-2 border-t-2 border-black font-bold text-[11px] mt-2 text-black bg-gray-50 p-1">
                                             <span className="text-black">
-                                                {financials.conceptoSaldo === 'A pagar a la cooperativa' 
-                                                    ? "Saldo a pagar a la Cooperativa:" 
-                                                    : financials.conceptoSaldo === 'A pagar al socio'
-                                                        ? "Saldo a favor del Socio:"
-                                                        : "Saldo neutral:"}
+                                                {financials.conceptoSaldo}:
                                             </span>
-                                            <span className={`text-black ${financials.saldoFinal < 0 ? 'text-red-600' : ''}`}>
-                                                {formatCurrency(financials.saldoFinal)}
+                                            <span className="text-black">
+                                                {formatCurrency(Math.abs(financials.saldoFinal))}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 border-t border-black text-[10px] text-black">
-                                            <span className="text-black font-bold">Total Remesa:</span>
+                                            <span className="text-black font-bold">Total Bruto Remesa:</span>
                                             <span className="text-black font-bold">{formatCurrency(remesa.totalAmount)} Bs.</span>
                                         </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">
-                                            <span className="text-black">Total Remesa ($):</span>
-                                            <span className="text-black">${remesaTotalUsd}</span>
+                                            <span className="text-black">Tasa (BCV):</span>
+                                            <span className="text-black">{companyInfo.bcvRate} Bs/$</span>
                                         </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">
                                             <span className="text-black">Saldo en ($):</span>

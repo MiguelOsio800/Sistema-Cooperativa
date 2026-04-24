@@ -107,9 +107,14 @@ export interface DetailedFinancials {
         favorCooperativa: number;
         favorAsociado: number;
     };
-    totalDestino: number; // Total amount to be collected at destination (for reference)
+    totalDestino: number;
+    totalPagado: number;
+    cargosDestino: number;
+    cargosPagado: number;
+    favorSocioPagado: number;
+    cooperativeAmount: number;
     saldoFinal: number;
-    conceptoSaldo: 'A pagar a la cooperativa' | 'A pagar al socio' | 'Ceros';
+    conceptoSaldo: string;
     modalidadSaldo: 'Destino' | 'Pagado' | 'Iguales';
 }
 
@@ -121,91 +126,108 @@ export const calculateDetailedRemesaFinancials = (
 ): DetailedFinancials => {
     const init = { flete: 0, viajes: 0, sobres: 0, seguro: 0, ipostel: 0, manejo: 0, iva: 0, favorCooperativa: 0, favorAsociado: 0 };
     
+    // Paso 1: Segregación de Acumuladores
     const result: DetailedFinancials = {
         pagado: { ...init },
         destino: { ...init },
         totalDestino: 0,
+        totalPagado: 0,
+        cargosDestino: 0,
+        cargosPagado: 0,
+        favorSocioPagado: 0,
+        cooperativeAmount: 0,
         saldoFinal: 0,
         conceptoSaldo: 'Ceros',
         modalidadSaldo: 'Iguales'
     };
 
-    let totalPagado = 0;
-
     const isNoAsociado = asociado?.nombre.toLowerCase().includes('no asociado') || asociado?.nombre.toLowerCase().includes('no asociados');
 
     invoices.forEach(inv => {
         const fin = calculateFinancialDetails(inv.guide, companyInfo);
-        const target = inv.guide.paymentType === 'flete-pagado' ? result.pagado : result.destino;
-
+        
         // Use historical values from invoice if available to prevent recalculation mismatches
         const handling = inv.Montomanejo !== undefined ? inv.Montomanejo : fin.handling;
         const ipostel = inv.ipostelFee !== undefined ? inv.ipostelFee : fin.ipostel;
         const insuranceCost = fin.insuranceCost;
         const iva = fin.iva;
-        const total = inv.totalAmount; // Source of truth
+        const totalAmount = inv.totalAmount; 
 
-        // Flete Puro is the base for distribution
-        const fletePuro = total - insuranceCost - ipostel - handling - iva;
-
-        target.flete += fletePuro; 
-        target.seguro += insuranceCost;
-        target.ipostel += ipostel;
-        target.manejo += handling;
-        target.iva += iva;
-        
-        // Business Logic for Distribution (ACTUALIZADO):
-        // 1. No Asociados: 30% Cooperativa / 70% Socio (independientemente del tipo de envío)
-        // 2. Asociados:
-        //    - Franquicia, Viaje Expreso, Mudanza: 15% Cooperativa / 85% Socio
-        //    - Otros (Normales): 30% Cooperativa / 70% Socio
-        
-        let coopPercentage = 0.30; // Default 30%
-
+        // Identifica la comisión base de la cooperativa (favorCoop): 15% o 30% del totalAmount según el shippingType
+        let coopPercentage = 0.30; 
         if (!isNoAsociado) {
             const shippingType = shippingTypes.find(st => st.id === inv.guide.shippingTypeId);
             const typeName = shippingType?.name.toLowerCase() || '';
-            
-            if (typeName.includes('franquicia') || 
-                typeName.includes('expreso') || 
-                typeName.includes('mudanza')) {
+            if (typeName.includes('franquicia') || typeName.includes('expreso') || typeName.includes('mudanza')) {
                 coopPercentage = 0.15;
             }
         }
+        
+        const favorCoop = totalAmount * coopPercentage;
+        
+        // Calcula los cargos extras totales de esa factura
+        const cargosExtrasFactura = favorCoop + insuranceCost + ipostel + handling + iva;
 
-        // Apply split to Flete Puro for ALL invoices (Pagado and Destino)
-        const coopShare = fletePuro * coopPercentage;
-        const associateShare = fletePuro - coopShare; // To avoid rounding issues
-
-        target.favorCooperativa += coopShare;
-        target.favorAsociado += associateShare;
-
-        if (inv.guide.paymentType === 'flete-destino') {
-            result.totalDestino += total;
+        if (inv.guide.paymentType === 'flete-pagado') {
+            result.totalPagado += totalAmount;
+            // Aumenta favorSocioPagado (70% o 85% según corresponda para mantener consistencia con favorCoop)
+            result.favorSocioPagado += totalAmount * (1 - coopPercentage);
+            result.cargosPagado += cargosExtrasFactura;
+            
+            // For UI backward compatibility in report tables
+            result.pagado.seguro += insuranceCost;
+            result.pagado.ipostel += ipostel;
+            result.pagado.manejo += handling;
+            result.pagado.iva += iva;
+            result.pagado.favorCooperativa += favorCoop;
+            result.pagado.favorAsociado += totalAmount * (1 - coopPercentage);
         } else {
-            totalPagado += total;
+            result.totalDestino += totalAmount;
+            result.cargosDestino += cargosExtrasFactura;
+            
+            // For UI backward compatibility in report tables
+            result.destino.seguro += insuranceCost;
+            result.destino.ipostel += ipostel;
+            result.destino.manejo += handling;
+            result.destino.iva += iva;
+            result.destino.favorCooperativa += favorCoop;
+            result.destino.favorAsociado += totalAmount * (1 - coopPercentage);
         }
     });
 
-    // Lógica de negocio para el saldo final
-    if (result.totalDestino > totalPagado) {
-        result.modalidadSaldo = 'Destino';
-        result.conceptoSaldo = 'A pagar a la cooperativa';
-        // Fórmula cruzada: Total Coop Destino - Favor Socio Pagado
-        const totalDestinoCoop = result.destino.favorCooperativa + result.destino.manejo + result.destino.seguro + result.destino.ipostel + result.destino.iva;
-        const rawSaldo = totalDestinoCoop - result.pagado.favorAsociado;
-        result.saldoFinal = -Math.abs(rawSaldo); // Se fuerza a negativo para indicar deuda a la cooperativa
-    } else if (totalPagado > result.totalDestino) {
+    // Paso 2: Implementación de las 4 Fórmulas Matemáticas
+    if (result.totalDestino === 0 && result.totalPagado > 0) {
+        // Fórmula 3 (Solo Pagado)
+        result.cooperativeAmount = result.cargosPagado;
+        result.saldoFinal = -result.favorSocioPagado; // Socio favor = negative
+        result.conceptoSaldo = 'Saldo a favor del socio';
         result.modalidadSaldo = 'Pagado';
-        result.conceptoSaldo = 'A pagar al socio';
-        // Fórmula cruzada: Total Coop Pagado - Favor Socio Destino
-        const totalPagadoCoop = result.pagado.favorCooperativa + result.pagado.manejo + result.pagado.seguro + result.pagado.ipostel + result.pagado.iva;
-        const rawSaldo = totalPagadoCoop - result.destino.favorAsociado;
-        result.saldoFinal = Math.abs(rawSaldo); // Se fuerza a positivo para indicar saldo a favor del socio
+    } else if (result.totalPagado === 0 && result.totalDestino > 0) {
+        // Fórmula 4 (Solo Destino)
+        result.cooperativeAmount = result.cargosDestino;
+        result.saldoFinal = result.cargosDestino; // Coop favor = positive
+        result.conceptoSaldo = 'Saldo a pagar a la cooperativa';
+        result.modalidadSaldo = 'Destino';
     } else {
-        result.modalidadSaldo = 'Iguales';
-        result.conceptoSaldo = 'Ceros';
-        result.saldoFinal = 0;
+        // Fórmulas 1 y 2 (Mixed)
+        const netCoopAmount = result.cargosDestino - result.favorSocioPagado;
+        result.cooperativeAmount = netCoopAmount;
+        
+        if (netCoopAmount > 0) {
+            // Fórmula 1: Saldo a favor de la cooperativa
+            result.saldoFinal = netCoopAmount;
+            result.conceptoSaldo = 'Saldo a pagar a la cooperativa';
+            result.modalidadSaldo = 'Destino';
+        } else if (netCoopAmount < 0) {
+            // Fórmula 2: Saldo a favor del socio
+            result.saldoFinal = netCoopAmount; // Keep negative
+            result.conceptoSaldo = 'Saldo a favor del socio';
+            result.modalidadSaldo = 'Pagado';
+        } else {
+            result.saldoFinal = 0;
+            result.conceptoSaldo = 'Saldo neutral';
+            result.modalidadSaldo = 'Iguales';
+        }
     }
 
     return result;

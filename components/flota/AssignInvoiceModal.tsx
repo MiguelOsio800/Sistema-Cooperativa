@@ -143,11 +143,11 @@ const AssignInvoiceModal: React.FC<AssignInvoiceModalProps> = ({ isOpen, onClose
                                         <span className="font-semibold">{formatCurrency(financials.destino.favorCooperativa + financials.destino.seguro + financials.destino.ipostel + financials.destino.manejo + financials.destino.iva)}</span>
                                     </div>
                                     <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-1 mt-1 font-bold bg-white dark:bg-gray-900 rounded px-1">
-                                        <span className="text-gray-800 dark:text-gray-200">
-                                            {financials.conceptoSaldo === 'A pagar a la cooperativa' ? 'Saldo a la Coop:' : financials.conceptoSaldo === 'A pagar al socio' ? 'Saldo al Socio:' : 'Neutral'}
+                                        <span className="text-gray-800 dark:text-gray-200 uppercase text-[10px]">
+                                            {financials.conceptoSaldo}:
                                         </span>
-                                        <span className={`text-gray-800 dark:text-gray-200 ${financials.saldoFinal < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                            {formatCurrency(financials.saldoFinal)}
+                                        <span className={`text-gray-800 dark:text-gray-200 ${financials.saldoFinal > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-primary-600 dark:text-primary-400'}`}>
+                                            {formatCurrency(Math.abs(financials.saldoFinal))}
                                         </span>
                                     </div>
                                 </div>
