@@ -369,7 +369,13 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                                 {formatCurrency(financials.totalPagado > 0 ? financials.favorSocioPagado : financials.totalDestino)}
                                             </span>
                                         </div>
-                                        <div className="flex justify-between py-2 border-t-2 border-black font-bold text-[11px] mt-2 text-black bg-gray-50 p-1">
+                                        <div className="flex justify-between py-1 border-b-2 border-black font-bold text-black">
+                                            <span className="text-black">Sub Total:</span>
+                                            <span className="text-black">
+                                                {formatCurrency(financials.cargosDestino)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between py-2 border-transparent font-bold text-[11px] mt-2 text-black bg-gray-50 p-1">
                                             <span className="text-black">
                                                 {financials.conceptoSaldo}:
                                             </span>
