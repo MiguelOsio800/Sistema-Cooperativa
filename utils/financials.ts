@@ -163,16 +163,19 @@ export const calculateDetailedRemesaFinancials = (
             }
         }
         
+        // La comisión base de la cooperativa se extrae expresamente del totalAmount
         const favorCoop = totalAmount * coopPercentage;
         
-        // Calcula los cargos extras totales de esa factura
+        // Cargos extras son la comisión + todos los demás conceptos (que también son retenidos)
         const cargosExtrasFactura = favorCoop + insuranceCost + ipostel + handling + iva;
+        
+        // Lo que realmente le queda a favor al socio de esta factura, asumiendo que recaudó o recaudará el totalAmount
+        const socioShare = totalAmount - cargosExtrasFactura;
 
         if (inv.guide.paymentType === 'flete-pagado') {
             result.totalPagado += totalAmount;
-            // Aumenta favorSocioPagado (70% o 85% según corresponda para mantener consistencia con favorCoop)
-            result.favorSocioPagado += totalAmount * (1 - coopPercentage);
             result.cargosPagado += cargosExtrasFactura;
+            result.favorSocioPagado += socioShare;
             
             // For UI backward compatibility in report tables
             result.pagado.seguro += insuranceCost;
@@ -180,7 +183,7 @@ export const calculateDetailedRemesaFinancials = (
             result.pagado.manejo += handling;
             result.pagado.iva += iva;
             result.pagado.favorCooperativa += favorCoop;
-            result.pagado.favorAsociado += totalAmount * (1 - coopPercentage);
+            result.pagado.favorAsociado += socioShare;
         } else {
             result.totalDestino += totalAmount;
             result.cargosDestino += cargosExtrasFactura;
@@ -191,7 +194,7 @@ export const calculateDetailedRemesaFinancials = (
             result.destino.manejo += handling;
             result.destino.iva += iva;
             result.destino.favorCooperativa += favorCoop;
-            result.destino.favorAsociado += totalAmount * (1 - coopPercentage);
+            result.destino.favorAsociado += socioShare;
         }
     });
 
