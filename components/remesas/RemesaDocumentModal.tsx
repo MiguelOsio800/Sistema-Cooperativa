@@ -380,7 +380,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                                 {financials.conceptoSaldo}:
                                             </span>
                                             <span className="text-black">
-                                                {formatCurrency(Math.abs(financials.saldoFinal))}
+                                                {financials.saldoFinal > 0 ? '-' : ''}{formatCurrency(Math.abs(financials.saldoFinal))}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">
