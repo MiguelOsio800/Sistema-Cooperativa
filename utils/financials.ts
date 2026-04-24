@@ -170,6 +170,9 @@ export const calculateDetailedRemesaFinancials = (
         
         // Lo que realmente le queda a favor al socio de esta factura, asumiendo que recaudó o recaudará el totalAmount
         const socioShare = totalAmount - cargosExtrasFactura;
+        
+        // Flete es el restante del monto total menos seguro, ipostel, manejo e iva
+        const flete = totalAmount - (insuranceCost + ipostel + handling + iva);
 
         if (inv.guide.paymentType === 'flete-pagado') {
             result.totalPagado += totalAmount;
@@ -177,6 +180,7 @@ export const calculateDetailedRemesaFinancials = (
             result.favorSocioPagado += socioShare;
             
             // For UI backward compatibility in report tables
+            result.pagado.flete += flete;
             result.pagado.seguro += insuranceCost;
             result.pagado.ipostel += ipostel;
             result.pagado.manejo += handling;
@@ -188,6 +192,7 @@ export const calculateDetailedRemesaFinancials = (
             result.cargosDestino += cargosExtrasFactura;
             
             // For UI backward compatibility in report tables
+            result.destino.flete += flete;
             result.destino.seguro += insuranceCost;
             result.destino.ipostel += ipostel;
             result.destino.manejo += handling;
