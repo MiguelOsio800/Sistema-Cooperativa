@@ -385,7 +385,7 @@ const RemesaDocumentModal: React.FC<RemesaDocumentModalProps> = ({
                                         </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">
                                             <span className="text-black">Tasa (BCV):</span>
-                                            <span className="text-black">{companyInfo.bcvRate} Bs/$</span>
+                                            <span className="text-black">{currentRate} Bs/$</span>
                                         </div>
                                         <div className="flex justify-between py-1 text-[10px] text-black">
                                             <span className="text-black">Saldo en ($):</span>

@@ -852,6 +852,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     let sumManejo = 0, sumManejoUSD = 0;
                     let sumIpostel = 0, sumIpostelUSD = 0;
                     let sumTotalEnvio = 0, sumTotalEnvioUSD = 0;
+                    let sumTotalAmount = 0, sumTotalAmountUSD = 0;
                     
                     let totalPagadas = 0, totalPagadasUSD = 0;
                     let totalCobroDestino = 0;
@@ -872,6 +873,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         sumManejo += handling; sumManejoUSD += handling / rate;
                         sumIpostel += ipostel; sumIpostelUSD += ipostel / rate;
                         sumTotalEnvio += totalEnvio; sumTotalEnvioUSD += totalEnvio / rate;
+                        sumTotalAmount += inv.totalAmount; sumTotalAmountUSD += inv.totalAmount / rate;
                         
                         let status = 'Pagadas';
                         if (inv.guide.paymentType === 'flete-destino') status = 'Cobro a Destino';
@@ -891,6 +893,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         return {
                             id: inv.id,
                             invoiceNumber: inv.invoiceNumber,
+                            date: new Date(inv.date).toLocaleDateString('es-VE'),
+                            client: inv.clientName || 'Consumidor Final',
+                            status: status,
+                            totalAmount: inv.totalAmount,
+                            totalAmountUSD: inv.totalAmount / rate,
                             freight, freightUSD: freight / rate,
                             insuranceCost, insuranceCostUSD: insuranceCost / rate,
                             handling, handlingUSD: handling / rate,
@@ -973,66 +980,36 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                                         <tr>
                                             <th className="px-4 py-3">Factura N°</th>
-                                            <th className="px-4 py-3 text-right">Flete</th>
-                                            <th className="px-4 py-3 text-right">Seguro</th>
-                                            <th className="px-4 py-3 text-right">Manejo</th>
-                                            <th className="px-4 py-3 text-right">Ipostel</th>
-                                            <th className="px-4 py-3 text-right">Total Envío</th>
+                                            <th className="px-4 py-3">Fecha</th>
+                                            <th className="px-4 py-3">Cliente</th>
+                                            <th className="px-4 py-3">Estado</th>
+                                            <th className="px-4 py-3 text-right">Monto Total</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         {invoiceRows.map((row: any) => (
                                             <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                                 <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{row.invoiceNumber}</td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div>{formatCurrency(row.freight)}</div>
-                                                    <div className="text-xs text-gray-400">${row.freightUSD.toFixed(2)}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div>{formatCurrency(row.insuranceCost)}</div>
-                                                    <div className="text-xs text-gray-400">${row.insuranceCostUSD.toFixed(2)}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div>{formatCurrency(row.handling)}</div>
-                                                    <div className="text-xs text-gray-400">${row.handlingUSD.toFixed(2)}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div>{formatCurrency(row.ipostel)}</div>
-                                                    <div className="text-xs text-gray-400">${row.ipostelUSD.toFixed(2)}</div>
-                                                </td>
+                                                <td className="px-4 py-3 text-gray-900 dark:text-white">{row.date}</td>
+                                                <td className="px-4 py-3 text-gray-900 dark:text-white">{row.client}</td>
+                                                <td className="px-4 py-3 text-gray-900 dark:text-white">{row.status}</td>
                                                 <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
-                                                    <div>{formatCurrency(row.totalEnvio)}</div>
-                                                    <div className="text-xs text-gray-400">${row.totalEnvioUSD.toFixed(2)}</div>
+                                                    <div>{formatCurrency(row.totalAmount)}</div>
+                                                    <div className="text-xs text-gray-400">${row.totalAmountUSD.toFixed(2)}</div>
                                                 </td>
                                             </tr>
                                         ))}
                                         {invoiceRows.length === 0 && (
                                             <tr>
-                                                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No hay facturas en este período.</td>
+                                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No hay facturas en este período.</td>
                                             </tr>
                                         )}
                                         {invoiceRows.length > 0 && (
                                             <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
-                                                <td className="px-4 py-3 text-gray-900 dark:text-white">TOTALES GENERALES</td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumFlete)}</div>
-                                                    <div className="text-xs text-gray-500">${sumFleteUSD.toFixed(2)}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumSeguro)}</div>
-                                                    <div className="text-xs text-gray-500">${sumSeguroUSD.toFixed(2)}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumManejo)}</div>
-                                                    <div className="text-xs text-gray-500">${sumManejoUSD.toFixed(2)}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(sumIpostel)}</div>
-                                                    <div className="text-xs text-gray-500">${sumIpostelUSD.toFixed(2)}</div>
-                                                </td>
+                                                <td colSpan={4} className="px-4 py-3 text-right text-gray-900 dark:text-white">TOTAL GENERAL</td>
                                                 <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
-                                                    <div>{formatCurrency(sumTotalEnvio)}</div>
-                                                    <div className="text-xs text-gray-500">${sumTotalEnvioUSD.toFixed(2)}</div>
+                                                    <div>{formatCurrency(sumTotalAmount)}</div>
+                                                    <div className="text-xs text-gray-500">${sumTotalAmountUSD.toFixed(2)}</div>
                                                 </td>
                                             </tr>
                                         )}
