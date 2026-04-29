@@ -668,34 +668,30 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         6: { cellWidth: 'auto' }, // Seguro
                         7: { cellWidth: 'auto' }, // Manejo
                         8: { cellWidth: 'auto' }, // Monto Total
-                    },
-                    didDrawPage: function (data) {
-                        // @ts-ignore
-                        const pageCount = pdf.internal.getNumberOfPages();
-                        if (isAoa && data.pageNumber === pageCount) {
-                            // @ts-ignore - jspdf-autotable adds lastAutoTable to jsPDF instance
-                            const finalY = pdf.lastAutoTable?.finalY || data.cursor?.y || currentY + 100;
-                            let signatureY = finalY + 60;
-                            
-                            // Check if signature fits on the current page
-                            const pageHeight = pdf.internal.pageSize.getHeight();
-                            if (signatureY + 50 > pageHeight) {
-                                pdf.addPage();
-                                signatureY = 60; // Reset Y for new page
-                            }
-                            
-                            pdf.setDrawColor(150, 150, 150);
-                            pdf.line(pageWidth / 2 - 100, signatureY, pageWidth / 2 + 100, signatureY);
-                            pdf.setFontSize(10);
-                            pdf.setTextColor(0, 0, 0);
-                            pdf.setFont("helvetica", "bold");
-                            pdf.text("Firma del Oficinista", pageWidth / 2, signatureY + 15, { align: 'center' });
-                            pdf.setFont("helvetica", "normal");
-                            pdf.setTextColor(100, 100, 100);
-                            pdf.text(currentUser?.name || 'Usuario Desconocido', pageWidth / 2, signatureY + 30, { align: 'center' });
-                        }
                     }
                 });
+
+                // Draw signature after table completes
+                // @ts-ignore
+                const finalY = pdf.lastAutoTable?.finalY || currentY + 100;
+                let signatureY = finalY + 60;
+                
+                // Check if signature fits on the current page
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                if (signatureY + 50 > pageHeight) {
+                    pdf.addPage();
+                    signatureY = 60; // Reset Y for new page
+                }
+                
+                pdf.setDrawColor(150, 150, 150);
+                pdf.line(pageWidth / 2 - 100, signatureY, pageWidth / 2 + 100, signatureY);
+                pdf.setFontSize(10);
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFont("helvetica", "bold");
+                pdf.text("Firma del Oficinista", pageWidth / 2, signatureY + 15, { align: 'center' });
+                pdf.setFont("helvetica", "normal");
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(currentUser?.name || 'Usuario Desconocido', pageWidth / 2, signatureY + 30, { align: 'center' });
             } else {
                 // For standard tables
                 const bodyData = dataToExport.map(row => headers.map(h => {
