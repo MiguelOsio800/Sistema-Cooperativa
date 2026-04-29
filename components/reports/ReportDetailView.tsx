@@ -333,14 +333,17 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                  const invoicesData = reportDataObj.invoices || [];
                  const wsData: any[][] = [];
                  
-                 wsData.push([{ content: "FACTURAS DEL DÍA", colSpan: 6, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center' } }]);
+                 wsData.push([{ content: "FACTURAS DEL DÍA", colSpan: 9, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center' } }]);
                  wsData.push([
                      { content: "Factura N°", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'center' } }, 
+                     { content: "Fecha", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'center' } }, 
+                     { content: "Cliente", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'center' } }, 
+                     { content: "Estado", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'center' } }, 
                      { content: "Flete", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
+                     { content: "Ipostel", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
                      { content: "Seguro", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
                      { content: "Manejo", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
-                     { content: "Ipostel", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }, 
-                     { content: "Total Envío", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }
+                     { content: "Monto Total", styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }
                  ]);
                  
                  let sumFlete = 0, sumFleteUSD = 0;
@@ -348,6 +351,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                  let sumManejo = 0, sumManejoUSD = 0;
                  let sumIpostel = 0, sumIpostelUSD = 0;
                  let sumTotalEnvio = 0, sumTotalEnvioUSD = 0;
+                 let sumTotalAmount = 0, sumTotalAmountUSD = 0;
                  
                  let totalPagadas = 0, totalPagadasUSD = 0;
                  let totalCobroDestino = 0;
@@ -368,6 +372,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                      sumManejo += handling; sumManejoUSD += handling / rate;
                      sumIpostel += ipostel; sumIpostelUSD += ipostel / rate;
                      sumTotalEnvio += totalEnvio; sumTotalEnvioUSD += totalEnvio / rate;
+                     sumTotalAmount += inv.totalAmount; sumTotalAmountUSD += inv.totalAmount / rate;
                      
                      let status = 'Pagadas';
                      if (inv.guide.paymentType === 'flete-destino') status = 'Cobro a Destino';
@@ -386,48 +391,52 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
                      wsData.push([
                          { content: inv.invoiceNumber, styles: { halign: 'center', valign: 'middle' } }, 
+                         { content: new Date(inv.date).toLocaleDateString('es-VE'), styles: { halign: 'center', valign: 'middle' } },
+                         { content: inv.clientName || 'Consumidor Final', styles: { halign: 'center', valign: 'middle' } },
+                         { content: status, styles: { halign: 'center', valign: 'middle' } },
                          { content: `Bs. ${freight.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(freight / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
+                         { content: `Bs. ${ipostel.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(ipostel / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
                          { content: `Bs. ${insuranceCost.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(insuranceCost / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
                          { content: `Bs. ${handling.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(handling / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
-                         { content: `Bs. ${ipostel.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(ipostel / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
-                         { content: `Bs. ${totalEnvio.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(totalEnvio / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right', fontStyle: 'bold' } }
+                         { content: `Bs. ${inv.totalAmount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(inv.totalAmount / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right', fontStyle: 'bold' } }
                      ]);
                  });
                  
                  wsData.push([
-                     { content: "TOTALES", styles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [245, 245, 245] } }, 
+                     { content: "TOTALES", colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', valign: 'middle', fillColor: [245, 245, 245] } }, 
                      { content: `Bs. ${sumFlete.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumFleteUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
+                     { content: `Bs. ${sumIpostel.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumIpostelUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
                      { content: `Bs. ${sumSeguro.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumSeguroUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
                      { content: `Bs. ${sumManejo.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumManejoUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
-                     { content: `Bs. ${sumIpostel.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumIpostelUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } },
-                     { content: `Bs. ${sumTotalEnvio.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumTotalEnvioUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } }
+                     { content: `Bs. ${sumTotalAmount.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${sumTotalAmountUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } }
                  ]);
                  
-                 wsData.push([{ content: "", colSpan: 6, styles: { minCellHeight: 15, fillColor: [255, 255, 255], lineWidth: 0 } }]);
+                 wsData.push([{ content: "", colSpan: 9, styles: { minCellHeight: 15, fillColor: [255, 255, 255], lineWidth: 0 } }]);
                  
-                 wsData.push([{ content: "SUBTOTALES ENVIADAS", colSpan: 6, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center' } }]);
+                 wsData.push([{ content: "SUBTOTALES ENVIADAS", colSpan: 9, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center' } }]);
                  wsData.push([
-                     { content: "Facturas Pagadas", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle' } }, 
+                     { content: "Facturas Pagadas", colSpan: 7, styles: { fontStyle: 'bold', valign: 'middle' } }, 
                      { content: `Bs. ${totalPagadas.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 128, 0] } }
                  ]);
                  wsData.push([
-                     { content: "Facturas Cobro a Destino", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle' } }, 
+                     { content: "Facturas Cobro a Destino", colSpan: 7, styles: { fontStyle: 'bold', valign: 'middle' } }, 
                      { content: `Bs. ${totalCobroDestino.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 255] } }
                  ]);
                  wsData.push([
-                     { content: "Facturas a Crédito", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle' } }, 
+                     { content: "Facturas a Crédito", colSpan: 7, styles: { fontStyle: 'bold', valign: 'middle' } }, 
                      { content: `Bs. ${totalCredito.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [255, 140, 0] } }
                  ]);
                  
-                 wsData.push([{ content: "", colSpan: 6, styles: { minCellHeight: 15, fillColor: [255, 255, 255], lineWidth: 0 } }]);
+                 wsData.push([{ content: "", colSpan: 9, styles: { minCellHeight: 15, fillColor: [255, 255, 255], lineWidth: 0 } }]);
                  
-                 wsData.push([{ content: "CUADRE", colSpan: 6, styles: { fillColor: [200, 220, 255], fontStyle: 'bold', halign: 'center' } }]);
+                 wsData.push([{ content: "CUADRE", colSpan: 9, styles: { fillColor: [200, 220, 255], fontStyle: 'bold', halign: 'center' } }]);
                  wsData.push([
-                     { content: "Monto en Caja (Bs)", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle', fillColor: [240, 248, 255] } }, 
+                     { content: "Monto en Caja (Bs)", colSpan: 7, styles: { fontStyle: 'bold', valign: 'middle', fillColor: [240, 248, 255] } }, 
                      { content: `Bs. ${totalPagadas.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fontSize: 10, fillColor: [240, 248, 255] } }
                  ]);
                  wsData.push([
-                     { content: "Referencia en Divisas ($)", colSpan: 4, styles: { fontStyle: 'bold', valign: 'middle', fillColor: [240, 248, 255] } }, 
+                     { content: "Referencia en Divisas ($)", colSpan: 7, styles: { fontStyle: 'bold', valign: 'middle', fillColor: [240, 248, 255] } }, 
+ 
                      { content: `$ ${totalPagadasUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fontSize: 10, fillColor: [240, 248, 255] } }
                  ]);
 
@@ -650,12 +659,15 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     styles: { fontSize: 7, cellPadding: 2 },
                     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
                     columnStyles: {
-                        0: { cellWidth: 60 }, // Factura N°
-                        1: { cellWidth: 'auto' }, // Flete
-                        2: { cellWidth: 'auto' }, // Seguro
-                        3: { cellWidth: 'auto' }, // Manejo
-                        4: { cellWidth: 'auto' }, // Ipostel
-                        5: { cellWidth: 'auto' }, // Total Envío
+                        0: { cellWidth: 50 }, // Factura N°
+                        1: { cellWidth: 'auto' }, // Fecha
+                        2: { cellWidth: 'auto' }, // Cliente
+                        3: { cellWidth: 'auto' }, // Estado
+                        4: { cellWidth: 'auto' }, // Flete
+                        5: { cellWidth: 'auto' }, // Ipostel
+                        6: { cellWidth: 'auto' }, // Seguro
+                        7: { cellWidth: 'auto' }, // Manejo
+                        8: { cellWidth: 'auto' }, // Monto Total
                     },
                     didDrawPage: function (data) {
                         // @ts-ignore
@@ -983,6 +995,10 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                             <th className="px-4 py-3">Fecha</th>
                                             <th className="px-4 py-3">Cliente</th>
                                             <th className="px-4 py-3">Estado</th>
+                                            <th className="px-4 py-3 text-right">Flete</th>
+                                            <th className="px-4 py-3 text-right">Ipostel</th>
+                                            <th className="px-4 py-3 text-right">Seguro</th>
+                                            <th className="px-4 py-3 text-right">Manejo</th>
                                             <th className="px-4 py-3 text-right">Monto Total</th>
                                         </tr>
                                     </thead>
@@ -993,6 +1009,22 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                                 <td className="px-4 py-3 text-gray-900 dark:text-white">{row.date}</td>
                                                 <td className="px-4 py-3 text-gray-900 dark:text-white">{row.client}</td>
                                                 <td className="px-4 py-3 text-gray-900 dark:text-white">{row.status}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(row.freight)}</div>
+                                                    <div className="text-xs text-gray-400">${row.freightUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(row.ipostel)}</div>
+                                                    <div className="text-xs text-gray-400">${row.ipostelUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(row.insuranceCost)}</div>
+                                                    <div className="text-xs text-gray-400">${row.insuranceCostUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="text-gray-900 dark:text-white">{formatCurrency(row.handling)}</div>
+                                                    <div className="text-xs text-gray-400">${row.handlingUSD.toFixed(2)}</div>
+                                                </td>
                                                 <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(row.totalAmount)}</div>
                                                     <div className="text-xs text-gray-400">${row.totalAmountUSD.toFixed(2)}</div>
@@ -1001,12 +1033,28 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                         ))}
                                         {invoiceRows.length === 0 && (
                                             <tr>
-                                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No hay facturas en este período.</td>
+                                                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">No hay facturas en este período.</td>
                                             </tr>
                                         )}
                                         {invoiceRows.length > 0 && (
                                             <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
                                                 <td colSpan={4} className="px-4 py-3 text-right text-gray-900 dark:text-white">TOTAL GENERAL</td>
+                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                    <div>{formatCurrency(sumFlete)}</div>
+                                                    <div className="text-xs text-gray-500">${sumFleteUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                    <div>{formatCurrency(sumIpostel)}</div>
+                                                    <div className="text-xs text-gray-500">${sumIpostelUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                    <div>{formatCurrency(sumSeguro)}</div>
+                                                    <div className="text-xs text-gray-500">${sumSeguroUSD.toFixed(2)}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                    <div>{formatCurrency(sumManejo)}</div>
+                                                    <div className="text-xs text-gray-500">${sumManejoUSD.toFixed(2)}</div>
+                                                </td>
                                                 <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(sumTotalAmount)}</div>
                                                     <div className="text-xs text-gray-500">${sumTotalAmountUSD.toFixed(2)}</div>
