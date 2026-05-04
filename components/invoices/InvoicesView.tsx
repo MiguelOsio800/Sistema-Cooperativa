@@ -62,12 +62,12 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
 
     const filteredInvoices = useMemo(() => {
         return invoices.filter(invoice => {
-            const invoiceDate = new Date(invoice.date + 'T00:00:00');
-            const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-            const end = endDate ? new Date(endDate + 'T00:00:00') : null;
+            const invoiceDateStr = invoice.date.split('T')[0];
+            const startStr = startDate ? startDate.split('T')[0] : null;
+            const endStr = endDate ? endDate.split('T')[0] : null;
 
-            if (start && invoiceDate < start) return false;
-            if (end && invoiceDate > end) return false;
+            if (startStr && invoiceDateStr < startStr) return false;
+            if (endStr && invoiceDateStr > endStr) return false;
             if (paymentStatusFilter && invoice.paymentStatus !== paymentStatusFilter) return false;
             if (shippingStatusFilter && invoice.shippingStatus !== shippingStatusFilter) return false;
             if (clientFilter && invoice.clientIdNumber !== clientFilter) return false;

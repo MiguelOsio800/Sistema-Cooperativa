@@ -62,8 +62,8 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
     const [transactionType, setTransactionType] = useState('gastos'); // Default to 'gastos'
 
     const filteredTransactions = useMemo((): Transaction[] => {
-        const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-        const end = endDate ? new Date(endDate + 'T23:59:59') : null;
+        const startStr = startDate ? startDate.split('T')[0] : null;
+        const endStr = endDate ? endDate.split('T')[0] : null;
 
         const incomeTransactions: Transaction[] = invoices
             .filter(inv => inv.status !== 'Anulada') 
@@ -90,9 +90,9 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
         let combined = [...incomeTransactions, ...expenseTransactions];
 
         combined = combined.filter(t => {
-            const tDate = new Date(t.date + 'T00:00:00');
-            if (start && tDate < start) return false;
-            if (end && tDate > end) return false;
+            const tDateStr = t.date.split('T')[0];
+            if (startStr && tDateStr < startStr) return false;
+            if (endStr && tDateStr > endStr) return false;
             return true;
         });
         
@@ -116,29 +116,29 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
     }
 
     const filteredDateInvoices = useMemo(() => invoices.filter(t => {
-        const tDate = new Date(t.date + 'T00:00:00');
-        const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-        const end = endDate ? new Date(endDate + 'T23:59:59') : null;
-        if (start && tDate < start) return false;
-        if (end && tDate > end) return false;
+        const tDateStr = t.date.split('T')[0];
+        const startStr = startDate ? startDate.split('T')[0] : null;
+        const endStr = endDate ? endDate.split('T')[0] : null;
+        if (startStr && tDateStr < startStr) return false;
+        if (endStr && tDateStr > endStr) return false;
         return true;
     }), [invoices, startDate, endDate]);
     
     const filteredDateExpenses = useMemo(() => expenses.filter(t => {
-        const tDate = new Date(t.date + 'T00:00:00');
-        const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-        const end = endDate ? new Date(endDate + 'T23:59:59') : null;
-        if (start && tDate < start) return false;
-        if (end && tDate > end) return false;
+        const tDateStr = t.date.split('T')[0];
+        const startStr = startDate ? startDate.split('T')[0] : null;
+        const endStr = endDate ? endDate.split('T')[0] : null;
+        if (startStr && tDateStr < startStr) return false;
+        if (endStr && tDateStr > endStr) return false;
         return true;
     }), [expenses, startDate, endDate]);
 
     const filteredAsientosManuales = useMemo(() => asientosManuales.filter(a => {
-        const aDate = new Date(a.fecha + 'T00:00:00');
-        const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-        const end = endDate ? new Date(endDate + 'T23:59:59') : null;
-        if (start && aDate < start) return false;
-        if (end && aDate > end) return false;
+        const aDateStr = a.fecha.split('T')[0];
+        const startStr = startDate ? startDate.split('T')[0] : null;
+        const endStr = endDate ? endDate.split('T')[0] : null;
+        if (startStr && aDateStr < startStr) return false;
+        if (endStr && aDateStr > endStr) return false;
         return true;
     }), [asientosManuales, startDate, endDate]);
 

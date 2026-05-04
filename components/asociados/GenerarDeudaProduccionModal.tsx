@@ -47,8 +47,10 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
         const relevantRemesas = remesas.filter(remesa => {
             if (String(remesa.asociadoId) !== String(asociado.id)) return false;
             
-            const remesaDateStr = new Date(remesa.date).toISOString().split('T')[0];
-            return remesaDateStr >= startDate && remesaDateStr <= endDate;
+            const remesaDateStr = remesa.date.split('T')[0];
+            const startStr = startDate.split('T')[0];
+            const endStr = endDate.split('T')[0];
+            return remesaDateStr >= startStr && remesaDateStr <= endStr;
         });
 
         let totalFacturado = 0;

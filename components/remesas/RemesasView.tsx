@@ -67,12 +67,12 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
     const filteredRemesas = useMemo(() => {
         let filtered = remesas;
         if (startDate) {
-            const start = new Date(startDate + 'T00:00:00');
-            filtered = filtered.filter(r => new Date(r.date) >= start);
+            const startStr = startDate.split('T')[0];
+            filtered = filtered.filter(r => r.date.split('T')[0] >= startStr);
         }
         if (endDate) {
-            const end = new Date(endDate + 'T23:59:59');
-            filtered = filtered.filter(r => new Date(r.date) <= end);
+            const endStr = endDate.split('T')[0];
+            filtered = filtered.filter(r => r.date.split('T')[0] <= endStr);
         }
         return filtered;
     }, [remesas, startDate, endDate]);

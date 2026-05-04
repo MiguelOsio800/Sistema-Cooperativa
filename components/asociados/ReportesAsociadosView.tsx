@@ -43,12 +43,12 @@ const EstadoDeCuenta: React.FC<{
         let allItems = [...debtItems, ...paymentItems];
         
         if (startDate || endDate) {
-            const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-            const end = endDate ? new Date(endDate + 'T23:59:59') : null;
+            const startStr = startDate ? startDate.split('T')[0] : null;
+            const endStr = endDate ? endDate.split('T')[0] : null;
             allItems = allItems.filter(item => {
-                const itemDate = new Date(item.date + 'T00:00:00');
-                if (start && itemDate < start) return false;
-                if (end && itemDate > end) return false;
+                const itemDateStr = item.date.split('T')[0];
+                if (startStr && itemDateStr < startStr) return false;
+                if (endStr && itemDateStr > endStr) return false;
                 return true;
             });
         }

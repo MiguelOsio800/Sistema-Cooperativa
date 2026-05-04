@@ -43,12 +43,12 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ auditLog, users }) => {
 
     const filteredLogs = useMemo(() => {
         return auditLog.filter(log => {
-            const logDate = new Date(log.timestamp);
-            const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-            const end = endDate ? new Date(endDate + 'T23:59:59') : null;
+            const logDateStr = log.timestamp.split('T')[0];
+            const startStr = startDate ? startDate.split('T')[0] : null;
+            const endStr = endDate ? endDate.split('T')[0] : null;
 
-            if (start && logDate < start) return false;
-            if (end && logDate > end) return false;
+            if (startStr && logDateStr < startStr) return false;
+            if (endStr && logDateStr > endStr) return false;
             if (selectedUserId && log.userId !== selectedUserId) return false;
             if (searchTerm && !(
                 log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||

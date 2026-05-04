@@ -40,33 +40,35 @@ const ITEMS_PER_PAGE = 20;
 
 const ReportCompanyHeader: React.FC<{ companyInfo: CompanyInfo, reportTitle: string, startDate: string, endDate: string, officeName?: string }> = ({ companyInfo, reportTitle, startDate, endDate, officeName }) => (
     <div className="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-        <div className="flex items-start gap-4">
-            {companyInfo.logoUrl ? (
-                <img src={companyInfo.logoUrl} alt="Logo" className="h-16 w-16 object-contain" referrerPolicy="no-referrer" />
-            ) : (
-                <div className="h-16 w-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold">LOGO</div>
-            )}
-            <div className="flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-3">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase leading-tight">{companyInfo.name || 'Nombre de Empresa'}</h2>
-                    <h3 className="text-lg font-bold text-primary-600 dark:text-primary-400 uppercase">{reportTitle}</h3>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:justify-between">
+            <div className="flex items-center gap-4">
+                {companyInfo.logoUrl ? (
+                    <img src={companyInfo.logoUrl} alt="Logo" className="h-16 w-16 object-contain" referrerPolicy="no-referrer" />
+                ) : (
+                    <div className="h-16 w-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold shrink-0">LOGO</div>
+                )}
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase leading-tight">{companyInfo.name || 'Nombre de Empresa'}</h2>
+                    <div className="mt-1 flex flex-col gap-0.5 text-sm">
+                        <p className="text-gray-600 dark:text-gray-400"><span className="font-semibold">RIF:</span> {companyInfo.rif || 'J-00000000-0'}</p>
+                        <p className="text-gray-600 dark:text-gray-400">{companyInfo.address || 'Dirección no configurada'}</p>
+                        <p className="text-gray-600 dark:text-gray-400"><span className="font-semibold">Tel:</span> {companyInfo.phone || 'Teléfono no configurado'}</p>
+                    </div>
                 </div>
-                
-                <div className="grid grid-cols-2 mt-2">
-                    <div className="space-y-0.5">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">RIF: {companyInfo.rif || 'J-00000000-0'}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{companyInfo.address || 'Dirección no configurada'}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 font-semibold text-primary-600 dark:text-primary-400">OFICINA: {officeName || 'Todas las Sucursales'}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Tel: {companyInfo.phone || 'Teléfono no configurado'}</p>
-                    </div>
-                    <div className="text-right space-y-0.5">
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold">
-                            {startDate && endDate ? `Desde: ${startDate} Hasta: ${endDate}` : 
-                            startDate ? `Desde: ${startDate}` : 
-                            endDate ? `Hasta: ${endDate}` : 'Todos los registros'}
-                        </p>
-                        <p className="text-xs text-gray-400 italic">Generado: {new Date().toLocaleDateString('es-VE')} {new Date().toLocaleTimeString('es-VE')}</p>
-                    </div>
+            </div>
+            
+            <div className="flex flex-col items-start md:items-end w-full md:w-auto mt-4 md:mt-0">
+                <h3 className="text-xl font-bold text-primary-600 dark:text-primary-400 uppercase whitespace-nowrap">{reportTitle}</h3>
+                <p className="text-sm font-semibold text-primary-600 dark:text-primary-400 mt-1">
+                    OFICINA: {officeName || 'TODAS LAS SUCURSALES'}
+                </p>
+                <div className="text-left md:text-right mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    <p>
+                        {startDate && endDate ? `Desde: ${startDate} Hasta: ${endDate}` : 
+                        startDate ? `Desde: ${startDate}` : 
+                        endDate ? `Hasta: ${endDate}` : 'Todos los registros'}
+                    </p>
+                    <p className="text-xs text-gray-400 italic mt-1">Generado: {new Date().toLocaleDateString('es-VE')} {new Date().toLocaleTimeString('es-VE')}</p>
                 </div>
             </div>
         </div>
@@ -89,11 +91,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
     const dateFilteredInvoices = useMemo(() => {
         return invoices.filter(invoice => {
             if (!startDate && !endDate) return true;
-            const invoiceDate = new Date(invoice.date + 'T00:00:00');
-            const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-            const end = endDate ? new Date(endDate + 'T23:59:59') : null;
-            if (start && invoiceDate < start) return false;
-            if (end && invoiceDate > end) return false;
+            const invoiceDateStr = invoice.date.split('T')[0];
+            const startStr = startDate ? startDate.split('T')[0] : null;
+            const endStr = endDate ? endDate.split('T')[0] : null;
+            if (startStr && invoiceDateStr < startStr) return false;
+            if (endStr && invoiceDateStr > endStr) return false;
             return true;
         });
     }, [invoices, startDate, endDate]);
@@ -101,11 +103,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
     const dateFilteredExpenses = useMemo(() => {
         return expenses.filter(expense => {
             if (!startDate && !endDate) return true;
-            const expenseDate = new Date(expense.date + 'T00:00:00');
-            const start = startDate ? new Date(startDate + 'T00:00:00') : null;
-            const end = endDate ? new Date(endDate + 'T23:59:59') : null;
-            if (start && expenseDate < start) return false;
-            if (end && expenseDate > end) return false;
+            const expenseDateStr = expense.date.split('T')[0];
+            const startStr = startDate ? startDate.split('T')[0] : null;
+            const endStr = endDate ? endDate.split('T')[0] : null;
+            if (startStr && expenseDateStr < startStr) return false;
+            if (endStr && expenseDateStr > endStr) return false;
             return true;
         });
     }, [expenses, startDate, endDate]);
@@ -237,24 +239,47 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
         switch(report.id) {
             case 'general_envios':
-                headers = ["Fecha", "N° Factura", "N° Control", "Cliente", "Seguro", "Manejo", "Ipostel", "Kg", "Paquetes", "Monto Total"];
+                headers = ["Fecha", "N° Factura", "N° Control", "Cliente", "Tipo de Envío", "Seguro", "Manejo", "Ipostel", "Kg", "Paquetes", "Monto Total"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
                     const kg = calculateInvoiceChargeableWeight(inv);
                     const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
+                    const tipoEnvio = inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado';
                     return {
-                        [headers[0]]: inv.date,
+                        [headers[0]]: inv.date.split('T')[0],
                         [headers[1]]: inv.invoiceNumber,
                         [headers[2]]: inv.controlNumber,
                         [headers[3]]: inv.clientName,
-                        [headers[4]]: fin.insuranceCost,
-                        [headers[5]]: fin.handling,
-                        [headers[6]]: fin.ipostel,
-                        [headers[7]]: kg,
-                        [headers[8]]: paquetes,
-                        [headers[9]]: inv.totalAmount,
+                        [headers[4]]: tipoEnvio,
+                        [headers[5]]: fin.insuranceCost,
+                        [headers[6]]: fin.handling,
+                        [headers[7]]: fin.ipostel,
+                        [headers[8]]: kg,
+                        [headers[9]]: paquetes,
+                        [headers[10]]: inv.totalAmount,
                     };
                 });
+                const generalTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
+                    const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                    const kg = calculateInvoiceChargeableWeight(inv);
+                    const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0);
+                    acc.seguro += fin.insuranceCost;
+                    acc.manejo += fin.handling;
+                    acc.ipostel += fin.ipostel;
+                    acc.kg += kg;
+                    acc.paquetes += paquetes;
+                    acc.total += inv.totalAmount;
+                    return acc;
+                }, { seguro: 0, manejo: 0, ipostel: 0, kg: 0, paquetes: 0, total: 0 });
+                totalsRow = { 
+                    [headers[3]]: "TOTALES", 
+                    [headers[5]]: generalTotals.seguro, 
+                    [headers[6]]: generalTotals.manejo, 
+                    [headers[7]]: generalTotals.ipostel, 
+                    [headers[8]]: generalTotals.kg, 
+                    [headers[9]]: generalTotals.paquetes, 
+                    [headers[10]]: generalTotals.total 
+                };
                 break;
             case 'libro_venta':
                 headers = ["Fecha", "N° Factura", "N° Control", "Oficina Origen", "Nombre/Razón Social Cliente", "RIF/CI Cliente", "Venta Total", "Base Imponible", "IVA (16%)", "IPOSTEL"];
@@ -447,10 +472,14 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             case 'envios_oficina':
                 headers = ["Oficina", "Total Facturado", "N° Envíos", "Total Kilos Movilizados"];
                 dataToExport = (sourceData as any[]).map(d => ({ [headers[0]]: d.name, [headers[1]]: d.totalFacturado, [headers[2]]: d.envios, [headers[3]]: d.totalKg }));
+                const enviosTotals = (sourceData as any[]).reduce((acc, d) => ({ tf: acc.tf + d.totalFacturado, env: acc.env + d.envios, tkg: acc.tkg + d.totalKg}), {tf: 0, env: 0, tkg: 0});
+                totalsRow = { [headers[0]]: "TOTALES", [headers[1]]: enviosTotals.tf, [headers[2]]: enviosTotals.env, [headers[3]]: enviosTotals.tkg };
                 break;
             case 'gastos_oficina':
                 headers = ["Oficina", "Monto Total Gastado", "N° Gastos"];
                 dataToExport = (sourceData as any[]).map(d => ({ [headers[0]]: d.name, [headers[1]]: d.total, [headers[2]]: d.count }));
+                const gastosTotals = (sourceData as any[]).reduce((acc, d) => ({ t: acc.t + d.total, c: acc.c + d.count }), {t: 0, c: 0});
+                totalsRow = { [headers[0]]: "TOTALES", [headers[1]]: gastosTotals.t, [headers[2]]: gastosTotals.c };
                 break;
              case 'reporte_kilogramos':
                 headers = ["Fecha", "N° Factura", "Cliente", "Total Kilogramos"];
@@ -467,12 +496,20 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                  dataToExport = (sourceData as any[]).flatMap(d => d.invoices.map((inv: Invoice) => ({
                     [headers[0]]: d.asociado?.nombre, [headers[1]]: d.vehicle?.modelo, [headers[2]]: d.vehicle?.placa, [headers[3]]: inv.invoiceNumber, [headers[4]]: inv.clientName, [headers[5]]: inv.totalAmount, [headers[6]]: calculateInvoiceChargeableWeight(inv)
                  })));
+                 const vehiculoTotals = (sourceData as any[]).flatMap(d => d.invoices).reduce((acc: any, inv: Invoice) => {
+                     acc.monto += inv.totalAmount;
+                     acc.kg += calculateInvoiceChargeableWeight(inv);
+                     return acc;
+                 }, { monto: 0, kg: 0 });
+                 totalsRow = { [headers[4]]: "TOTALES", [headers[5]]: vehiculoTotals.monto, [headers[6]]: vehiculoTotals.kg };
                  break;
             case 'clientes':
                 headers = ["RIF/CI", "Nombre Cliente", "Teléfono", "N° Envíos", "Monto Total Facturado"];
                 dataToExport = (sourceData as any[]).map(c => ({
                     [headers[0]]: c.id, [headers[1]]: c.name, [headers[2]]: c.phone, [headers[3]]: c.count, [headers[4]]: c.total
                 }));
+                const clientesTotalsExp = (sourceData as any[]).reduce((acc, d) => ({ env: acc.env + d.count, tot: acc.tot + d.total }), { env: 0, tot: 0 });
+                totalsRow = { [headers[2]]: "TOTALES", [headers[3]]: clientesTotalsExp.env, [headers[4]]: clientesTotalsExp.tot };
                 break;
             case 'ipostel':
                 headers = ["Fecha", "Factura", "Oficina Origen", "Cliente", "Paquetes", "Kg", "Monto Total", "Base Aporte", "Aporte IPOSTEL"];
@@ -486,12 +523,27 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: origen, [headers[3]]: inv.clientName, [headers[4]]: paquetes, [headers[5]]: kg, [headers[6]]: inv.totalAmount, [headers[7]]: ipostelBase, [headers[8]]: ipostelAmount
                     }
                 });
+                const ipostelExportTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
+                    const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
+                    const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
+                    const kg = calculateInvoiceChargeableWeight(inv);
+                    const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0);
+                    acc.paq += paquetes; acc.kg += kg; acc.base += ipostelBase; acc.ip += ipostelAmount; acc.monto += inv.totalAmount;
+                    return acc;
+                }, { paq: 0, kg: 0, base: 0, ip: 0, monto: 0 });
+                totalsRow = { [headers[3]]: "TOTALES", [headers[4]]: ipostelExportTotals.paq, [headers[5]]: ipostelExportTotals.kg, [headers[6]]: ipostelExportTotals.monto, [headers[7]]: ipostelExportTotals.base, [headers[8]]: ipostelExportTotals.ip };
                 break;
             case 'seguro':
                  headers = ["Fecha", "Factura", "Cliente", "Valor Declarado", "Costo Seguro"];
                  dataToExport = (sourceData as unknown as Invoice[]).map(inv => ({
                     [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.clientName, [headers[3]]: inv.guide.declaredValue, [headers[4]]: calculateFinancialDetails(inv.guide, companyInfo).insuranceCost
                 }));
+                const seguroExportTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
+                    acc.val += inv.guide.declaredValue;
+                    acc.cost += calculateFinancialDetails(inv.guide, companyInfo).insuranceCost;
+                    return acc;
+                }, { val: 0, cost: 0 });
+                totalsRow = { [headers[2]]: "TOTALES", [headers[3]]: seguroExportTotals.val, [headers[4]]: seguroExportTotals.cost };
                 break;
             case 'reporte_comisiones':
                 headers = ["Nro de Factura", "Kg", "Monto Flete"];
@@ -614,40 +666,56 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             pdf.setFont("helvetica", "bold");
             const companyName = (companyInfo.name || 'Nombre de Empresa').toUpperCase();
             const reportTitleText = report.title.toUpperCase();
-            
+
             // Measure title for positioning
+            pdf.setFontSize(14);
+            pdf.setFont("helvetica", "bold");
             const titleWidth = pdf.getTextWidth(reportTitleText);
-            
-            // Draw Company Name
-            pdf.text(companyName, 100, currentY + 15);
-            
-            // Draw Report Title closer to company name if space allows, or at far right
+            const maxCompanyNameWidth = pageWidth - 100 - titleWidth - 30; // 100 left margin, 30 padding
+
+            // Draw left side info handling possible wrapping
+            pdf.setTextColor(0, 0, 0);
+            const splitCompanyName = pdf.splitTextToSize(companyName, maxCompanyNameWidth);
+            pdf.text(splitCompanyName, 100, currentY + 15);
+            let leftY = currentY + 15 + ((splitCompanyName.length - 1) * 16) + 15;
+
+            // Draw right side info
             pdf.setTextColor(59, 130, 246); // Primary blue for title to match on-screen
             pdf.text(reportTitleText, pageWidth - 40, currentY + 15, { align: 'right' });
-
+            
+            pdf.setTextColor(100, 100, 100);
             pdf.setFontSize(10);
             pdf.setFont("helvetica", "normal");
-            pdf.setTextColor(100, 100, 100);
-            pdf.text(`RIF: ${companyInfo.rif || 'J-00000000-0'}`, 100, currentY + 30);
             
-            // Right side meta
             const dateStr = startDate && endDate ? `Desde: ${startDate} Hasta: ${endDate}` : 
                             startDate ? `Desde: ${startDate}` : 
                             endDate ? `Hasta: ${endDate}` : 'Todos los registros';
             pdf.text(dateStr, pageWidth - 40, currentY + 30, { align: 'right' });
+            
+            pdf.setFontSize(8);
+            pdf.text(`Generado: ${new Date().toLocaleDateString('es-VE')} ${new Date().toLocaleTimeString('es-VE')}`, pageWidth - 40, currentY + 42, { align: 'right' });
 
-            pdf.text(`${companyInfo.address || 'Dirección no configurada'}`, 100, currentY + 45);
-            pdf.text(`Generado: ${new Date().toLocaleDateString('es-VE')} ${new Date().toLocaleTimeString('es-VE')}`, pageWidth - 40, currentY + 45, { align: 'right' });
-            
-            pdf.setFont("helvetica", "bold");
-            pdf.setTextColor(59, 130, 246); // Primary blue
-            pdf.text(`OFICINA: ${officeName.toUpperCase()}`, 100, currentY + 60);
-            
+            pdf.setFontSize(10);
             pdf.setFont("helvetica", "normal");
             pdf.setTextColor(100, 100, 100);
-            pdf.text(`Tel: ${companyInfo.phone || 'Teléfono no configurado'}`, 100, currentY + 75);
+            pdf.text(`RIF: ${companyInfo.rif || 'J-00000000-0'}`, 100, leftY);
+            leftY += 15;
+            
+            const splitAddress = pdf.splitTextToSize(companyInfo.address || 'Dirección no configurada', pageWidth - 350);
+            pdf.text(splitAddress, 100, leftY);
+            leftY += (splitAddress.length * 15);
 
-            currentY += 95; // Move down for the table
+            pdf.setFont("helvetica", "bold");
+            pdf.setTextColor(59, 130, 246); // Primary blue
+            pdf.text(`OFICINA: ${officeName.toUpperCase()}`, 100, leftY);
+            leftY += 15;
+
+            pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Tel: ${companyInfo.phone || 'Teléfono no configurado'}`, 100, leftY);
+            leftY += 15;
+
+            currentY = Math.max(currentY + 75, leftY + 10);
 
             // 2. Draw Table
             if (isAoa) {
@@ -656,6 +724,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     startY: currentY,
                     body: dataToExport,
                     theme: 'grid',
+                    showHead: 'firstPage',
                     styles: { fontSize: 7, cellPadding: 2 },
                     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
                     columnStyles: {
@@ -674,13 +743,13 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 // Draw signature after table completes
                 // @ts-ignore
                 const finalY = pdf.lastAutoTable?.finalY || currentY + 100;
-                let signatureY = finalY + 60;
+                let signatureY = finalY + 40; // Reduced margin from 60 to 40
                 
                 // Check if signature fits on the current page
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 if (signatureY + 50 > pageHeight) {
                     pdf.addPage();
-                    signatureY = 60; // Reset Y for new page
+                    signatureY = 40; // Reset Y for new page
                 }
                 
                 pdf.setDrawColor(150, 150, 150);
@@ -719,6 +788,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     head: [headers],
                     body: bodyData,
                     theme: 'striped',
+                    showHead: 'firstPage',
                     styles: { fontSize: 8, cellPadding: 3 },
                     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
                     didParseCell: function(data) {
@@ -767,10 +837,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
 
-                    const totalGeneral = fletePagado + fleteDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const totalFacturas = (sourceData as Invoice[]).reduce((sum, inv) => sum + inv.totalAmount, 0);
+                    const totalGeneral = totalFacturas > 0 ? totalFacturas : (fletePagado + fleteDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza);
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-                    const totalEmpresa = totalGeneral - totalGastosOficina;
+                    const totalEmpresa = totalGeneral; // Ensure exact match with total sum of invoice totals
 
                     // @ts-ignore
                     const finalY = pdf.lastAutoTable?.finalY || currentY + 100;
@@ -797,6 +868,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         startY: finalY + 10,
                         body: summaryData,
                         theme: 'plain',
+                        showHead: 'firstPage',
                         styles: { fontSize: 8, cellPadding: 2 },
                         columnStyles: {
                             0: { cellWidth: 60 },
@@ -1233,16 +1305,18 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             
             switch (report.id) {
                 case 'general_envios':
-                    headers = ["Fecha", "N° Factura", "Cliente", "Seguro", "Manejo", "Ipostel", "Kg", "Paq.", "Total"];
+                    headers = ["Fecha", "N° Factura", "Cliente", "Tipo de Envío", "Seguro", "Manejo", "Ipostel", "Kg", "Paq.", "Total"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const kg = calculateInvoiceChargeableWeight(inv);
                         const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
+                        const tipoEnvio = inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado';
                         return (
                             <tr key={inv.id}>
-                                <td className="px-2 py-2">{inv.date}</td>
+                                <td className="px-2 py-2">{inv.date.split('T')[0]}</td>
                                 <td className="px-2 py-2">{inv.invoiceNumber}</td>
                                 <td className="px-2 py-2 max-w-[150px] truncate" title={inv.clientName}>{inv.clientName}</td>
+                                <td className="px-2 py-2 text-center text-xs font-semibold">{tipoEnvio}</td>
                                 <td className="px-2 py-2 text-right">{formatCurrency(fin.insuranceCost)}</td>
                                 <td className="px-2 py-2 text-right">{formatCurrency(fin.handling)}</td>
                                 <td className="px-2 py-2 text-right">{formatCurrency(fin.ipostel)}</td>
@@ -1253,7 +1327,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         );
                     });
                     const generalTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={8} className="px-2 py-3 text-left uppercase">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={9} className="px-2 py-3 text-left uppercase">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td></tr></tfoot>);
                     
                     let fletePagado = 0;
                     let fleteDestino = 0;
@@ -1286,10 +1360,10 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
 
-                    const totalGeneral = fletePagado + fleteDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const totalGeneral = generalTotals.total;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-                    const totalEmpresa = totalGeneral - totalGastosOficina;
+                    const totalEmpresa = generalTotals.total; // Set exactly to sum of factoring amounts
 
                     summary = (
                         <div className="mt-8 pt-4 w-full max-w-3xl text-black">
