@@ -778,7 +778,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 if (Object.keys(totalsRow).length > 0) {
                     const totalRowData = headers.map(h => {
                         const val = totalsRow[h];
-                        if (typeof val === 'number' && !h.toLowerCase().includes('kg')) {
+                        if (typeof val === 'number' && !h.toLowerCase().includes('kg') && !h.toLowerCase().includes('paq')) {
                             return `Bs. ${val.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                         }
                         return val !== undefined && val !== null ? val.toString() : '';
@@ -790,10 +790,10 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     startY: currentY,
                     head: [headers],
                     body: bodyData,
-                    theme: 'striped',
+                    theme: 'grid',
                     showHead: 'firstPage',
-                    styles: { fontSize: 8, cellPadding: 3 },
-                    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+                    styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
+                    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [200, 200, 200], lineWidth: 0.1 },
                     didParseCell: function(data) {
                         // Align numeric columns to right
                         const h = headers[data.column.index];
