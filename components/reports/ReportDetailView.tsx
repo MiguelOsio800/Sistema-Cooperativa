@@ -239,30 +239,32 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
         switch(report.id) {
             case 'general_envios':
-                headers = ["Fecha", "N° Factura", "N° Control", "Cliente", "Tipo de Envío", "Seguro", "Manejo", "Ipostel", "Kg", "Paquetes", "Monto Total"];
+                headers = ["Fecha", "N° Factura", "N° Control", "Cliente", "Tipo de Envío", "Flete", "Seguro", "Manejo", "Ipostel", "Kg", "Paquetes", "Monto Total"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
                     const kg = calculateInvoiceChargeableWeight(inv);
                     const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
                     const tipoEnvio = inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado';
                     return {
-                        [headers[0]]: inv.date.split('T')[0],
+                        [headers[0]]: inv.date.split('T')[0].split('-').reverse().join('/'),
                         [headers[1]]: inv.invoiceNumber,
                         [headers[2]]: inv.controlNumber,
                         [headers[3]]: inv.clientName,
                         [headers[4]]: tipoEnvio,
-                        [headers[5]]: fin.insuranceCost,
-                        [headers[6]]: fin.handling,
-                        [headers[7]]: fin.ipostel,
-                        [headers[8]]: kg,
-                        [headers[9]]: paquetes,
-                        [headers[10]]: inv.totalAmount,
+                        [headers[5]]: fin.freight,
+                        [headers[6]]: fin.insuranceCost,
+                        [headers[7]]: fin.handling,
+                        [headers[8]]: fin.ipostel,
+                        [headers[9]]: kg,
+                        [headers[10]]: paquetes,
+                        [headers[11]]: inv.totalAmount,
                     };
                 });
                 const generalTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
                     const kg = calculateInvoiceChargeableWeight(inv);
                     const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0);
+                    acc.flete += fin.freight;
                     acc.seguro += fin.insuranceCost;
                     acc.manejo += fin.handling;
                     acc.ipostel += fin.ipostel;
@@ -270,15 +272,16 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     acc.paquetes += paquetes;
                     acc.total += inv.totalAmount;
                     return acc;
-                }, { seguro: 0, manejo: 0, ipostel: 0, kg: 0, paquetes: 0, total: 0 });
+                }, { flete: 0, seguro: 0, manejo: 0, ipostel: 0, kg: 0, paquetes: 0, total: 0 });
                 totalsRow = { 
                     [headers[3]]: "TOTALES", 
-                    [headers[5]]: generalTotals.seguro, 
-                    [headers[6]]: generalTotals.manejo, 
-                    [headers[7]]: generalTotals.ipostel, 
-                    [headers[8]]: generalTotals.kg, 
-                    [headers[9]]: generalTotals.paquetes, 
-                    [headers[10]]: generalTotals.total 
+                    [headers[5]]: generalTotals.flete,
+                    [headers[6]]: generalTotals.seguro, 
+                    [headers[7]]: generalTotals.manejo, 
+                    [headers[8]]: generalTotals.ipostel, 
+                    [headers[9]]: generalTotals.kg, 
+                    [headers[10]]: generalTotals.paquetes, 
+                    [headers[11]]: generalTotals.total 
                 };
                 break;
             case 'libro_venta':
@@ -1305,7 +1308,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             
             switch (report.id) {
                 case 'general_envios':
-                    headers = ["Fecha", "N° Factura", "Cliente", "Tipo de Envío", "Seguro", "Manejo", "Ipostel", "Kg", "Paq.", "Total"];
+                    headers = ["Fecha", "N° Factura", "Cliente", "Tipo de Envío", "Flete", "Seguro", "Manejo", "Ipostel", "Kg", "Paq.", "Total"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const kg = calculateInvoiceChargeableWeight(inv);
@@ -1313,10 +1316,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         const tipoEnvio = inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado';
                         return (
                             <tr key={inv.id}>
-                                <td className="px-2 py-2">{inv.date.split('T')[0]}</td>
+                                <td className="px-2 py-2">{inv.date.split('T')[0].split('-').reverse().join('/')}</td>
                                 <td className="px-2 py-2">{inv.invoiceNumber}</td>
                                 <td className="px-2 py-2 max-w-[150px] truncate" title={inv.clientName}>{inv.clientName}</td>
                                 <td className="px-2 py-2 text-center text-xs font-semibold">{tipoEnvio}</td>
+                                <td className="px-2 py-2 text-right">{formatCurrency(fin.freight)}</td>
                                 <td className="px-2 py-2 text-right">{formatCurrency(fin.insuranceCost)}</td>
                                 <td className="px-2 py-2 text-right">{formatCurrency(fin.handling)}</td>
                                 <td className="px-2 py-2 text-right">{formatCurrency(fin.ipostel)}</td>
@@ -1326,8 +1330,13 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                             </tr>
                         );
                     });
-                    const generalTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={9} className="px-2 py-3 text-left uppercase">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotals.total)}</td></tr></tfoot>);
+                    const generalTotalsUI = (reportData as Invoice[]).reduce((acc, inv) => { 
+                        const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                        acc.flete += fin.freight;
+                        acc.total += inv.totalAmount; 
+                        return acc; 
+                    }, { flete: 0, total: 0 });
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left uppercase">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotalsUI.flete)}</td><td colSpan={5}></td><td className="px-2 py-3 text-right">{formatCurrency(generalTotalsUI.total)}</td></tr></tfoot>);
                     
                     let fletePagado = 0;
                     let fleteDestino = 0;
@@ -1363,7 +1372,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const totalGeneral = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-                    const totalEmpresa = generalTotals.total;
+                    const totalEmpresa = generalTotalsUI.total;
 
                     summary = (
                         <div className="mt-8 pt-4 w-full max-w-3xl text-black">
