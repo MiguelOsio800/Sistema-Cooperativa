@@ -416,7 +416,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
                      wsData.push([
                          { content: inv.invoiceNumber, styles: { halign: 'center', valign: 'middle' } }, 
-                         { content: new Date(inv.date).toLocaleDateString('es-VE'), styles: { halign: 'center', valign: 'middle' } },
+                         { content: inv.date.split('T')[0].split('-').reverse().join('/'), styles: { halign: 'center', valign: 'middle' } },
                          { content: inv.clientName || 'Consumidor Final', styles: { halign: 'center', valign: 'middle' } },
                          { content: status, styles: { halign: 'center', valign: 'middle' } },
                          { content: `Bs. ${freight.toLocaleString('es-VE', { minimumFractionDigits: 2 })}\n$ ${(freight / rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { halign: 'right' } },
@@ -837,11 +837,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
 
-                    const totalFacturas = (sourceData as Invoice[]).reduce((sum, inv) => sum + inv.totalAmount, 0);
-                    const totalGeneral = totalFacturas > 0 ? totalFacturas : (fletePagado + fleteDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza);
+                    const totalGeneral = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-                    const totalEmpresa = totalGeneral; // Ensure exact match with total sum of invoice totals
+                    const totalFacturas = (sourceData as Invoice[]).reduce((sum, inv) => sum + inv.totalAmount, 0);
+                    const totalEmpresa = totalFacturas;
 
                     // @ts-ignore
                     const finalY = pdf.lastAutoTable?.finalY || currentY + 100;
@@ -973,7 +973,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         return {
                             id: inv.id,
                             invoiceNumber: inv.invoiceNumber,
-                            date: new Date(inv.date).toLocaleDateString('es-VE'),
+                            date: inv.date.split('T')[0].split('-').reverse().join('/'),
                             client: inv.clientName || 'Consumidor Final',
                             status: status,
                             totalAmount: inv.totalAmount,
@@ -1360,10 +1360,10 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
 
-                    const totalGeneral = generalTotals.total;
+                    const totalGeneral = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-                    const totalEmpresa = generalTotals.total; // Set exactly to sum of factoring amounts
+                    const totalEmpresa = generalTotals.total;
 
                     summary = (
                         <div className="mt-8 pt-4 w-full max-w-3xl text-black">

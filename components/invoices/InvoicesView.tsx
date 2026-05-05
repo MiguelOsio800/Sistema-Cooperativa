@@ -11,6 +11,7 @@ import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
 import { useData } from '../../contexts/DataContext';
 import QuickStatusModal from './QuickStatusModal';
+import ClientFilterAutocomplete from './ClientFilterAutocomplete';
 import { useConfirm } from '../../contexts/ConfirmationContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -59,6 +60,7 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
     const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
     const [shippingStatusFilter, setShippingStatusFilter] = useState('');
     const [clientFilter, setClientFilter] = useState('');
+    const [receiverFilter, setReceiverFilter] = useState('');
 
     const filteredInvoices = useMemo(() => {
         return invoices.filter(invoice => {
@@ -71,14 +73,16 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
             if (paymentStatusFilter && invoice.paymentStatus !== paymentStatusFilter) return false;
             if (shippingStatusFilter && invoice.shippingStatus !== shippingStatusFilter) return false;
             if (clientFilter && invoice.clientIdNumber !== clientFilter) return false;
+            if (receiverFilter && invoice.guide?.receiver?.idNumber !== receiverFilter) return false;
             if (searchTerm && !(
                 (invoice.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (invoice.clientName || '').toLowerCase().includes(searchTerm.toLowerCase())
+                (invoice.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (invoice.guide?.receiver?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
             )) return false;
 
             return true;
         });
-    }, [invoices, searchTerm, startDate, endDate, paymentStatusFilter, shippingStatusFilter, clientFilter]);
+    }, [invoices, searchTerm, startDate, endDate, paymentStatusFilter, shippingStatusFilter, clientFilter, receiverFilter]);
     
     const { 
         paginatedData, 
@@ -156,10 +160,20 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                          <Input label="Buscar" id="search" placeholder="Por N° o Cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} icon={<SearchIcon className="w-4 h-4 text-gray-400"/>} />
                          <Input label="Desde" type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                          <Input label="Hasta" type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                        <Select label="Cliente" id="client-filter" value={clientFilter} onChange={e => setClientFilter(e.target.value)}>
-                            <option value="">Todos los Clientes</option>
-                            {clients.map(c => <option key={c.id} value={c.idNumber}>{c.name}</option>)}
-                        </Select>
+                        <ClientFilterAutocomplete
+                            label="Remitente / Cliente"
+                            id="client-filter"
+                            clients={clients}
+                            value={clientFilter}
+                            onChange={setClientFilter}
+                        />
+                        <ClientFilterAutocomplete
+                            label="Destinatario"
+                            id="receiver-filter"
+                            clients={clients}
+                            value={receiverFilter}
+                            onChange={setReceiverFilter}
+                        />
                         <Select label="Estado de Pago" id="payment-status-filter" value={paymentStatusFilter} onChange={e => setPaymentStatusFilter(e.target.value)}>
                             <option value="">Todos</option>
                             {paymentStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
