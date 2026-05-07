@@ -31,6 +31,16 @@ export interface CompanyInfo {
     costPerKg?: number; // Ahora usado como Costo por Manejo/Guía
     bcvRate?: number;
     postalLicense?: string;
+    remittanceRules?: {
+    entidadTipo: 'Socio' | 'Empresa';
+    categorias: {
+        expreso: { socio: number; cooperativa: number };
+        mudanza: { socio: number; cooperativa: number };
+        afiliado: { socio: number; cooperativa: number };
+        no_afiliado: { socio: number; cooperativa: number };
+        credito: { socio: number; cooperativa: number };
+    }
+};
 }
 
 export interface Office {

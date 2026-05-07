@@ -10,6 +10,7 @@ import { useToast } from '../ui/ToastProvider';
 import { CONFIG_SUB_NAV_ITEMS } from '../../constants';
 import AccountingTile from '../libro-contable/AccountingTile';
 import RoleManagement from '../system/RoleManagement';
+import ParametrosGenerales from './ParametrosGenerales';
 import { apiFetch } from '../../utils/api';
 import { useConfig } from '../../contexts/ConfigContext';
 
@@ -94,12 +95,12 @@ const CompanyInfoSettings: React.FC<{ info: CompanyInfo; onSave: (info: CompanyI
             <form onSubmit={handleSubmit} className="space-y-4">
                  <fieldset disabled={!canEdit} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Título de la Aplicación" name="name" value={formData.name} onChange={handleChange} required />
-                        <Input label="RIF" name="rif" value={formData.rif} onChange={handleChange} required />
+                        <Input label="Título de la Aplicación" name="name" value={formData.name || ''} onChange={handleChange} required />
+                        <Input label="RIF" name="rif" value={formData.rif || ''} onChange={handleChange} required />
                     </div>
-                    <Input label="Dirección Fiscal" name="address" value={formData.address} onChange={handleChange} required />
+                    <Input label="Dirección Fiscal" name="address" value={formData.address || ''} onChange={handleChange} required />
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Teléfono" name="phone" value={formData.phone} onChange={handleChange} required />
+                        <Input label="Teléfono" name="phone" value={formData.phone || ''} onChange={handleChange} required />
                         <Input label="Código de Habilitación Postal" name="postalLicense" value={formData.postalLicense || ''} onChange={handleChange} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -254,6 +255,13 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = (props) => {
                 onSave={onCompanyInfoSave} 
                 canEdit={!!permissions['config.company.edit']}
             />
+
+            {permissions['config.company.edit'] && (
+                <ParametrosGenerales 
+                    companyInfo={companyInfo}
+                    onSave={onCompanyInfoSave}
+                />
+            )}
             
             {permissions['config.users.manage'] && (
                 <UserManagement

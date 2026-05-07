@@ -28,7 +28,16 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     const receiver = clients.find(c => c.id === invoice.guide.receiver.id) || invoice.guide.receiver;
     const originOffice = offices.find(o => o.id === invoice.guide.originOfficeId);
     
-    const financials = useMemo(() => calculateFinancialDetails(invoice.guide, companyInfo), [invoice, companyInfo]);
+    const financials = useMemo(() => {
+        const base = calculateFinancialDetails(invoice.guide, companyInfo);
+        return {
+            ...base,
+            handling: invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : base.handling,
+            ipostel: invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : base.ipostel,
+            iva: invoice.montoIva !== undefined ? Number(invoice.montoIva) : base.iva,
+            total: invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : base.total
+        };
+    }, [invoice, companyInfo]);
 
     const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const formatUsd = (amount: number) => `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -272,7 +281,7 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                                 <div className="border-t border-gray-300 my-1"></div>
                                 
                                 <div className="flex justify-between font-bold text-black text-[11px]"><span>Base Imponible:</span> <span>{formatCurrency(financials.subtotal)}</span></div>
-                                <div className="flex justify-between text-gray-700"><span>IVA (16%):</span> <span>{formatCurrency(financials.iva)}</span></div>
+                                {financials.iva > 0 && <div className="flex justify-between text-gray-700"><span>IVA (16%):</span> <span>{formatCurrency(financials.iva)}</span></div>}
                                 <div className="flex justify-between text-gray-700"><span>Aporte Ipostel:</span> <span>{formatCurrency(financials.ipostel)}</span></div>
                                 {financials.igtf > 0 && <div className="flex justify-between text-gray-700"><span>IGTF (3%):</span> <span>{formatCurrency(financials.igtf)}</span></div>}
                                 

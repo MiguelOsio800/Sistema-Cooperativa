@@ -50,6 +50,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
         
         const handling = invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : baseFinancials.handling;
         const ipostel = invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : baseFinancials.ipostel;
+        const iva = invoice.montoIva !== undefined ? Number(invoice.montoIva) : baseFinancials.iva;
         const total = invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : baseFinancials.total;
         
         const subtotal = (baseFinancials.freight - baseFinancials.discount) + baseFinancials.insuranceCost + handling;
@@ -58,6 +59,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
             ...baseFinancials,
             handling,
             ipostel,
+            iva,
             subtotal,
             total
         };
@@ -390,7 +392,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                                     {financials.discount > 0 && <div className="flex justify-between text-red-600"><span>Descuento:</span> <span>-{formatCurrency(financials.discount)}</span></div>}
                                     <div className="border-t border-gray-300 my-1"></div>
                                     <div className="flex justify-between font-bold text-black text-[11px]"><span>Base Imponible:</span> <span>{formatCurrency(financials.subtotal)}</span></div>
-                                    <div className="flex justify-between text-gray-700"><span>IVA (16%):</span> <span>{formatCurrency(financials.iva)}</span></div>
+                                    {financials.iva > 0 && <div className="flex justify-between text-gray-700"><span>IVA (16%):</span> <span>{formatCurrency(financials.iva)}</span></div>}
                                     <div className="flex justify-between text-gray-700"><span>Aporte Ipostel:</span> <span>{formatCurrency(financials.ipostel)}</span></div>
                                     {financials.igtf > 0 && <div className="flex justify-between text-gray-700"><span>IGTF (3%):</span> <span>{formatCurrency(financials.igtf)}</span></div>}
                                     <div className="bg-green-600 text-white p-2 rounded mt-2 flex justify-between items-center">

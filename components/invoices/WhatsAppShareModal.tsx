@@ -23,7 +23,14 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose
         
         const sender = clients.find(c => c.id === invoice.guide.sender.id || c.idNumber === invoice.guide.sender.idNumber) || invoice.guide.sender;
         const receiver = clients.find(c => c.id === invoice.guide.receiver.id || c.idNumber === invoice.guide.receiver.idNumber) || invoice.guide.receiver;
-        const financials = calculateFinancialDetails(invoice.guide, companyInfo);
+        const baseFin = calculateFinancialDetails(invoice.guide, companyInfo);
+        const financials = {
+            ...baseFin,
+            handling: invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : baseFin.handling,
+            ipostel: invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : baseFin.ipostel,
+            iva: invoice.montoIva !== undefined ? Number(invoice.montoIva) : baseFin.iva,
+            total: invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : baseFin.total
+        };
 
         const merchandiseList = invoice.guide.merchandise
             .map(item => `- ${item.quantity} x ${item.description}`)
@@ -56,7 +63,7 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose
         if (financials.discount > 0) parts.push(`Descuento: -${formatCurrency(financials.discount)}`);
         
         parts.push(`*Subtotal:* ${formatCurrency(financials.subtotal)}`);
-        parts.push(`IVA (16%): ${formatCurrency(financials.iva)}`);
+        if (financials.iva > 0) parts.push(`IVA (16%): ${formatCurrency(financials.iva)}`);
         
         if (financials.ipostel > 0) parts.push(`Ipostel: ${formatCurrency(financials.ipostel)}`);
         if (financials.igtf > 0) parts.push(`IGTF (3%): ${formatCurrency(financials.igtf)}`);
