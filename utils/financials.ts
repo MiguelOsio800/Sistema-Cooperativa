@@ -50,8 +50,8 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
         ? (freight * 0.06) 
         : 0.000001;
     
-    // Check if IVA should be calculated from frontend localStorage
-    const isIvaActive = typeof window !== 'undefined' && localStorage.getItem('ivaActivo') === 'true';
+    // Check if IVA should be calculated from company settings
+    const isIvaActive = companyInfo.ivaActivo === true;
     const iva = isIvaActive ? (subtotal * 0.16) : 0;
 
     const preIgtfTotal = subtotal + ipostel + iva;

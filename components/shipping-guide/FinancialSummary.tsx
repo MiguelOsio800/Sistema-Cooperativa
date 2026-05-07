@@ -56,12 +56,10 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({ financials, guide, 
                     <span className="text-gray-500 dark:text-gray-400">Ipostel:</span>
                     <span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(financials.ipostel)}</span>
                 </div>
-                {financials.iva > 0 && (
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 dark:text-gray-400">IVA (16%):</span>
-                        <span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(financials.iva)}</span>
-                    </div>
-                )}
+                <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">IVA (16%):</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(financials.iva)}</span>
+                </div>
                  {financials.igtf > 0 && (
                     <div className="flex justify-between">
                         <span className="text-gray-500 dark:text-gray-400">IGTF (3%):</span>

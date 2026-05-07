@@ -25,7 +25,7 @@ const ParametrosGenerales: React.FC<ParametrosGeneralesProps> = ({ companyInfo, 
         };
         if (!baseRules || !baseRules.categorias) return defaultRules;
         return {
-            entidadTipo: baseRules.entidadTipo || 'Socio',
+            entidadTipo: baseRules.entidadTipo || defaultRules.entidadTipo,
             categorias: {
                 expreso: baseRules.categorias.expreso || defaultRules.categorias.expreso,
                 mudanza: baseRules.categorias.mudanza || defaultRules.categorias.mudanza,
@@ -41,8 +41,6 @@ const ParametrosGenerales: React.FC<ParametrosGeneralesProps> = ({ companyInfo, 
         remittanceRules: ensureRules(companyInfo.remittanceRules)
     }));
 
-    const [ivaActivo, setIvaActivo] = useState<boolean>(false);
-
     useEffect(() => {
         setInfo({
             ...companyInfo,
@@ -50,53 +48,21 @@ const ParametrosGenerales: React.FC<ParametrosGeneralesProps> = ({ companyInfo, 
         });
     }, [companyInfo]);
 
-    useEffect(() => {
-        const storedIva = localStorage.getItem('ivaActivo');
-        if (storedIva === 'true') {
-            setIvaActivo(true);
-        }
-    }, []);
-
     const handleIvaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const isChecked = e.target.checked;
-        setIvaActivo(isChecked);
-        localStorage.setItem('ivaActivo', String(isChecked));
-    };
-
-    const getRules = () => {
-        const defaultRules = {
-            entidadTipo: 'Socio' as const,
-            categorias: {
-                expreso: { socio: 0, cooperativa: 100 },
-                mudanza: { socio: 0, cooperativa: 100 },
-                afiliado: { socio: 0, cooperativa: 100 },
-                no_afiliado: { socio: 0, cooperativa: 100 },
-                credito: { socio: 0, cooperativa: 100 },
-            }
-        };
-        if (!info.remittanceRules || !info.remittanceRules.categorias) return defaultRules;
-        
-        return {
-            entidadTipo: info.remittanceRules.entidadTipo || 'Socio',
-            categorias: {
-                expreso: info.remittanceRules.categorias.expreso || defaultRules.categorias.expreso,
-                mudanza: info.remittanceRules.categorias.mudanza || defaultRules.categorias.mudanza,
-                afiliado: info.remittanceRules.categorias.afiliado || defaultRules.categorias.afiliado,
-                no_afiliado: info.remittanceRules.categorias.no_afiliado || defaultRules.categorias.no_afiliado,
-                credito: info.remittanceRules.categorias.credito || defaultRules.categorias.credito,
-            }
-        };
+        setInfo(prev => ({
+            ...prev,
+            ivaActivo: isChecked
+        }));
     };
 
     const handleRemittanceRuleChange = (field: string, value: any) => {
         setInfo((prev) => {
-            const currentRules = getRules();
+            const newRules = JSON.parse(JSON.stringify(prev.remittanceRules || ensureRules({})));
+            newRules[field] = value;
             return {
                 ...prev,
-                remittanceRules: {
-                    ...currentRules,
-                    [field]: value
-                }
+                remittanceRules: newRules
             };
         });
     };
@@ -106,7 +72,7 @@ const ParametrosGenerales: React.FC<ParametrosGeneralesProps> = ({ companyInfo, 
         if (isNaN(val)) val = 0;
 
         setInfo((prev) => {
-            const currentRules = getRules();
+            const newRules = JSON.parse(JSON.stringify(prev.remittanceRules || ensureRules({})));
             
             let newValueSocio = field === 'socio' ? val : 100 - val;
             let newValueCooperativa = field === 'cooperativa' ? val : 100 - val;
@@ -117,24 +83,24 @@ const ParametrosGenerales: React.FC<ParametrosGeneralesProps> = ({ companyInfo, 
             if (newValueCooperativa > 100) newValueCooperativa = 100;
             if (newValueCooperativa < 0) newValueCooperativa = 0;
 
-            const categoryKey = category as keyof typeof currentRules.categorias;
-            if (currentRules.categorias[categoryKey]) {
-                currentRules.categorias[categoryKey].socio = newValueSocio;
-                currentRules.categorias[categoryKey].cooperativa = newValueCooperativa;
+            const categoryKey = category as keyof typeof newRules.categorias;
+            if (newRules.categorias[categoryKey]) {
+                newRules.categorias[categoryKey].socio = newValueSocio;
+                newRules.categorias[categoryKey].cooperativa = newValueCooperativa;
             }
 
             return {
                 ...prev,
-                remittanceRules: currentRules
+                remittanceRules: newRules
             };
         });
     };
 
     const handleSubmit = async () => {
-        await onSave({ ...info, remittanceRules: getRules() });
+        await onSave({ ...info });
     };
 
-    const rules = getRules();
+    const rules = info.remittanceRules || ensureRules({});
 
     return (
         <Card>
@@ -200,12 +166,12 @@ const ParametrosGenerales: React.FC<ParametrosGeneralesProps> = ({ companyInfo, 
 
                 {/* Settings Frontend */}
                 <section>
-                    <h3 className="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Ajustes Locales (Este Equipo)</h3>
+                    <h3 className="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Ajustes Generales del Sistema</h3>
                     <div className="flex items-center space-x-3 mb-6 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                         <input
                             type="checkbox"
                             id="ivaToggle"
-                            checked={ivaActivo ?? false}
+                            checked={info.ivaActivo ?? false}
                             onChange={handleIvaChange}
                             className="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                         />

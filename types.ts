@@ -31,6 +31,7 @@ export interface CompanyInfo {
     costPerKg?: number; // Ahora usado como Costo por Manejo/Guía
     bcvRate?: number;
     postalLicense?: string;
+    ivaActivo?: boolean;
     remittanceRules?: {
     entidadTipo: 'Socio' | 'Empresa';
     categorias: {

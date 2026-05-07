@@ -63,7 +63,7 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose
         if (financials.discount > 0) parts.push(`Descuento: -${formatCurrency(financials.discount)}`);
         
         parts.push(`*Subtotal:* ${formatCurrency(financials.subtotal)}`);
-        if (financials.iva > 0) parts.push(`IVA (16%): ${formatCurrency(financials.iva)}`);
+        parts.push(`IVA (16%): ${formatCurrency(financials.iva)}`);
         
         if (financials.ipostel > 0) parts.push(`Ipostel: ${formatCurrency(financials.ipostel)}`);
         if (financials.igtf > 0) parts.push(`IGTF (3%): ${formatCurrency(financials.igtf)}`);
