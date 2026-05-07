@@ -22,6 +22,7 @@ export const deriveInventoryFromInvoices = (invoices: Invoice[]): InventoryItem[
                     invoiceNumber: invoice.invoiceNumber,
                     shippingStatus: invoice.shippingStatus,
                     weight: chargeableWeight,
+                    officeId: invoice.guide.originOfficeId,
                 });
             });
         }

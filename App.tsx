@@ -342,7 +342,7 @@ const AppContent: React.FC = () => {
                             onDeleteAsientoManual={handleDeleteAsientoManual} 
                         />;
                         case 'inventario': return <InventarioLandingView permissions={userPermissions} />;
-                        case 'inventario-envios': return <InventarioView items={filteredInventory} permissions={userPermissions} filter={inventoryFilter} />;
+                        case 'inventario-envios': return <InventarioView items={filteredInventory} permissions={userPermissions} filter={inventoryFilter} currentUser={currentUser!} offices={offices} />;
                         case 'inventario-bienes': return <BienesView assets={assets} onSave={handleSaveAsset} onDelete={handleDeleteAsset} permissions={userPermissions} offices={offices} assetCategories={assetCategories} />;
                         case 'bienes-categorias': return <BienesCategoryView categories={assetCategories} onSave={handleSaveAssetCategory} onDelete={handleDeleteAssetCategory} permissions={userPermissions} />;
                         case 'auditoria': return <AuditLogView auditLog={auditLog} users={users} />;

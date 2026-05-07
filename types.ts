@@ -307,6 +307,7 @@ export interface InventoryItem {
     invoiceNumber?: string;
     shippingStatus: ShippingStatus;
     weight?: number;
+    officeId?: string;
 }
 
 export interface AuditLog {

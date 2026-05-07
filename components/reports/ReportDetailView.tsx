@@ -285,23 +285,23 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 };
                 break;
             case 'libro_venta':
-                headers = ["Fecha", "N° Factura", "N° Control", "Oficina Origen", "Nombre/Razón Social Cliente", "RIF/CI Cliente", "Venta Total", "Base Imponible", "IVA (16%)", "IPOSTEL"];
+                headers = ["Fecha", "N° Factura", "N° Control", "Oficina Origen", "Nombre/Razón Social Cliente", "RIF/CI Cliente", "Venta Total", "Flete", "IVA (16%)", "IPOSTEL"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
                     const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                     return inv.status === 'Anulada' ? {
-                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: originOffice, [headers[4]]: inv.clientName, [headers[5]]: inv.clientIdNumber, [headers[6]]: "ANULADA", [headers[7]]: 0, [headers[8]]: 0, [headers[9]]: 0
+                        [headers[0]]: inv.date.split('T')[0].split('-').reverse().join('/'), [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: originOffice, [headers[4]]: inv.clientName, [headers[5]]: inv.clientIdNumber, [headers[6]]: "ANULADA", [headers[7]]: 0, [headers[8]]: 0, [headers[9]]: 0
                     } : {
-                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: originOffice, [headers[4]]: inv.clientName, [headers[5]]: inv.clientIdNumber, [headers[6]]: fin.total, [headers[7]]: fin.subtotal, [headers[8]]: fin.iva, [headers[9]]: fin.ipostel
+                        [headers[0]]: inv.date.split('T')[0].split('-').reverse().join('/'), [headers[1]]: inv.invoiceNumber, [headers[2]]: inv.controlNumber, [headers[3]]: originOffice, [headers[4]]: inv.clientName, [headers[5]]: inv.clientIdNumber, [headers[6]]: fin.total, [headers[7]]: fin.freight, [headers[8]]: fin.iva, [headers[9]]: fin.ipostel
                     };
                 });
                 const salesTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
                     if (inv.status !== 'Anulada') {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
-                        acc.total += fin.total; acc.base += fin.subtotal; acc.iva += fin.iva; acc.ipostel += fin.ipostel;
+                        acc.total += fin.total; acc.flete += fin.freight; acc.iva += fin.iva; acc.ipostel += fin.ipostel;
                     } return acc;
-                }, { total: 0, base: 0, iva: 0, ipostel: 0 });
-                totalsRow = { [headers[3]]: "TOTALES", [headers[5]]: salesTotals.total, [headers[6]]: salesTotals.base, [headers[7]]: salesTotals.iva, [headers[8]]: salesTotals.ipostel };
+                }, { total: 0, flete: 0, iva: 0, ipostel: 0 });
+                totalsRow = { [headers[5]]: "TOTALES", [headers[6]]: salesTotals.total, [headers[7]]: salesTotals.flete, [headers[8]]: salesTotals.iva, [headers[9]]: salesTotals.ipostel };
                 break;
             case 'cuentas_cobrar':
                 headers = ["Fecha de Emisión", "N° Factura", "Oficina", "Cliente", "Teléfono del Cliente", "Días Vencidos", "Monto Pendiente"];
@@ -1454,14 +1454,14 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     );
                     break;
                 case 'libro_venta':
-                     headers = ["Fecha", "Factura", "Oficina", "Cliente", "RIF", "Total", "Base", "IVA", "IPOSTEL"];
+                     headers = ["Fecha", "Factura", "Oficina", "Cliente", "RIF", "Total", "Flete", "IVA", "IPOSTEL"];
                      body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
-                        return (<tr key={inv.id} className={inv.status === 'Anulada' ? 'text-red-500 line-through' : ''}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{inv.clientIdNumber}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? 'ANULADA' : formatCurrency(fin.total)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.subtotal)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.iva)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.ipostel)}</td></tr>);
+                        return (<tr key={inv.id} className={inv.status === 'Anulada' ? 'text-red-500 line-through' : ''}><td className="px-2 py-2">{inv.date.split('T')[0].split('-').reverse().join('/')}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{inv.clientIdNumber}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? 'ANULADA' : formatCurrency(fin.total)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.freight)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.iva)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.ipostel)}</td></tr>);
                      });
-                     const libroVentaTotals = (reportData as Invoice[]).reduce((acc, inv) => { if (inv.status !== 'Anulada') { const fin = calculateFinancialDetails(inv.guide, companyInfo); acc.total += fin.total; acc.base += fin.subtotal; acc.iva += fin.iva; acc.ipostel += fin.ipostel; } return acc; }, { total: 0, base: 0, iva: 0, ipostel: 0 });
-                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.total)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.base)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.iva)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.ipostel)}</td></tr></tfoot>);
+                     const libroVentaTotals = (reportData as Invoice[]).reduce((acc, inv) => { if (inv.status !== 'Anulada') { const fin = calculateFinancialDetails(inv.guide, companyInfo); acc.total += fin.total; acc.flete += fin.freight; acc.iva += fin.iva; acc.ipostel += fin.ipostel; } return acc; }, { total: 0, flete: 0, iva: 0, ipostel: 0 });
+                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.total)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.flete)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.iva)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.ipostel)}</td></tr></tfoot>);
                      break;
                 case 'cuentas_cobrar':
                     headers = ["Fecha Emisión", "Factura", "Oficina", "Cliente", "Teléfono", "Días Vencidos", "Monto Pendiente"];

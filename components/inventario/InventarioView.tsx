@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
-import { InventoryItem, Permissions, ShippingStatus } from '../../types';
+import React, { useMemo, useState } from 'react';
+import { InventoryItem, Permissions, ShippingStatus, User, Office } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import { ArrowLeftIcon } from '../icons/Icons';
 import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
+import Select from '../ui/Select';
 
 const statusColors: { [key in ShippingStatus]: string } = {
     'Pendiente para Despacho': 'bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200',
@@ -20,15 +21,26 @@ interface InventarioViewProps {
     items: InventoryItem[];
     permissions: Permissions;
     filter?: string | null;
+    currentUser: User;
+    offices: Office[];
 }
 
-const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, filter }) => {
+const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, filter, currentUser, offices }) => {
     
+    const canManageAllOffices = ['role-admin', 'role-tecnologia', 'role-soporte'].includes(currentUser.roleId);
+    const [selectedOfficeId, setSelectedOfficeId] = useState<string>('');
+
     const filteredItems = useMemo(() => {
         // Filter out items that are no longer considered active in inventory
-        const activeItems = items.filter(item => 
+        let activeItems = items.filter(item => 
             item.shippingStatus !== 'Entregada'
         );
+
+        if (!canManageAllOffices) {
+            activeItems = activeItems.filter(item => item.officeId === currentUser.officeId);
+        } else if (selectedOfficeId) {
+            activeItems = activeItems.filter(item => item.officeId === selectedOfficeId);
+        }
 
         const sortedItems = [...activeItems].sort((a, b) => {
             if (a.invoiceNumber && !b.invoiceNumber) return -1;
@@ -38,7 +50,7 @@ const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, fil
 
         if (!filter) return sortedItems;
         return sortedItems.filter(item => item.invoiceId === filter);
-    }, [items, filter]);
+    }, [items, filter, canManageAllOffices, currentUser.officeId, selectedOfficeId]);
 
     const { 
         paginatedData, 
@@ -78,6 +90,20 @@ const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, fil
                 <CardHeader>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                         <CardTitle>{filter ? `Inventario para la Factura ${items.find(i => i.invoiceId === filter)?.invoiceNumber}` : 'Inventario de Envíos (Cargas)'}</CardTitle>
+                        {canManageAllOffices && !filter && (
+                            <div className="w-64">
+                                <Select
+                                    label="Filtrar por Oficina"
+                                    value={selectedOfficeId}
+                                    onChange={e => setSelectedOfficeId(e.target.value)}
+                                >
+                                    <option value="">Todas las Oficinas</option>
+                                    {offices.map(o => (
+                                        <option key={o.id} value={o.id}>{o.name}</option>
+                                    ))}
+                                </Select>
+                            </div>
+                        )}
                     </div>
                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Este inventario se genera automáticamente al crear una factura. No se pueden añadir ni eliminar artículos manualmente desde aquí.</p>
                 </CardHeader>
@@ -87,6 +113,9 @@ const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, fil
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Artículo</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Factura</th>
+                                {canManageAllOffices && (
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Oficina</th>
+                                )}
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Paquetes</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Peso (Kg)</th>
                                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Estado Envío</th>
@@ -101,6 +130,11 @@ const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, fil
                                         {item.description && <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">{item.description}</div>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap align-top font-mono text-sm text-primary-600 dark:text-primary-400">{item.invoiceNumber || 'Manual'}</td>
+                                    {canManageAllOffices && (
+                                        <td className="px-6 py-4 whitespace-nowrap align-top text-sm text-gray-500 dark:text-gray-400">
+                                            {offices.find(o => o.id === item.officeId)?.name || 'N/A'}
+                                        </td>
+                                    )}
                                     <td className="px-6 py-4 whitespace-nowrap align-top text-right font-bold text-lg text-gray-900 dark:text-gray-100">{item.stock}</td>
                                     <td className="px-6 py-4 whitespace-nowrap align-top text-right text-sm text-gray-600 dark:text-gray-400">{item.weight?.toFixed(2) ?? 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap align-top text-center">
@@ -111,7 +145,7 @@ const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, fil
                         </tbody>
                         <tfoot className="bg-gray-50 dark:bg-gray-700/50 font-semibold">
                             <tr>
-                                <td className="px-6 py-3 text-left text-sm text-gray-900 dark:text-gray-100" colSpan={2}>
+                                <td className="px-6 py-3 text-left text-sm text-gray-900 dark:text-gray-100" colSpan={canManageAllOffices ? 3 : 2}>
                                     TOTALES ({totalItems} items)
                                 </td>
                                 <td className="px-6 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
@@ -124,7 +158,7 @@ const InventarioView: React.FC<InventarioViewProps> = ({ items, permissions, fil
                             </tr>
                         </tfoot>
                     </table>
-                     {paginatedData.length === 0 && <p className="text-center py-10 text-gray-500">No hay artículos en el inventario.</p>}
+                     {paginatedData.length === 0 && <p className="text-center py-10 text-gray-500">No hay envíos que coincidan con su búsqueda.</p>}
                 </div>
                  <PaginationControls
                     currentPage={currentPage}
