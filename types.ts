@@ -164,6 +164,7 @@ export interface Invoice {
     Montomanejo?: number;       // Monto por manejo
     ipostelFee?: number;        // Monto Ipostel
     insuranceAmount?: number;   // Monto Seguro
+    montoIva?: number;          // Monto Iva
     exchangeRate?: number;      // Tasa de cambio (BCV)
     discountAmount?: number;    // Monto total del descuento
     discountPercentage?: number;// Porcentaje aplicado
