@@ -23,14 +23,7 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose
         
         const sender = clients.find(c => c.id === invoice.guide.sender.id || c.idNumber === invoice.guide.sender.idNumber) || invoice.guide.sender;
         const receiver = clients.find(c => c.id === invoice.guide.receiver.id || c.idNumber === invoice.guide.receiver.idNumber) || invoice.guide.receiver;
-        const baseFin = calculateFinancialDetails(invoice.guide, companyInfo);
-        const financials = {
-            ...baseFin,
-            handling: invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : baseFin.handling,
-            ipostel: invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : baseFin.ipostel,
-            iva: invoice.montoIva !== undefined ? Number(invoice.montoIva) : baseFin.iva,
-            total: invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : baseFin.total
-        };
+        const financials = calculateFinancialDetails(invoice.guide, companyInfo);
 
         const merchandiseList = invoice.guide.merchandise
             .map(item => `- ${item.quantity} x ${item.description}`)

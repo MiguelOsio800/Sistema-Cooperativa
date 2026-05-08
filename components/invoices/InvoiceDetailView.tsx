@@ -50,7 +50,6 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
         
         const handling = invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : baseFinancials.handling;
         const ipostel = invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : baseFinancials.ipostel;
-        const iva = invoice.montoIva !== undefined ? Number(invoice.montoIva) : baseFinancials.iva;
         const total = invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : baseFinancials.total;
         
         const subtotal = (baseFinancials.freight - baseFinancials.discount) + baseFinancials.insuranceCost + handling;
@@ -59,7 +58,6 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
             ...baseFinancials,
             handling,
             ipostel,
-            iva,
             subtotal,
             total
         };

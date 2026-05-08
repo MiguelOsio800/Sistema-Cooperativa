@@ -239,7 +239,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             ipostelFee: financials.ipostel,
             insuranceAmount: financials.insuranceCost,
             exchangeRate: companyInfo.bcvRate || 1, // Snapshot of current BCV Rate
-            montoIva: financials.iva,
             discountAmount: financials.discount,
             discountPercentage: guide.hasDiscount ? (Number(guide.discountPercentage) || 0) : 0,
             clientEmail: guide.sender.email || null, // Capture sender email

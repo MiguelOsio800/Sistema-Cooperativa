@@ -28,16 +28,7 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     const receiver = clients.find(c => c.id === invoice.guide.receiver.id) || invoice.guide.receiver;
     const originOffice = offices.find(o => o.id === invoice.guide.originOfficeId);
     
-    const financials = useMemo(() => {
-        const base = calculateFinancialDetails(invoice.guide, companyInfo);
-        return {
-            ...base,
-            handling: invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : base.handling,
-            ipostel: invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : base.ipostel,
-            iva: invoice.montoIva !== undefined ? Number(invoice.montoIva) : base.iva,
-            total: invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : base.total
-        };
-    }, [invoice, companyInfo]);
+    const financials = useMemo(() => calculateFinancialDetails(invoice.guide, companyInfo), [invoice, companyInfo]);
 
     const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const formatUsd = (amount: number) => `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

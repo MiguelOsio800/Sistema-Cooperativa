@@ -50,9 +50,8 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
         ? (freight * 0.06) 
         : 0.000001;
     
-    // Check if IVA should be calculated from company settings
-    const isIvaActive = companyInfo.ivaActivo === true;
-    const iva = isIvaActive ? (subtotal * 0.16) : 0;
+    // IVA is now 0 as per cooperative rules
+    const iva = 0;
 
     const preIgtfTotal = subtotal + ipostel + iva;
 
@@ -82,17 +81,6 @@ export const calculateInvoiceChargeableWeight = (invoice: Invoice): number => {
         const volumetricWeight = (length * width * height) / 5000;
         return acc + Math.max(realWeight, volumetricWeight);
     }, 0);
-};
-
-export const getInvoiceFinancials = (invoice: Invoice, companyInfo: CompanyInfo): Financials => {
-    const base = calculateFinancialDetails(invoice.guide, companyInfo);
-    return {
-        ...base,
-        handling: invoice.Montomanejo !== undefined ? Number(invoice.Montomanejo) : base.handling,
-        ipostel: invoice.ipostelFee !== undefined ? Number(invoice.ipostelFee) : base.ipostel,
-        iva: invoice.montoIva !== undefined ? Number(invoice.montoIva) : base.iva,
-        total: invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : base.total
-    };
 };
 
 export interface DetailedFinancials {
