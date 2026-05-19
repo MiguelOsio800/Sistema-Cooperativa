@@ -1,20 +1,60 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Fraternidad 2 Respaldo
 
-# Run and deploy your AI Studio app
+Sistema de gestión con auditoría de acciones CRUD integrada.
 
-This contains everything you need to run your app locally.
+## Características
 
-View your app in AI Studio: https://ai.studio/apps/c930ea3f-b247-4b1c-bcc6-bf026e39280a
+- Gestión de registros y operaciones (CRUD completo).
+- Auditoría integrada para seguimiento de acciones.
+- Generación de reportes detallados en PDF (vía `jspdf` y `jspdf-autotable`).
+- Exportación e importación de datos.
+- Visualización de datos mediante gráficos (`recharts`).
 
-## Run Locally
+## Tecnologías Utilizadas
 
-**Prerequisites:**  Node.js
+### Frontend
+- **React 19**
+- **Vite** (Build tool y entorno de desarrollo)
+- **Tailwind CSS** (Manejo de estilos)
+- **Recharts** (Gráficos)
+- **jsPDF** (Generación de PDF)
 
+### Backend
+- **Node.js** con **Express 5**
+- **SQLite** (Base de datos local)
+- **TSX** (Ejecución de TypeScript en el entorno Node)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Requisitos previos
+
+- [Node.js](https://nodejs.org/) (Versión 18 o superior recomendada)
+- NPM o cualquier otro gestor de paquetes de Node.
+
+## Instalación
+
+1. Clona el repositorio o descarga los archivos.
+2. Abre una terminal en la carpeta principal del proyecto.
+3. Instala las dependencias:
+
+```bash
+npm install
+```
+
+## Ejecutar en modo desarrollo
+
+Para iniciar tanto el servidor backend (Express) como el frontend (Vite), ejecuta el siguiente comando:
+
+```bash
+npm run dev
+```
+
+El servidor estará corriendo en el puerto configurado (típicamente `3000`).
+
+## Compilación para producción
+
+Para construir la aplicación para entornos de producción, ejecuta:
+
+```bash
+npm run build
+```
+
+Esto generará los archivos estáticos listos para ser servidos desde la carpeta `dist`.

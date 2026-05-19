@@ -840,11 +840,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
 
-                    const totalGeneral = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const totalFacturas = (sourceData as Invoice[]).reduce((sum, inv) => sum + inv.totalAmount, 0);
+                    const totalGeneral = totalFacturas;
+                    const totalEmpresa = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-                    const totalFacturas = (sourceData as Invoice[]).reduce((sum, inv) => sum + inv.totalAmount, 0);
-                    const totalEmpresa = totalFacturas;
 
                     // @ts-ignore
                     const finalY = pdf.lastAutoTable?.finalY || currentY + 100;
@@ -1369,10 +1369,10 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
 
-                    const totalGeneral = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const totalGeneral = generalTotalsUI.total;
+                    const totalEmpresa = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-                    const totalEmpresa = generalTotalsUI.total;
 
                     summary = (
                         <div className="mt-8 pt-4 w-full max-w-3xl text-black">
