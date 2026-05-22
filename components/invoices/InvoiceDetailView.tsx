@@ -98,8 +98,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
         });
 
         try {
-            // Se hace la petición POST a la ruta de descarga HKA del backend: /api/invoices/:id/download-hka
-            const response = await apiFetch<{ success: boolean, base64?: string, pdfUrl?: string, message?: string }>(
+            const response = await apiFetch<any>(
                 `/invoices/${invoice.id}/download-hka`, 
                 { 
                     method: 'POST',
@@ -110,19 +109,27 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                 }
             );
 
-            if (response.base64) {
+            // Extraemos la data real enviada por HKA dentro de response.data
+            const hkaData = response.data;
+
+            // Buscamos el Base64 de forma dinámica (HKA suele usar "documento")
+            const base64String = typeof hkaData === 'string' 
+                ? hkaData 
+                : (hkaData?.documento || hkaData?.archivo || hkaData?.pdf || hkaData?.base64);
+
+            if (base64String) {
+                // Creamos un enlace virtual para descargar el PDF a partir del Base64
                 const link = document.createElement('a');
-                link.href = `data:application/pdf;base64,${response.base64}`;
+                link.href = `data:application/pdf;base64,${base64String}`;
                 link.download = `Factura_Fiscal_HKA_${invoice.invoiceNumber}.pdf`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                
                 addToast({ type: 'success', title: 'Éxito', message: 'Factura fiscal descargada correctamente.' });
-            } else if (response.pdfUrl) {
-                window.open(response.pdfUrl, '_blank');
-                addToast({ type: 'success', title: 'Éxito', message: 'Documento abierto en una nueva pestaña.' });
             } else {
-                throw new Error(response.message || 'No se recibió el archivo del servidor.');
+                console.error("Respuesta de HKA no contiene el documento. Data recibida:", hkaData);
+                throw new Error('El servidor respondió, pero no se encontró el archivo PDF.');
             }
         } catch (error: any) {
             addToast({ 
