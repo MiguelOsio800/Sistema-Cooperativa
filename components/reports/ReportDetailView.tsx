@@ -519,7 +519,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                     const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
-                    const kg = calculateInvoiceChargeableWeight(inv);
+                    const kg = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.weight)) || 0), 0);
                     const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
                     const origen = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                     return {
@@ -529,7 +529,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 const ipostelExportTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
                     const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                     const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
-                    const kg = calculateInvoiceChargeableWeight(inv);
+                    const kg = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.weight)) || 0), 0);
                     const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0);
                     acc.paq += paquetes; acc.kg += kg; acc.base += ipostelBase; acc.ip += ipostelAmount; acc.monto += inv.totalAmount;
                     return acc;
@@ -1495,11 +1495,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                         const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                         const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
-                        const kg = calculateInvoiceChargeableWeight(inv);
+                        const kg = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.weight)) || 0), 0);
                         const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
                         return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-center">{paquetes}</td><td className="px-2 py-2 text-right">{kg.toFixed(2)}</td><td className="px-2 py-2 text-right">{formatCurrency(ipostelBase)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(ipostelAmount)}</td></tr>)
                     });
-                    const ipostelTotals = (reportData as Invoice[]).reduce((acc, inv) => { const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel; const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0; const kg = calculateInvoiceChargeableWeight(inv); const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0); acc.kg += kg; acc.base += ipostelBase; acc.ipostel += ipostelAmount; acc.paquetes += paquetes; return acc; }, { kg: 0, base: 0, ipostel: 0, paquetes: 0 });
+                    const ipostelTotals = (reportData as Invoice[]).reduce((acc, inv) => { const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel; const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0; const kg = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.weight)) || 0), 0); const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0); acc.kg += kg; acc.base += ipostelBase; acc.ipostel += ipostelAmount; acc.paquetes += paquetes; return acc; }, { kg: 0, base: 0, ipostel: 0, paquetes: 0 });
                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{ipostelTotals.paquetes}</td><td className="px-2 py-3 text-right">{ipostelTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.base)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.ipostel)}</td></tr></tfoot>);
                     break;
                 case 'seguro':
