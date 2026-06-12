@@ -2,11 +2,12 @@
 import React, { useState, useMemo } from 'react';
 import Card, { CardTitle } from '../ui/Card';
 import { Report, Permissions, Invoice, Office, CompanyInfo } from '../../types';
-import { FileTextIcon, BuildingOfficeIcon, TruckIcon, BanknotesIcon } from '../icons/Icons';
+import { FileTextIcon, BuildingOfficeIcon, TruckIcon, BanknotesIcon, BarChartIcon } from '../icons/Icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConfig } from '../../contexts/ConfigContext';
 import { calculateFinancialDetails } from '../../utils/financials';
 import Select from '../ui/Select';
+import OfficeStatisticsPanel from './OfficeStatisticsPanel';
 
 const ReportCard: React.FC<{ report: Report; onSelect: () => void }> = ({ report, onSelect }) => (
     <button
@@ -29,6 +30,7 @@ const ReportsView: React.FC<{ reports: Report[]; invoices: Invoice[]; offices: O
     const { userPermissions } = useConfig();
     
     const [selectedOfficeId, setSelectedOfficeId] = useState<string>('all');
+    const [isOfficeStatsOpen, setIsOfficeStatsOpen] = useState(false);
 
     const filteredInvoices = useMemo(() => {
         if (selectedOfficeId === 'all') return invoices;
@@ -64,23 +66,34 @@ const ReportsView: React.FC<{ reports: Report[]; invoices: Invoice[]; offices: O
                     <p className="text-gray-500 dark:text-gray-400">Consulte la información detallada de su operación.</p>
                 </div>
 
-                {hasGlobalAccess && (
-                    <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pl-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm min-w-[280px]">
-                        <BuildingOfficeIcon className="h-5 w-5 text-primary-500" />
-                        <div className="flex-1">
-                            <Select 
-                                value={selectedOfficeId} 
-                                onChange={e => setSelectedOfficeId(e.target.value)}
-                                className="!border-0 !ring-0 !py-1 !shadow-none font-bold text-gray-700 dark:text-gray-200 bg-transparent"
-                            >
-                                <option value="all">Todas las Sucursales</option>
-                                {offices.map(office => (
-                                    <option key={office.id} value={office.id}>{office.name}</option>
-                                ))}
-                            </Select>
+                <div className="flex flex-wrap items-center gap-3">
+                    {userPermissions['reports.office_statistics'] && (
+                        <button
+                            onClick={() => setIsOfficeStatsOpen(true)}
+                            className="flex items-center gap-2 bg-primary-100 text-primary-700 hover:bg-primary-200 px-4 py-2 rounded-xl border border-primary-200 transition-colors shadow-sm min-h-[44px] dark:bg-primary-900/40 dark:text-primary-300 dark:border-primary-800 dark:hover:bg-primary-800/60 font-medium"
+                        >
+                            <BarChartIcon className="h-5 w-5" />
+                            Estadísticas por Oficina
+                        </button>
+                    )}
+                    {userPermissions['reports.view_all_offices'] && (
+                        <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pl-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm min-w-[280px]">
+                            <BuildingOfficeIcon className="h-5 w-5 text-primary-500" />
+                            <div className="flex-1">
+                                <Select 
+                                    value={selectedOfficeId} 
+                                    onChange={e => setSelectedOfficeId(e.target.value)}
+                                    className="!border-0 !ring-0 !py-1 !shadow-none font-bold text-gray-700 dark:text-gray-200 bg-transparent"
+                                >
+                                    <option value="all">Todas las Sucursales</option>
+                                    {offices.map(office => (
+                                        <option key={office.id} value={office.id}>{office.name}</option>
+                                    ))}
+                                </Select>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             <Card>
@@ -96,6 +109,11 @@ const ReportsView: React.FC<{ reports: Report[]; invoices: Invoice[]; offices: O
                     ))}
                 </div>
             </Card>
+
+            <OfficeStatisticsPanel 
+                isOpen={isOfficeStatsOpen} 
+                onClose={() => setIsOfficeStatsOpen(false)} 
+            />
         </div>
     );
 };

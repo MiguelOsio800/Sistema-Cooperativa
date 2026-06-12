@@ -146,9 +146,11 @@ export const ALL_PERMISSION_KEYS: string[] = [
     'bienes-categorias.create',
     'bienes-categorias.edit',
     'bienes-categorias.delete',
-    // Reportes (2)
+    // Reportes (4)
     'reports.view',
     'reports.associates.view',
+    'reports.view_all_offices',
+    'reports.office_statistics',
     // Auditoría (1)
     'auditoria.view',
     // Configuración General (8)
@@ -233,6 +235,8 @@ export const PERMISSION_KEY_TRANSLATIONS: Record<string, string> = {
     'bienes-categorias.delete': 'Eliminar Categorías de Bienes',
     'reports.view': 'Ver Reportes Generales',
     'reports.associates.view': 'Ver Reporte Estado Cuenta Asociados',
+    'reports.view_all_offices': 'Ver Reportes de TODAS las Oficinas',
+    'reports.office_statistics': 'Ver Estadísticas por Oficina',
     'auditoria.view': 'Ver Auditoría',
     'configuracion.view': 'Ver Configuración',
     'config.company.edit': 'Editar Datos de la Empresa',
@@ -303,6 +307,7 @@ const accountantPermissions: Record<string, boolean> = {
     'dashboard.view': true,
     'reports.view': true,
     'reports.associates.view': true,
+    'reports.office_statistics': true,
     'libro-contable.view': true,
     'libro-contable.create': true,
     'libro-contable.edit': true,

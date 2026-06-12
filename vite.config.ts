@@ -8,6 +8,19 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // AGREGA ESTO:
+        proxy: {
+          '/api': {
+            target: 'https://4wt9b8zl-5000.use2.devtunnels.ms/',
+            changeOrigin: true,
+            secure: false, 
+            // Esto ayuda a saltar algunas restricciones de túneles
+            headers: {
+              'ngrok-skip-browser-warning': 'true',
+              'User-Agent': 'Node/Vite-Proxy'
+            }
+          }
+        }
       },
       plugins: [react()],
       define: {
