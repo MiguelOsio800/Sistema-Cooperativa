@@ -19,10 +19,19 @@ const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE',
 
 const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpen, onClose, recibo, asociado, pagos, companyInfo }) => {
 
-    let sysConceptos = recibo.detallesPago.find(dp => dp.tipo === 'SYS_CONCEPTOS');
+    const sysConceptos = recibo.detallesPago.find(dp => dp.tipo === 'SYS_CONCEPTOS');
     let displayConceptos = recibo.conceptosPagados || [];
     
-    if (sysConceptos && sysConceptos.referencia) {
+    // Si detallesPago NO es SYS_CONCEPTOS pero tiene concepto/montoBs directos (JSON parsed o pasados por ref)
+    const hasDirectConcepts = recibo.detallesPago.some(dp => (dp as any).concepto !== undefined);
+
+    if (hasDirectConcepts) {
+        displayConceptos = recibo.detallesPago.map((dp: any) => ({
+            descripcion: dp.concepto,
+            montoBs: dp.montoBs,
+            montoUsd: dp.montoUsd
+        }));
+    } else if (sysConceptos && sysConceptos.referencia) {
         try {
             displayConceptos = JSON.parse(sysConceptos.referencia);
         } catch(e) {}
@@ -35,7 +44,9 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
         }));
     }
 
-    const realDetalles = recibo.detallesPago.filter(dp => dp.tipo !== 'SYS_CONCEPTOS');
+    const realDetalles = hasDirectConcepts 
+        ? [] // Si los detalles son los conceptos, quizas no hay un detalle de forma de pago. Ajusta según negocio.
+        : recibo.detallesPago.filter(dp => dp.tipo !== 'SYS_CONCEPTOS');
 
     const handlePrint = () => {
         const input = document.getElementById('recibo-printable-area');
@@ -103,25 +114,27 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
                 </div>
 
                 {/* Detalle del Pago */}
-                <div className="mt-6">
-                    <h3 className="font-semibold text-lg mb-2 text-black">Detalles del Pago:</h3>
-                    <div className="p-3 border rounded-md bg-gray-50 space-y-1">
-                        {realDetalles.map((dp, index) => (
-                            <div key={index} className="flex justify-between text-sm text-black">
-                                <span className="text-black">
-                                    {dp.tipo} 
-                                    {(!['Efectivo Bs', 'Divisa', 'Pago Móvil'].includes(dp.tipo)) && (
-                                        <>
-                                            {dp.banco && ` - ${dp.banco}`} 
-                                            {dp.referencia && ` (Ref: ${dp.referencia})`}
-                                        </>
-                                    )}
-                                </span>
-                                <span className="font-mono text-black">{formatCurrency(dp.monto)}</span>
-                            </div>
-                        ))}
+                {realDetalles.length > 0 && (
+                    <div className="mt-6">
+                        <h3 className="font-semibold text-lg mb-2 text-black">Detalles del Pago:</h3>
+                        <div className="p-3 border rounded-md bg-gray-50 space-y-1">
+                            {realDetalles.map((dp, index) => (
+                                <div key={index} className="flex justify-between text-sm text-black">
+                                    <span className="text-black">
+                                        {dp.tipo} 
+                                        {(!['Efectivo Bs', 'Divisa', 'Pago Móvil'].includes(dp.tipo)) && (
+                                            <>
+                                                {dp.banco && ` - ${dp.banco}`} 
+                                                {dp.referencia && ` (Ref: ${dp.referencia})`}
+                                            </>
+                                        )}
+                                    </span>
+                                    <span className="font-mono text-black">{formatCurrency(dp.monto)}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Total */}
                 <div className="mt-6 flex flex-col items-end">

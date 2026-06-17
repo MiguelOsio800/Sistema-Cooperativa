@@ -4,8 +4,9 @@ import { Transaction } from './LibroContableView';
 import { Permissions, Expense, ExpenseCategory, Office, User, PaymentMethod, CompanyInfo, Supplier, PaymentStatus, ShippingStatus } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { PlusIcon, TrashIcon, EditIcon } from '../icons/Icons';
+import { PlusIcon, TrashIcon, EditIcon, PrinterIcon } from '../icons/Icons';
 import ExpenseFormModal from './ExpenseFormModal';
+import ExpensePdfViewerModal from './ExpensePdfViewerModal';
 import usePagination from '../../hooks/usePagination';
 import PaginationControls from '../ui/PaginationControls';
 import { useConfirm } from '../../contexts/ConfirmationContext';
@@ -55,6 +56,8 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
     const { confirm } = useConfirm();
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+    const [expenseToPrint, setExpenseToPrint] = useState<Expense | null>(null);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     
     const { 
         paginatedData, 
@@ -83,6 +86,11 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
     const handleSaveExpense = async (expense: Expense) => {
         await onSaveExpense(expense);
         setIsExpenseModalOpen(false);
+    };
+
+    const handlePrintExpense = (expense: Expense) => {
+        setExpenseToPrint(expense);
+        setIsPrintModalOpen(true);
     };
     
     const handleDeleteClick = async (e: React.MouseEvent, expenseId: string) => {
@@ -155,6 +163,11 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
                                     {t.type === 'Gasto' ? formatCurrency(t.amount) : ''}
                                 </td>
                                 <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                                    {t.type === 'Gasto' && (
+                                        <Button variant="secondary" size="sm" onClick={() => handlePrintExpense(t.originalDoc as Expense)}>
+                                            <PrinterIcon className="w-4 h-4"/>
+                                        </Button>
+                                    )}
                                     {t.type === 'Gasto' && permissions['libro-contable.edit'] && <Button variant="secondary" size="sm" onClick={() => handleOpenExpenseModal(t.originalDoc as Expense)}><EditIcon className="w-4 h-4"/></Button>}
                                     {t.type === 'Gasto' && permissions['libro-contable.delete'] && (
                                         <Button 
@@ -209,6 +222,13 @@ const TransactionsModal: React.FC<TransactionsModalProps> = ({
                 companyInfo={companyInfo}
                 suppliers={suppliers}
                 permissions={permissions}
+            />
+
+            <ExpensePdfViewerModal 
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                expense={expenseToPrint}
+                companyInfo={companyInfo}
             />
         </>
     );

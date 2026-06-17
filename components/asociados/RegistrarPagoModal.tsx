@@ -53,8 +53,14 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
     }, [selectedPagoIds, paymentAmounts]);
 
     const totalPagado = useMemo(() => {
-        return detallesPago.reduce((sum, d) => sum + (Number(d.monto) || 0), 0);
-    }, [detallesPago]);
+        return detallesPago.reduce((sum, d) => {
+            const val = Number(d.monto) || 0;
+            if (d.tipo === 'Efectivo Divisa') {
+                return sum + (val * (companyInfo.bcvRate || 1));
+            }
+            return sum + val;
+        }, 0);
+    }, [detallesPago, companyInfo.bcvRate]);
 
     // If totalAPagar is negative (Coop owes Socio), we expect the user to enter a positive payment amount.
     // We compare the absolute values to see if the payment matches the debt.
@@ -77,8 +83,11 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
     
     useEffect(() => {
         // When total to pay changes, update the first payment detail amount automatically
-        if (detallesPago.length === 1) {
+        if (detallesPago.length === 1 && detallesPago[0].tipo !== 'Efectivo Divisa') {
             setDetallesPago([{ ...detallesPago[0], monto: expectedPayment }]);
+        } else if (detallesPago.length === 1 && detallesPago[0].tipo === 'Efectivo Divisa') {
+            const rate = companyInfo.bcvRate || 1;
+            setDetallesPago([{ ...detallesPago[0], monto: expectedPayment / rate }]);
         }
     }, [expectedPayment]);
 
@@ -177,7 +186,17 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
             : 1;
 
         const payloadDetalles = [
-            ...detallesPago,
+            ...detallesPago.map(d => {
+                if (d.tipo === 'Efectivo Divisa') {
+                    return {
+                        tipo: d.tipo,
+                        banco: d.banco,
+                        referencia: d.referencia || `${d.monto} Divisas a tasa ${bcvRate}`,
+                        monto: (Number(d.monto) || 0) * bcvRate
+                    }
+                }
+                return d;
+            }),
             { tipo: 'SYS_CONCEPTOS', referencia: JSON.stringify(conceptosPagados), monto: 0 }
         ];
 
@@ -283,7 +302,7 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
                      <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
                          {detallesPago.map((detalle, index) => (
                              <div key={index} className="p-3 border rounded-md relative space-y-2">
-                                 {detallesPago.length > 1 && (
+                                {detallesPago.length > 1 && (
                                     <button onClick={() => removeDetalle(index)} className="absolute top-1 right-1 text-red-500 hover:text-red-700">
                                         <TrashIcon className="w-4 h-4" />
                                     </button>
@@ -294,9 +313,18 @@ const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({ isOpen, onClose
                                     <option>Efectivo Divisa</option>
                                     <option>Pago Móvil</option>
                                 </Select>
-                                <Input label="Banco" value={detalle.banco || ''} onChange={e => handleDetalleChange(index, 'banco', e.target.value)} />
-                                <Input label="Referencia" value={detalle.referencia || ''} onChange={e => handleDetalleChange(index, 'referencia', e.target.value)} />
-                                <Input label="Monto" type="number" step="0.01" value={detalle.monto} onChange={e => handleDetalleChange(index, 'monto', Number(e.target.value))} required />
+                                {detalle.tipo !== 'Efectivo Bs.' && detalle.tipo !== 'Efectivo Divisa' && (
+                                    <>
+                                        <Input label="Banco" value={detalle.banco || ''} onChange={e => handleDetalleChange(index, 'banco', e.target.value)} />
+                                        <Input label="Referencia" value={detalle.referencia || ''} onChange={e => handleDetalleChange(index, 'referencia', e.target.value)} />
+                                    </>
+                                )}
+                                <Input label={detalle.tipo === 'Efectivo Divisa' ? "Monto (en Divisas)" : "Monto (en Bs.)"} type="number" step="0.01" value={detalle.monto} onChange={e => handleDetalleChange(index, 'monto', Number(e.target.value))} required />
+                                {detalle.tipo === 'Efectivo Divisa' && (
+                                    <div className="text-right text-sm text-gray-500 mt-1">
+                                        Equivalente: {formatCurrency((Number(detalle.monto) || 0) * (companyInfo.bcvRate || 1))}
+                                    </div>
+                                )}
                              </div>
                          ))}
                      </div>
