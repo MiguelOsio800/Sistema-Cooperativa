@@ -9,6 +9,7 @@ import { useAuth } from './AuthContext';
 import { useSystem } from './SystemContext';
 import { apiFetch } from '../utils/api';
 import { deriveInventoryFromInvoices } from '../utils/inventory';
+import { calculateDetailedRemesaFinancials } from '../utils/financials';
 
 type DataContextType = {
     invoices: Invoice[];
@@ -54,6 +55,7 @@ type DataContextType = {
     handleSavePagoAsociado: (pago: PagoAsociado) => Promise<void>;
     handleDeletePagoAsociado: (pagoId: string) => Promise<void>;
     handleSaveRecibo: (recibo: ReciboPagoAsociado) => Promise<void>;
+    handleDeleteRecibo: (reciboId: string) => Promise<void>;
     handleDeleteRemesa: (remesaId: string) => Promise<void>;
     handleSaveAsientoManual: (asiento: AsientoManual) => Promise<void>;
     handleDeleteAsientoManual: (asientoId: string) => Promise<void>;
@@ -400,7 +402,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar la deuda.' });
                 }
             },
-            handleSaveRecibo: (r) => handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados, 'RECIBO_PAGO'),
+            handleSaveRecibo: async (r) => {
+                const saved = await handleGenericSave(r, '/asociados/recibos', setRecibosPagoAsociados, 'RECIBO_PAGO');
+                // Auto sync the payments logic in case the local updates were out of step
+                const newPagos = await apiFetch<PagoAsociado[]>('/asociados/pagos');
+                if (newPagos) setPagosAsociados(newPagos);
+                return saved;
+            },
+            handleDeleteRecibo: async (id) => {
+                try {
+                    const item = recibosPagoAsociados.find(i => i.id === id);
+                    await apiFetch(`/asociados/recibos/${id}`, { method: 'DELETE' });
+                    setRecibosPagoAsociados(prev => prev.filter(i => i.id !== id));
+                    if (currentUser && item) logAction(currentUser, 'ELIMINAR_RECIBO_PAGO', `Eliminó recibo ${item.comprobanteNumero}`, id);
+                    addToast({ type: 'success', title: 'Eliminado', message: 'Recibo eliminado correctamente.' });
+                    
+                    // We also need to fetch updated pagos to reflect status changes if any logic on backend
+                    const newPagos = await apiFetch<PagoAsociado[]>('/asociados/pagos');
+                    if (newPagos) setPagosAsociados(newPagos);
+                    
+                } catch (error: any) {
+                     addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar el recibo.' });
+                }
+            },
             handleDeleteRemesa: async (id) => {
                 const item = remesas.find(i => i.id === id);
                 if (!item) return;

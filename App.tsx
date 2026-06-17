@@ -66,7 +66,7 @@ const AppContent: React.FC = () => {
         handleSaveAsociado, handleDeleteAsociado,
         handleSaveCertificado, handleDeleteCertificado,
         handleSavePagoAsociado, handleDeletePagoAsociado,
-        handleSaveRecibo, handleDeleteRemesa,
+        handleSaveRecibo, handleDeleteRecibo, handleDeleteRemesa,
         handleAssignToVehicle, handleUnassignInvoice, handleDispatchVehicle,
         handleSaveAsientoManual, handleDeleteAsientoManual, handleGenerateMassiveDebt
     } = useData();
@@ -248,6 +248,7 @@ const AppContent: React.FC = () => {
                             onAssignToVehicle={handleAssignToVehicle}
                             onUnassignInvoice={handleUnassignInvoice}
                             onDispatchVehicle={handleDispatchVehicle}
+                            onSavePagoAsociado={handleSavePagoAsociado}
                             onDeleteRemesa={handleDeleteRemesa}
                             permissions={userPermissions}
                             companyInfo={companyInfo}
@@ -277,10 +278,10 @@ const AppContent: React.FC = () => {
                             vehicles={vehicles} onSaveVehicle={handleSaveVehicle} onDeleteVehicle={handleDeleteVehicle}
                             certificados={certificados} onSaveCertificado={handleSaveCertificado} onDeleteCertificado={handleDeleteCertificado}
                             pagos={pagosAsociados} onSavePago={handleSavePagoAsociado} onDeletePago={handleDeletePagoAsociado}
-                            recibos={recibosPagoAsociados} onSaveRecibo={handleSaveRecibo}
+                            recibos={recibosPagoAsociados} onSaveRecibo={handleSaveRecibo} onDeleteRecibo={handleDeleteRecibo}
                             permissions={userPermissions} companyInfo={companyInfo}
                         />;
-                        case 'asociados-estadisticas': return <EstadisticasAsociadosView asociados={asociados} pagos={pagosAsociados} />;
+                        case 'asociados-estadisticas': return <EstadisticasAsociadosView asociados={asociados} pagos={pagosAsociados} recibos={recibosPagoAsociados} />;
                         case 'asociados-pagos': return <AsociadosPagosView 
                             asociados={asociados}
                             pagos={pagosAsociados}
@@ -288,6 +289,7 @@ const AppContent: React.FC = () => {
                             onSavePago={handleSavePagoAsociado}
                             onDeletePago={handleDeletePagoAsociado}
                             onSaveRecibo={handleSaveRecibo}
+                            onDeleteRecibo={handleDeleteRecibo}
                             companyInfo={companyInfo}
                             permissions={userPermissions}
                         />;
@@ -297,7 +299,9 @@ const AppContent: React.FC = () => {
                             recibosAsociados={recibosPagoAsociados}
                             onGenerateMassiveDebt={handleGenerateMassiveDebt}
                             onSaveRecibo={handleSaveRecibo}
+                            onDeleteRecibo={handleDeleteRecibo}
                             onDeletePago={handleDeletePagoAsociado}
+                            onSavePago={handleSavePagoAsociado}
                             companyInfo={companyInfo}
                             permissions={userPermissions}
                         />;

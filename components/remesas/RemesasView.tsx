@@ -1,13 +1,13 @@
 
 import React, { useState, useMemo } from 'react';
-import { Remesa, Invoice, Asociado, Vehicle, Client, Office, CompanyInfo, Permissions, Category, ShippingType } from '../../types';
+import { Remesa, Invoice, Asociado, Vehicle, Client, Office, CompanyInfo, Permissions, Category, ShippingType, PagoAsociado } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import { PlusIcon, EyeIcon, TrashIcon, ClipboardDocumentListIcon, XIcon, PlayIcon, FileTextIcon } from '../icons/Icons';
 import Select from '../ui/Select';
 import AsociadoSearchInput from '../asociados/AsociadoSearchInput';
 import RemesaDocumentModal from './RemesaDocumentModal';
-import { calculateInvoiceChargeableWeight } from '../../utils/financials';
+import { calculateInvoiceChargeableWeight, calculateDetailedRemesaFinancials } from '../../utils/financials';
 import AssignInvoiceModal from '../flota/AssignInvoiceModal';
 import Input from '../ui/Input';
 import { useConfirm } from '../../contexts/ConfirmationContext';
@@ -24,6 +24,7 @@ interface RemesasViewProps {
     onAssignToVehicle: (invoiceIds: string[], vehicleId: string) => Promise<void>;
     onUnassignInvoice: (invoiceId: string) => Promise<void>;
     onDispatchVehicle: (vehicleId: string, invoiceIds: string[], exchangeRate: number, asociadoId: string) => Promise<Remesa | null>;
+    onSavePagoAsociado: (pago: PagoAsociado) => Promise<void>;
     onDeleteRemesa: (remesaId: string) => Promise<void>;
     permissions: Permissions;
     companyInfo: CompanyInfo;
@@ -32,7 +33,7 @@ interface RemesasViewProps {
 const RemesasView: React.FC<RemesasViewProps> = (props) => {
     const { 
         remesas, asociados, vehicles, invoices, offices, clients, categories, shippingTypes,
-        onAssignToVehicle, onUnassignInvoice, onDispatchVehicle, onDeleteRemesa,
+        onAssignToVehicle, onUnassignInvoice, onDispatchVehicle, onSavePagoAsociado, onDeleteRemesa,
         permissions, companyInfo 
     } = props;
 
@@ -106,6 +107,27 @@ const RemesasView: React.FC<RemesasViewProps> = (props) => {
         const exchangeRate = companyInfo.bcvRate || 1;
         const newRemesa = await onDispatchVehicle(vehicleId, invoiceIds, exchangeRate, vehicle.asociadoId);
         if (newRemesa) {
+            // Check if there is a debt for the Cooperative automatically and create PagoAsociado
+            const remInvs = assignedInvoices; // the ones we just dispatched
+            const asociado = asociados.find(a => a.id === vehicle.asociadoId);
+            if (asociado) {
+                const financials = calculateDetailedRemesaFinancials(remInvs, companyInfo, shippingTypes, asociado);
+                const debt = financials.saldoFinal;
+
+                if (debt > 0) {
+                    await onSavePagoAsociado({
+                        asociadoId: asociado.id,
+                        montoBs: debt,
+                        montoUsd: debt / exchangeRate,
+                        tasaCambio: exchangeRate,
+                        fecha: newRemesa.date || new Date().toISOString().split('T')[0],
+                        concepto: `Deuda por favor cooperativa Remesa N° ${newRemesa.remesaNumber}`,
+                        status: 'Pendiente',
+                        cuotas: '1/1'
+                    } as PagoAsociado);
+                }
+            }
+            
             setRemesaForManifest(newRemesa);
             setIsManifestModalOpen(true);
         }

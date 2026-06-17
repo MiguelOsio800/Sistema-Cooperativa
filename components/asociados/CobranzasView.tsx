@@ -14,7 +14,9 @@ interface CobranzasViewProps {
     recibosAsociados: ReciboPagoAsociado[];
     onGenerateMassiveDebt: (data: { concepto: string, monto: number, montoUsd: number, tasaCambio: number, cuotas: string, asociadoIds: string[] }) => Promise<void>;
     onSaveRecibo: (recibo: ReciboPagoAsociado) => Promise<void>;
+    onDeleteRecibo: (reciboId: string) => Promise<void>;
     onDeletePago: (pagoId: string) => Promise<void>;
+    onSavePago: (pago: PagoAsociado) => Promise<void>;
     companyInfo: CompanyInfo;
     permissions: Permissions;
 }
@@ -25,7 +27,9 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
     recibosAsociados,
     onGenerateMassiveDebt, 
     onSaveRecibo,
+    onDeleteRecibo,
     onDeletePago,
+    onSavePago,
     companyInfo,
     permissions
 }) => {
@@ -373,7 +377,9 @@ const CobranzasView: React.FC<CobranzasViewProps> = ({
                     pagos={pagosAsociados}
                     recibos={recibosAsociados}
                     onSaveRecibo={onSaveRecibo}
+                    onDeleteRecibo={onDeleteRecibo}
                     onDeletePago={onDeletePago}
+                    onSavePago={onSavePago}
                     companyInfo={companyInfo}
                     permissions={permissions}
                     initialTab={initialFinanzasTab}

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Asociado, PagoAsociado } from '../../types';
+import { Asociado, PagoAsociado, ReciboPagoAsociado } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Button from '../ui/Button';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, FilterIcon } from '../icons/Icons';
@@ -9,12 +9,13 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 interface EstadisticasAsociadosViewProps {
     asociados: Asociado[];
     pagos: PagoAsociado[];
+    recibos: ReciboPagoAsociado[];
 }
 
 const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ asociados, pagos }) => {
-    const { solventes, deudores, totalDeudaBs, totalDeudaUsd } = useMemo(() => {
+const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ asociados, pagos, recibos }) => {
+    const { solventes, deudores, totalDeudaBs, totalDeudaUsd, ingresosBs, ingresosUsd } = useMemo(() => {
         const deudoresMap = new Map<string, { asociado: Asociado, deudaBs: number, deudaUsd: number }>();
         
         pagos.forEach(pago => {
@@ -42,13 +43,28 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
         const totalDeudaGeneralBs = deudoresList.reduce((sum, d) => sum + d.deudaBs, 0);
         const totalDeudaGeneralUsd = deudoresList.reduce((sum, d) => sum + d.deudaUsd, 0);
 
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const recibosCurrentMonth = recibos.filter(r => r.fechaPago?.startsWith(currentMonth) || r.comprobanteNumero); // Use all if no fechaPago but standard is ISO
+        
+        let ingresosBs = 0;
+        let ingresosUsd = 0;
+        
+        recibosCurrentMonth.forEach(r => {
+            if (r.fechaPago.startsWith(currentMonth)) {
+                ingresosBs += r.montoTotalBs;
+                ingresosUsd += r.montoTotalUsd || 0;
+            }
+        });
+
         return {
             solventes: solventesList,
             deudores: deudoresList,
             totalDeudaBs: totalDeudaGeneralBs,
-            totalDeudaUsd: totalDeudaGeneralUsd
+            totalDeudaUsd: totalDeudaGeneralUsd,
+            ingresosBs,
+            ingresosUsd
         };
-    }, [asociados, pagos]);
+    }, [asociados, pagos, recibos]);
     
     const pieData = [
         { name: 'Solventes', value: solventes.length },
@@ -100,6 +116,22 @@ const EstadisticasAsociadosView: React.FC<EstadisticasAsociadosViewProps> = ({ a
                         <p className="text-xl font-semibold text-gray-500 dark:text-gray-400">
                             ≈ ${totalDeudaUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                         </p>
+                    </div>
+                </div>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Ingresos del Mes Actual (Pagos Recibidos)</CardTitle>
+                </CardHeader>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-6 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-xl text-center md:text-left">
+                        <p className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2 tracking-wide uppercase">Bolívares</p>
+                        <p className="text-4xl font-extrabold text-green-900 dark:text-green-100">{formatCurrency(ingresosBs)}</p>
+                    </div>
+                    <div className="p-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl text-center md:text-left">
+                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 mb-2 tracking-wide uppercase">Divisas</p>
+                        <p className="text-4xl font-extrabold text-emerald-900 dark:text-emerald-100">$ {ingresosUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                 </div>
             </Card>

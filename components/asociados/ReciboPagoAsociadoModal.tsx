@@ -19,7 +19,23 @@ const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE',
 
 const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpen, onClose, recibo, asociado, pagos, companyInfo }) => {
 
-    const pagosCubiertos = pagos.filter(p => recibo.pagosIds.includes(p.id));
+    let sysConceptos = recibo.detallesPago.find(dp => dp.tipo === 'SYS_CONCEPTOS');
+    let displayConceptos = recibo.conceptosPagados || [];
+    
+    if (sysConceptos && sysConceptos.referencia) {
+        try {
+            displayConceptos = JSON.parse(sysConceptos.referencia);
+        } catch(e) {}
+    } else if (displayConceptos.length === 0) {
+        // Fallback for older receipts
+        const pagosCubiertos = pagos.filter(p => recibo.pagosIds.includes(String(p.id)) || recibo.pagosIds.includes(p.id as any));
+        displayConceptos = pagosCubiertos.map(p => ({
+            descripcion: p.concepto,
+            montoBs: Math.abs(p.montoBs)
+        }));
+    }
+
+    const realDetalles = recibo.detallesPago.filter(dp => dp.tipo !== 'SYS_CONCEPTOS');
 
     const handlePrint = () => {
         const input = document.getElementById('recibo-printable-area');
@@ -76,10 +92,10 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
                             </tr>
                         </thead>
                         <tbody>
-                            {pagosCubiertos.map(p => (
-                                <tr key={p.id} className="border-b">
-                                    <td className="px-3 py-2 text-black">{p.concepto}</td>
-                                    <td className="px-3 py-2 text-right font-mono text-black">{formatCurrency(Math.abs(p.montoBs))}</td>
+                            {displayConceptos.map((c, idx) => (
+                                <tr key={idx} className="border-b">
+                                    <td className="px-3 py-2 text-black">{c.descripcion}</td>
+                                    <td className="px-3 py-2 text-right font-mono text-black">{formatCurrency(c.montoBs)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -90,7 +106,7 @@ const ReciboPagoAsociadoModal: React.FC<ReciboPagoAsociadoModalProps> = ({ isOpe
                 <div className="mt-6">
                     <h3 className="font-semibold text-lg mb-2 text-black">Detalles del Pago:</h3>
                     <div className="p-3 border rounded-md bg-gray-50 space-y-1">
-                        {recibo.detallesPago.map((dp, index) => (
+                        {realDetalles.map((dp, index) => (
                             <div key={index} className="flex justify-between text-sm text-black">
                                 <span className="text-black">
                                     {dp.tipo} 

@@ -64,8 +64,14 @@ const PagosAsociadoTab: React.FC<PagosAsociadoTabProps> = (props) => {
         setIsPagoModalOpen(true);
     };
 
-    const handleSavePago = (pago: PagoAsociado) => {
-        onSavePago(pago);
+    const handleSavePago = async (pago: PagoAsociado | PagoAsociado[]) => {
+        if (Array.isArray(pago)) {
+            for (const p of pago) {
+                await onSavePago(p);
+            }
+        } else {
+            await onSavePago(pago);
+        }
         setIsPagoModalOpen(false);
     };
 
@@ -167,7 +173,9 @@ const PagosAsociadoTab: React.FC<PagosAsociadoTabProps> = (props) => {
                     asociado={asociado}
                     pagosPendientes={pagosPendientes}
                     onSaveRecibo={onSaveRecibo}
+                    onUpdatePago={onSavePago}
                     companyInfo={companyInfo}
+                    recibosAsociado={recibosAsociado}
                 />
             )}
 

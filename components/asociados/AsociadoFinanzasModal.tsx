@@ -7,6 +7,7 @@ import Button from '../ui/Button';
 import { ReceiptIcon, EyeIcon, TrashIcon, CheckCircleIcon, ExclamationTriangleIcon } from '../icons/Icons';
 import RegistrarPagoModal from './RegistrarPagoModal';
 import ReciboPagoAsociadoModal from './ReciboPagoAsociadoModal';
+import { useConfirm } from '../../contexts/ConfirmationContext';
 
 interface AsociadoFinanzasModalProps {
     isOpen: boolean;
@@ -15,7 +16,9 @@ interface AsociadoFinanzasModalProps {
     pagos: PagoAsociado[];
     recibos: ReciboPagoAsociado[];
     onSaveRecibo: (recibo: ReciboPagoAsociado) => Promise<void>;
+    onDeleteRecibo: (reciboId: string) => Promise<void>;
     onDeletePago: (pagoId: string) => Promise<void>;
+    onSavePago: (pago: PagoAsociado) => Promise<void>;
     companyInfo: CompanyInfo;
     permissions: Permissions;
     initialTab?: 'deudas' | 'recibos' | 'pagar';
@@ -32,7 +35,9 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
     pagos, 
     recibos, 
     onSaveRecibo, 
+    onDeleteRecibo,
     onDeletePago,
+    onSavePago,
     companyInfo, 
     permissions,
     initialTab = 'deudas',
@@ -42,6 +47,7 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
     const [isRegistrarModalOpen, setIsRegistrarModalOpen] = useState(initialTab === 'pagar');
     const [viewReciboModalOpen, setViewReciboModalOpen] = useState(false);
     const [selectedRecibo, setSelectedRecibo] = useState<ReciboPagoAsociado | null>(null);
+    const { confirm } = useConfirm();
 
     const { pagosPendientes, recibosAsociado, totalDeuda } = useMemo(() => {
         // Filter all payments for this associate
@@ -164,9 +170,24 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(r.montoTotalBs)}</p>
-                                        <Button size="sm" variant="secondary" onClick={() => handleViewRecibo(r)} className="mt-1">
-                                            <EyeIcon className="w-3 h-3 mr-1" /> Ver
-                                        </Button>
+                                        <div className="flex gap-2 mt-2 justify-end">
+                                            <Button size="sm" variant="secondary" onClick={() => handleViewRecibo(r)}>
+                                                <EyeIcon className="w-3 h-3 mr-1" /> Ver
+                                            </Button>
+                                            {permissions.delete && (
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="danger" 
+                                                    onClick={async () => {
+                                                        if (await confirm("¿Eliminar este recibo?", "Esta acción no se puede deshacer.", "danger")) {
+                                                            await onDeleteRecibo(r.id!);
+                                                        }
+                                                    }}
+                                                >
+                                                    <TrashIcon className="w-3 h-3" />
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )) : (
@@ -191,7 +212,9 @@ const AsociadoFinanzasModal: React.FC<AsociadoFinanzasModalProps> = ({
                     asociado={asociado}
                     pagosPendientes={pagosPendientes}
                     onSaveRecibo={onSaveRecibo}
+                    onUpdatePago={onSavePago}
                     companyInfo={companyInfo}
+                    recibosAsociado={recibosAsociado}
                 />
             )}
 

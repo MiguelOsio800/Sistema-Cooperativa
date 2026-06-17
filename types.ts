@@ -262,6 +262,7 @@ export interface ReciboPagoAsociado {
     montoTotalUsd?: number;
     tasaBcv: number;
     pagosIds: string[];
+    conceptosPagados?: Array<{ descripcion: string; montoBs: number }>;
     detallesPago: Array<{
         tipo: string;
         banco?: string;

@@ -6,6 +6,7 @@ import Input from '../ui/Input';
 import Button from '../ui/Button';
 import { useToast } from '../ui/ToastProvider';
 import { useConfig } from '../../contexts/ConfigContext';
+import { calculateDetailedRemesaFinancials } from '../../utils/financials';
 import Select from '../ui/Select';
 
 interface GenerarDeudaProduccionModalProps {
@@ -35,7 +36,7 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
     // State for Carga
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [calculation, setCalculation] = useState<{ total: number; debt: number } | null>(null);
+    const [calculation, setCalculation] = useState<{ total: number; debt: number; debtsByRemesa?: { remesaNumber: string; debt: number; }[] } | null>(null);
 
     const handleCalculateCarga = () => {
         if (!startDate || !endDate) {
@@ -54,27 +55,25 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
         });
 
         let totalFacturado = 0;
-        let totalPagadoGeneral = 0;
-        let totalDestinoGeneral = 0;
+        let totalNetBalance = 0;
+        const debtsByRemesa: { remesaNumber: string, debt: number }[] = [];
 
         relevantRemesas.forEach(remesa => {
             totalFacturado += remesa.totalAmount;
             
             const remesaInvoices = invoices.filter(inv => remesa.invoiceIds.includes(inv.id));
             
-            const pagado = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-pagado').reduce((sum, inv) => sum + inv.totalAmount, 0);
-            const destino = remesaInvoices.filter(inv => inv.guide.paymentType === 'flete-destino').reduce((sum, inv) => sum + inv.totalAmount, 0);
+            const financials = calculateDetailedRemesaFinancials(remesaInvoices, companyInfo, shippingTypes, asociado);
             
-            totalPagadoGeneral += pagado;
-            totalDestinoGeneral += destino;
+            // If saldoFinal is > 0, it means the driver owes the cooperative
+            if (financials.saldoFinal > 0) {
+                totalNetBalance += financials.saldoFinal;
+                debtsByRemesa.push({ remesaNumber: remesa.remesaNumber || remesa.id, debt: financials.saldoFinal });
+            }
         });
 
-        // Saldo neto: Destino - Pagado
-        // Si Destino > Pagado (Positivo): El socio le debe a la cooperativa.
-        // Si Pagado > Destino (Negativo): La cooperativa le debe al socio.
-        const netBalance = totalDestinoGeneral - totalPagadoGeneral;
-
-        setCalculation({ total: totalFacturado, debt: netBalance });
+        // The debt is now only the sum of positive balances
+        setCalculation({ total: totalFacturado, debt: totalNetBalance, debtsByRemesa });
     };
     
     const handleSubmit = async (e: React.FormEvent) => {
@@ -94,29 +93,7 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
                 status: 'Pendiente',
                 fecha: new Date().toISOString().split('T')[0]
             };
-        } else { // Carga
-            if (!calculation || calculation.debt === 0) {
-                addToast({ type: 'warning', title: 'Cálculo Requerido', message: 'Debe calcular la deuda antes de generarla o el saldo neto es 0.' });
-                return;
-            }
-            
-            const isCoopDebt = calculation.debt < 0;
-            
-            newPago = {
-                asociadoId: asociado.id,
-                concepto: isCoopDebt 
-                    ? `Se le debe al socio por producción (${startDate} al ${endDate})` 
-                    : `Producción de Carga Semanal (${startDate} al ${endDate})`,
-                cuotas: 'Única',
-                montoBs: calculation.debt,
-                montoUsd: calculation.debt / bcvRate,
-                tasaCambio: bcvRate,
-                status: 'Pendiente',
-                fecha: new Date().toISOString().split('T')[0]
-            };
-        }
-        
-        if (newPago) {
+
             setIsSubmitting(true);
             try {
                 await onGenerate(newPago as PagoAsociado);
@@ -124,6 +101,36 @@ const GenerarDeudaProduccionModal: React.FC<GenerarDeudaProduccionModalProps> = 
                 onClose();
             } catch (error: any) {
                 addToast({ type: 'error', title: 'Error', message: error.message || 'No se pudo generar la deuda.' });
+            } finally {
+                setIsSubmitting(false);
+            }
+
+        } else { // Carga
+            if (!calculation || calculation.debt === 0 || !calculation.debtsByRemesa || calculation.debtsByRemesa.length === 0) {
+                addToast({ type: 'warning', title: 'Cálculo Requerido', message: 'Debe calcular la deuda antes de generarla o el saldo neto es 0.' });
+                return;
+            }
+            
+            setIsSubmitting(true);
+            try {
+                // Generate a debt for each remesa where Destino > Pagado
+                for (const remesaDebt of calculation.debtsByRemesa) {
+                    const individualPago = {
+                        asociadoId: asociado.id,
+                        concepto: `Producción de Carga - Remesa N° ${remesaDebt.remesaNumber}`,
+                        cuotas: 'Única',
+                        montoBs: remesaDebt.debt,
+                        montoUsd: remesaDebt.debt / bcvRate,
+                        tasaCambio: bcvRate,
+                        status: 'Pendiente',
+                        fecha: new Date().toISOString().split('T')[0]
+                    };
+                    await onGenerate(individualPago as PagoAsociado);
+                }
+                addToast({ type: 'success', title: 'Deudas Generadas', message: `Se generaron ${calculation.debtsByRemesa.length} deudas por remesas.` });
+                onClose();
+            } catch (error: any) {
+                addToast({ type: 'error', title: 'Error', message: error.message || 'No se pudieron generar las deudas.' });
             } finally {
                 setIsSubmitting(false);
             }

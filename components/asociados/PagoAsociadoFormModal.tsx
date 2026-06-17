@@ -7,7 +7,7 @@ import Button from '../ui/Button';
 interface PagoAsociadoFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (pago: PagoAsociado) => void;
+    onSave: (pago: PagoAsociado | PagoAsociado[]) => void;
     pago: PagoAsociado | null;
     asociadoId: string;
     companyInfo: CompanyInfo;
@@ -78,14 +78,34 @@ const PagoAsociadoFormModal: React.FC<PagoAsociadoFormModalProps> = ({ isOpen, o
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const rate = formData.tasaCambio || bcvRate;
-        const finalData = {
-            ...formData,
-            montoBs: typeof montoBs === 'number' ? montoBs : 0,
-            montoUsd: typeof montoUsd === 'number' ? montoUsd : 0,
-            tasaCambio: rate,
-            fecha: formData.fecha || new Date().toISOString().split('T')[0]
-        };
-        onSave(finalData as PagoAsociado);
+        const totalMontoBs = typeof montoBs === 'number' ? montoBs : 0;
+        const totalMontoUsd = typeof montoUsd === 'number' ? montoUsd : 0;
+        
+        let cuotasStr = (formData.cuotas || '').trim();
+        const numCuotas = parseInt(cuotasStr);
+
+        // If it's a valid number > 1 and we are not editing an existing payment
+        if (!pago && /^\d+$/.test(cuotasStr) && numCuotas > 1) {
+            const finalData = {
+                ...formData,
+                montoBs: totalMontoBs,
+                montoUsd: totalMontoUsd,
+                tasaCambio: rate,
+                cuotas: `0/${numCuotas}`,
+                fecha: formData.fecha || new Date().toISOString().split('T')[0]
+            };
+            onSave(finalData as PagoAsociado);
+        } else {
+            const finalData = {
+                ...formData,
+                montoBs: totalMontoBs,
+                montoUsd: totalMontoUsd,
+                tasaCambio: rate,
+                cuotas: cuotasStr || '1/1',
+                fecha: formData.fecha || new Date().toISOString().split('T')[0]
+            };
+            onSave(finalData as PagoAsociado);
+        }
     };
 
     return (

@@ -22,6 +22,7 @@ interface AsociadosPagosViewProps {
     onSavePago: (pago: PagoAsociado) => Promise<void>;
     onDeletePago: (pagoId: string) => Promise<void>;
     onSaveRecibo: (recibo: ReciboPagoAsociado) => Promise<void>;
+    onDeleteRecibo: (reciboId: string) => Promise<void>;
     companyInfo: CompanyInfo;
     permissions: Permissions;
 }
@@ -29,7 +30,7 @@ interface AsociadosPagosViewProps {
 const formatCurrency = (amount: number) => `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
-    const { asociados, pagos, recibos, onSavePago, onDeletePago, onSaveRecibo, companyInfo, permissions } = props;
+    const { asociados, pagos, recibos, onSavePago, onDeletePago, onSaveRecibo, onDeleteRecibo, companyInfo, permissions } = props;
     const { vehicles, remesas, invoices } = useData();
     const { shippingTypes } = useConfig();
 
@@ -114,8 +115,14 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
         setIsPagoModalOpen(true);
     };
 
-    const handleSavePago = async (pago: PagoAsociado) => {
-        await onSavePago(pago);
+    const handleSavePago = async (pago: PagoAsociado | PagoAsociado[]) => {
+        if (Array.isArray(pago)) {
+            for (const p of pago) {
+                await onSavePago(p);
+            }
+        } else {
+            await onSavePago(pago);
+        }
         setIsPagoModalOpen(false);
     };
 
@@ -294,10 +301,25 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">Fecha: {r.fechaPago}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(r.montoTotalBs)}</p>
-                                                <Button size="sm" variant="secondary" onClick={() => handleViewRecibo(r)} className="mt-1">
-                                                    <EyeIcon className="w-3 h-3 mr-1" /> Ver
-                                                </Button>
+                                                <p className="font-bold text-green-600 dark:text-green-400">{formatCurrency(r.montoTotalBs)}</p>
+                                                <div className="flex gap-2 mt-2 justify-end">
+                                                    <Button size="sm" variant="secondary" onClick={() => handleViewRecibo(r)}>
+                                                        <EyeIcon className="w-3 h-3 mr-1" /> Ver
+                                                    </Button>
+                                                    {permissions.delete && (
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="danger" 
+                                                            onClick={async () => {
+                                                                if (await confirm("¿Eliminar este recibo?", "La eliminación no se puede deshacer y los pagos no volverán al estado pendiente automáticamente.", "danger")) {
+                                                                    await onDeleteRecibo(r.id!);
+                                                                }
+                                                            }}
+                                                        >
+                                                            <TrashIcon className="w-3 h-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -330,6 +352,7 @@ const AsociadosPagosView: React.FC<AsociadosPagosViewProps> = (props) => {
                     pagosPendientes={pagosPendientes}
                     onSaveRecibo={onSaveRecibo}
                     companyInfo={companyInfo}
+                    recibosAsociado={recibosAsociado}
                 />
             )}
 
