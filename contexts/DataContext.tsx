@@ -244,12 +244,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const inv = await apiFetch<Invoice>(`/invoices/${id}`, { method: 'PUT', body: JSON.stringify({...current, ...s}) });
                 setInvoices(p => p.map(i => i.id === id ? inv : i));
                 if (currentUser) logAction(currentUser, 'ACTUALIZAR_ESTADO_FACTURA', `Actualizó estados de factura ${inv.invoiceNumber}`, id);
+                addToast({ type: 'success', title: 'Actualizado', message: 'Estado actualizado correctamente.' });
             },
             handleDeleteInvoice: async (id) => { 
                 const item = invoices.find(i => i.id === id);
                 await apiFetch(`/invoices/${id}`, { method: 'DELETE' }); 
                 setInvoices(p => p.map(i => i.id === id ? {...i, status: 'Anulada'} : i));
                 if (currentUser && item) logAction(currentUser, 'ANULAR_FACTURA', `Anuló factura ${item.invoiceNumber}`, id);
+                addToast({ type: 'success', title: 'Anulada', message: 'Factura anulada correctamente.' });
             },
             handleSaveVehicle: (v) => handleGenericSave(v, '/vehicles', setVehicles, 'VEHICULO'),
             handleDeleteVehicle: async (id) => {
@@ -258,7 +260,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     await apiFetch(`/vehicles/${id}`, { method: 'DELETE' });
                     setVehicles(p => p.filter(i => i.id !== id));
                     if (currentUser && item) logAction(currentUser, 'ELIMINAR_VEHICULO', `Eliminó vehículo ${item.placa}`, id);
+                    addToast({ type: 'success', title: 'Eliminado', message: 'Vehículo eliminado correctamente.' });
                 } catch (error: any) {
+                    addToast({ type: 'error', title: 'Error', message: 'No se pudo eliminar el vehículo.' });
                     console.error('Error deleting vehicle:', error);
                     throw error;
                 }
@@ -281,6 +285,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                 }
                 if (currentUser) logAction(currentUser, 'ASIGNAR_VEHICULO', `Asignó ${ids.length} facturas al vehículo ID ${vId}`, vId);
+                addToast({ type: 'success', title: 'Asignación Exitosa', message: `Se asignaron ${ids.length} facturas al vehículo.` });
             },
             handleUnassignInvoice: async (id) => {
                 const inv = invoices.find(i => i.id === id);
@@ -313,6 +318,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
                 
                 if (currentUser) logAction(currentUser, 'DESASIGNAR_VEHICULO', `Desasignó factura ${id} del vehículo`, id);
+                addToast({ type: 'success', title: 'Desasignación exitosa', message: 'Factura desasignada del vehículo.' });
             },
             handleDispatchVehicle: async (vId, invoiceIds, exchangeRate, asociadoId) => {
                 const resp = await apiFetch<{newRemesa: Remesa, updatedVehicle: Vehicle, updatedInvoices: Invoice[]}>(`/remesas`, { 
@@ -342,6 +348,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setInventory(deriveInventoryFromInvoices(newInvoices));
                 
                 if (currentUser) logAction(currentUser, 'DESPACHAR_VEHICULO', `Despachó vehículo ID ${vId} con ${invoiceIds.length} facturas`, vId);
+                addToast({ type: 'success', title: 'Vehículo Despachado', message: 'El vehículo ha sido despachado exitosamente.' });
                 
                 return resp.newRemesa || (resp as any);
             },
@@ -351,6 +358,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await apiFetch(`/expenses/${id}`, { method: 'DELETE' });
                 setExpenses(p => p.filter(i => i.id !== id));
                 if (currentUser && item) logAction(currentUser, 'ELIMINAR_GASTO', `Eliminó gasto ${item.description}`, id);
+                addToast({ type: 'success', title: 'Gasto Eliminado', message: 'Gasto eliminado correctamente.' });
             },
             handleSaveAsset: (a) => handleGenericSave(a, '/assets', setAssets, 'ACTIVO_FIJO'),
             handleDeleteAsset: async (id) => {
@@ -358,6 +366,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await apiFetch(`/assets/${id}`, { method: 'DELETE' });
                 setAssets(p => p.filter(i => i.id !== id));
                 if (currentUser && item) logAction(currentUser, 'ELIMINAR_ACTIVO_FIJO', `Eliminó activo fijo ${item.name}`, id);
+                addToast({ type: 'success', title: 'Activo Eliminado', message: 'Activo fijo eliminado correctamente.' });
             },
             handleSaveAssetCategory: (c) => handleGenericSave(c, '/asset-categories', setAssetCategories, 'CATEGORIA_ACTIVO'),
             handleDeleteAssetCategory: async (id) => {
@@ -365,6 +374,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await apiFetch(`/asset-categories/${id}`, { method: 'DELETE' });
                 setAssetCategories(p => p.filter(i => i.id !== id));
                 if (currentUser && item) logAction(currentUser, 'ELIMINAR_CATEGORIA_ACTIVO', `Eliminó categoría de activo ${item.name}`, id);
+                addToast({ type: 'success', title: 'Categoría Eliminada', message: 'Categoría de activo eliminada correctamente.' });
             },
             handleSaveAsociado: (a) => handleGenericSave(a, '/asociados', setAsociados, 'ASOCIADO'),
             handleDeleteAsociado: async (id) => {
@@ -478,6 +488,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await apiFetch(`/asientos-manuales/${id}`, { method: 'DELETE' });
                 setAsientosManuales(p => p.filter(a => a.id !== id)); 
                 if (currentUser && item) logAction(currentUser, 'ELIMINAR_ASIENTO_CONTABLE', `Eliminó asiento contable manual ${id}`, id);
+                addToast({ type: 'success', title: 'Asiento Eliminado', message: 'El asiento contable fue eliminado exitosamente.' });
             },
             handleGenerateMassiveDebt: async (d) => { 
                 const payload = { 

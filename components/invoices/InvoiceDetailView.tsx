@@ -77,13 +77,16 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
         try {
             if (noteMode === 'credit' && onCreateCreditNote) {
                 await onCreateCreditNote(invoice.id, defaultReason);
+                addToast({ type: 'success', title: 'Nota de Crédito', message: 'Se ha generado la nota de crédito correctamente.' });
                 onClose();
             } else if (noteMode === 'debit' && onCreateDebitNote) {
                 await onCreateDebitNote(invoice.id, defaultReason);
+                addToast({ type: 'success', title: 'Nota de Débito', message: 'Se ha generado la nota de débito correctamente.' });
                 onClose();
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            addToast({ type: 'error', title: 'Error', message: error.message || 'No se pudo generar la nota.' });
         } finally {
             setIsSubmitting(false);
         }
