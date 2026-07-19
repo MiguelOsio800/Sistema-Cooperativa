@@ -175,7 +175,8 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const handleCompanyInfoSave = async (info: CompanyInfo) => {
         const saved = await apiFetch<CompanyInfo>('/company-info', { method: 'PUT', body: JSON.stringify(info) });
-        setCompanyInfo(saved);
+        // Merge `info` and `saved` so that if the backend drops new fields (like costPerKg), we don't lose them in the UI
+        setCompanyInfo(prev => ({ ...prev, ...info, ...saved }));
         if (currentUser) {
             logAction(currentUser, 'UPDATE', 'Actualización de información de la empresa');
         }

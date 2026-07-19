@@ -41,14 +41,14 @@ const CompanyInfoSettings: React.FC<{ info: CompanyInfo; onSave: (info: CompanyI
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target;
-        setFormData({ ...formData, [name]: type === 'number' ? Number(value) : value });
+        setFormData(prev => ({ ...prev, [name]: type === 'number' ? (value === '' ? '' : Number(value)) : value }));
     };
 
      const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'loginImageUrl') => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onloadend = () => { setFormData({ ...formData, [field]: reader.result as string }); };
+            reader.onloadend = () => { setFormData(prev => ({ ...prev, [field]: reader.result as string })); };
             reader.readAsDataURL(file);
         }
     };
@@ -80,7 +80,11 @@ const CompanyInfoSettings: React.FC<{ info: CompanyInfo; onSave: (info: CompanyI
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await onSave(formData);
+        try {
+            await onSave(formData);
+        } catch (error: any) {
+            addToast({ type: 'error', title: 'Error', message: error.message || 'Error al guardar la configuración' });
+        }
     };
 
     return (
@@ -94,17 +98,17 @@ const CompanyInfoSettings: React.FC<{ info: CompanyInfo; onSave: (info: CompanyI
             <form onSubmit={handleSubmit} className="space-y-4">
                  <fieldset disabled={!canEdit} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Título de la Aplicación" name="name" value={formData.name} onChange={handleChange} required />
-                        <Input label="RIF" name="rif" value={formData.rif} onChange={handleChange} required />
+                        <Input label="Título de la Aplicación" name="name" value={formData.name || ''} onChange={handleChange} required />
+                        <Input label="RIF" name="rif" value={formData.rif || ''} onChange={handleChange} required />
                     </div>
-                    <Input label="Dirección Fiscal" name="address" value={formData.address} onChange={handleChange} required />
+                    <Input label="Dirección Fiscal" name="address" value={formData.address || ''} onChange={handleChange} required />
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Teléfono" name="phone" value={formData.phone} onChange={handleChange} required />
+                        <Input label="Teléfono" name="phone" value={formData.phone || ''} onChange={handleChange} required />
                         <Input label="Código de Habilitación Postal" name="postalLicense" value={formData.postalLicense || ''} onChange={handleChange} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* ACTUALIZADO: Etiqueta de Costo por Manejo/Guía */}
-                        <Input label="Costo por Manejo/Guía (Bs.)" name="costPerKg" type="number" value={formData.costPerKg || ''} onChange={handleChange} required step="0.01"/>
+                        <Input label="Costo por Manejo/Guía (Bs.)" name="costPerKg" type="number" value={formData.costPerKg ?? ''} onChange={handleChange} required step="0.01"/>
                          <div>
                             <label htmlFor="bcvRate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Tasa Dólar BCV (Bs.)
@@ -114,7 +118,7 @@ const CompanyInfoSettings: React.FC<{ info: CompanyInfo; onSave: (info: CompanyI
                                     id="bcvRate"
                                     name="bcvRate"
                                     type="number"
-                                    value={formData.bcvRate || ''}
+                                    value={formData.bcvRate ?? ''}
                                     onChange={handleChange}
                                     required
                                     step="0.01"
