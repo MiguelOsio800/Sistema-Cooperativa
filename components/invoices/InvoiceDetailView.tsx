@@ -8,6 +8,7 @@ import { XIcon, PackageIcon, DownloadIcon, SaveIcon, ArrowLeftIcon, ArrowUturnLe
 import { calculateFinancialDetails } from '../../utils/financials';
 import { apiFetch } from '../../utils/api';
 import { useToast } from '../ui/ToastProvider';
+import { GuiaPorteModal } from './GuiaPorteModal';
 
 interface InvoiceDetailViewProps {
     isOpen: boolean;
@@ -38,6 +39,7 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
     const [noteMode, setNoteMode] = useState<'none' | 'credit' | 'debit'>('none');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDownloadingHka, setIsDownloadingHka] = useState(false);
+    const [isGuiaModalOpen, setIsGuiaModalOpen] = useState(false);
     const { addToast } = useToast();
 
     const sender = clients.find(c => c.id === invoice.guide.sender.id) || invoice.guide.sender;
@@ -230,6 +232,10 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                 )}
                 
                 <div className="border-l mx-2 dark:border-gray-600 h-8 hidden sm:block"></div>
+
+                <Button type="button" variant="primary" onClick={() => setIsGuiaModalOpen(true)} title="Ver Guía Porte">
+                    <PackageIcon className="w-4 h-4 mr-2" />Ver Guía Porte
+                </Button>
                 
                 {/* BOTÓN DESCARGA HKA - Con estilo emerald destacado */}
                 <Button 
@@ -419,6 +425,12 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                     </div>
                 </div>
             </div>
+
+            <GuiaPorteModal 
+                isOpen={isGuiaModalOpen} 
+                onClose={() => setIsGuiaModalOpen(false)} 
+                invoice={invoice} 
+            />
         </Modal>
     );
 };

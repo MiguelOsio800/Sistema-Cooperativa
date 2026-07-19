@@ -60,7 +60,7 @@ async function startServer() {
     });
 
     // Proxy other requests to the external backend
-    const EXTERNAL_API_URL = 'https://4wt9b8zl-5000.use2.devtunnels.ms/api';
+    const EXTERNAL_API_URL = 'https://rpbkr907-5000.use2.devtunnels.ms/api';
 
     app.all("/api/*all", async (req, res) => {
         const endpoint = req.url.replace('/api', '');
