@@ -39,6 +39,8 @@ import AsociadosPagosView from './components/asociados/AsociadosPagosView';
 import CobranzasView from './components/asociados/CobranzasView';
 import RemesasView from './components/remesas/RemesasView';
 import FlotaVehiculosPorAsociadoView from './components/flota/FlotaVehiculosPorAsociadoView';
+import GuiasPorteView from './components/shipping-guide/GuiasPorteView';
+import GastosView from './components/expenses/GastosView';
 import { PackageIcon } from './components/icons/Icons';
 import SessionWarningModal from './components/auth/SessionWarningModal';
 import ErrorBoundary from './components/ui/ErrorBoundary';
@@ -111,7 +113,7 @@ const AppContent: React.FC = () => {
             const [page, param, subParam, ...filterValueParts] = hash.split('/');
             const filterValue = filterValueParts.join('/');
             
-            const validPages: Page[] = ['dashboard', 'shipping-guide', 'invoices', 'asociados', 'reports', 'configuracion', 'categories', 'edit-invoice', 'report-detail', 'clientes', 'proveedores', 'offices', 'shipping-types', 'payment-methods', 'libro-contable', 'inventario', 'auditoria', 'inventario-bienes', 'inventario-envios', 'bienes-categorias', 'asociados-gestion', 'asociados-estadisticas', 'asociados-reportes', 'asociados-pagos', 'remesas', 'flota', 'flota-vehiculos', 'cobranzas'];
+            const validPages: Page[] = ['dashboard', 'shipping-guide', 'invoices', 'asociados', 'reports', 'configuracion', 'categories', 'edit-invoice', 'report-detail', 'clientes', 'proveedores', 'offices', 'shipping-types', 'payment-methods', 'libro-contable', 'inventario', 'auditoria', 'inventario-bienes', 'inventario-envios', 'bienes-categorias', 'asociados-gestion', 'asociados-estadisticas', 'asociados-reportes', 'asociados-pagos', 'remesas', 'flota', 'flota-vehiculos', 'cobranzas', 'gastos', 'guias-porte'];
             
             setEditingInvoiceId(null);
             setViewingReport(null);
@@ -125,6 +127,8 @@ const AppContent: React.FC = () => {
                 'dashboard': 'dashboard.view',
                 'shipping-guide': 'shipping-guide.view',
                 'invoices': 'invoices.view',
+                'guias-porte': 'guias-porte.view',
+                'gastos': 'gastos.view',
                 'flota': 'flota.view',
                 'flota-vehiculos': 'flota.view',
                 'remesas': 'remesas.view',
@@ -151,8 +155,20 @@ const AppContent: React.FC = () => {
             };
 
             const requiredPermission = pagePermissionMap[page as Page];
-            if (requiredPermission && !userPermissions[requiredPermission]) {
-                if (userPermissions['dashboard.view']) {
+            const isAdminOrTech = ['role-admin', 'role-tech'].includes(currentUser?.roleId || '');
+            let hasPermission = isAdminOrTech || !requiredPermission || !!userPermissions[requiredPermission!];
+
+            if (!hasPermission && (page === 'guias-porte' || page === 'gastos')) {
+                if (page === 'guias-porte' && (userPermissions['shipping-guide.view'] !== false || userPermissions['invoices.view'] !== false)) {
+                    hasPermission = true;
+                }
+                if (page === 'gastos' && (userPermissions['libro-contable.view'] !== false || userPermissions['invoices.view'] !== false)) {
+                    hasPermission = true;
+                }
+            }
+
+            if (!hasPermission) {
+                if (userPermissions['dashboard.view'] !== false) {
                     window.location.hash = 'dashboard';
                     setCurrentPage('dashboard');
                 } else {
@@ -236,6 +252,8 @@ const AppContent: React.FC = () => {
                             }
                             return invoiceToEdit ? <EditInvoiceView invoice={invoiceToEdit} onSaveInvoice={handleUpdateInvoice} categories={categories} clients={clients} offices={offices} shippingTypes={shippingTypes} paymentMethods={paymentMethods} companyInfo={companyInfo} currentUser={currentUser} permissions={userPermissions} /> : <div>Factura no encontrada</div>;
                         case 'invoices': return <InvoicesView invoices={filteredInvoices} clients={clients} categories={categories} userPermissions={userPermissions} onUpdateStatuses={handleUpdateInvoiceStatuses} onDeleteInvoice={handleDeleteInvoice} companyInfo={companyInfo} initialFilter={invoiceFilter} offices={offices} />;
+                        case 'guias-porte': return <GuiasPorteView invoices={filteredInvoices} offices={offices} clients={clients} companyInfo={companyInfo} permissions={userPermissions} currentUser={currentUser} />;
+                        case 'gastos': return <GastosView expenses={filteredExpenses} expenseCategories={expenseCategories} suppliers={suppliers} offices={offices} currentUser={currentUser} permissions={userPermissions} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} bcvRate={companyInfo?.bcvRate || 746.63} />;
                         case 'remesas': return <RemesasView 
                             remesas={filteredRemesas} 
                             asociados={asociados}

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { XIcon, BuildingOfficeIcon, BanknotesIcon, DocumentTextIcon, BarChartIcon } from '../icons/Icons';
 import { apiFetch } from '../../utils/api';
-import CurrencyDisplay from '../ui/CurrencyDisplay';
+
+const formatCurrency = (amount: number = 0) =>
+    `$${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface OfficeStatistic {
     id: string;
@@ -126,7 +128,7 @@ const OfficeStatisticsPanel: React.FC<OfficeStatisticsPanelProps> = ({ isOpen, o
                                                     <BanknotesIcon className="w-4 h-4" /> Gastos Totales
                                                 </p>
                                                 <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                                                    <CurrencyDisplay amount={office.stats.totalExpenses} />
+                                                    {formatCurrency(office.stats.totalExpenses)}
                                                 </p>
                                             </div>
 
@@ -135,7 +137,7 @@ const OfficeStatisticsPanel: React.FC<OfficeStatisticsPanelProps> = ({ isOpen, o
                                                     <BarChartIcon className="w-4 h-4" /> Ingresos (Revenue)
                                                 </p>
                                                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                                    <CurrencyDisplay amount={office.stats.revenue} />
+                                                    {formatCurrency(office.stats.revenue)}
                                                 </p>
                                             </div>
                                         </div>

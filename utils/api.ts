@@ -1,5 +1,5 @@
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://rpbkr907-5000.use2.devtunnels.ms/api';
 
 interface ApiFetchOptions extends RequestInit {}
 
@@ -15,6 +15,7 @@ const refreshToken = async (): Promise<string | null> => {
             headers: { 
                 'Content-Type': 'application/json',
                 'ngrok-skip-browser-warning': 'true',
+                'X-Tunnel-Skip-AntiPhishing-Page': 'true',
                 'Authorization': `Bearer ${currentRefreshToken}`
             },
             body: JSON.stringify({ refreshToken: currentRefreshToken }),
@@ -70,8 +71,9 @@ export const apiFetch = async <T>(endpoint: string, options: ApiFetchOptions = {
         headers.set('Authorization', `Bearer ${token}`);
     }
 
-    // Header opcional para evitar la página de advertencia de algunos túneles de desarrollo
+    // Header opcional para evitar la página de advertencia de algunos túneles de desarrollo (ngrok / devtunnels)
     headers.set('ngrok-skip-browser-warning', 'true');
+    headers.set('X-Tunnel-Skip-AntiPhishing-Page', 'true');
 
     const fetchOptions: ApiFetchOptions = {
         ...options,

@@ -14,6 +14,9 @@ import QuickStatusModal from './QuickStatusModal';
 import ClientFilterAutocomplete from './ClientFilterAutocomplete';
 import { useConfirm } from '../../contexts/ConfirmationContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useConfig } from '../../contexts/ConfigContext';
+import RemesaDocumentModal from '../remesas/RemesaDocumentModal';
+import { Remesa } from '../../types';
 
 const paymentStatusOptions: PaymentStatus[] = ['Pendiente', 'Pagada'];
 const shippingStatusOptions: ShippingStatus[] = ['Pendiente para Despacho', 'En Tránsito', 'En Oficina Destino', 'Entregada'];
@@ -46,12 +49,14 @@ const ITEMS_PER_PAGE = 7;
 
 const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categories, userPermissions, onUpdateStatuses, onDeleteInvoice, companyInfo, initialFilter, offices }) => {
     const { currentUser, hasGlobalAccess } = useAuth();
-    const { handleCreateCreditNote, handleCreateDebitNote } = useData();
+    const { handleCreateCreditNote, handleCreateDebitNote, remesas = [], asociados = [], vehicles = [] } = useData();
+    const { shippingTypes = [] } = useConfig();
     const { confirm } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     const [isQuickStatusModalOpen, setIsQuickStatusModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+    const [selectedRemesaForModal, setSelectedRemesaForModal] = useState<Remesa | null>(null);
 
     // Filter state
     const [searchTerm, setSearchTerm] = useState('');
@@ -227,15 +232,24 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         {invoice.remesaId ? (
-                                            <div className="relative group inline-block">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 cursor-help">
-                                                    Remesada
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    const r = remesas.find(rem => rem.id === invoice.remesaId) || invoice.Remesa;
+                                                    if (r) {
+                                                        setSelectedRemesaForModal(r);
+                                                    }
+                                                }}
+                                                className="relative group inline-block text-left cursor-pointer focus:outline-none"
+                                            >
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors shadow-sm">
+                                                    Remesada 📑
                                                 </span>
-                                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max bg-gray-900 text-white text-xs rounded py-1 px-2 z-10 shadow-lg">
-                                                    N°: {invoice.Remesa?.remesaNumber || 'N/A'}<br/>
-                                                    Fecha: {invoice.Remesa?.date || 'N/A'}
+                                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max bg-gray-900 text-white text-xs rounded py-1 px-2 z-20 shadow-lg">
+                                                    N°: {invoice.Remesa?.remesaNumber || 'Ver Remesa'}<br/>
+                                                    Haz clic para abrir y descargar la remesa
                                                 </div>
-                                            </div>
+                                            </button>
                                         ) : (
                                             <span className="text-gray-400 dark:text-gray-600">-</span>
                                         )}
@@ -314,6 +328,22 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                     onClose={closeModal}
                     invoice={selectedInvoice}
                     onUpdate={onUpdateStatuses}
+                />
+            )}
+
+            {selectedRemesaForModal && (
+                <RemesaDocumentModal
+                    isOpen={!!selectedRemesaForModal}
+                    onClose={() => setSelectedRemesaForModal(null)}
+                    remesa={selectedRemesaForModal}
+                    invoices={invoices}
+                    asociados={asociados}
+                    vehicles={vehicles}
+                    clients={clients}
+                    companyInfo={companyInfo}
+                    offices={offices}
+                    categories={categories}
+                    shippingTypes={shippingTypes}
                 />
             )}
         </div>

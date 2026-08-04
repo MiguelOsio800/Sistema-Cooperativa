@@ -51,6 +51,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, permissions, isSidebarOp
            return true;
        }
 
+       if (key === 'guias-porte.view') {
+           return permissions[key] !== false && (permissions['shipping-guide.view'] !== false || permissions['invoices.view'] !== false);
+       }
+       if (key === 'gastos.view') {
+           return permissions[key] !== false && (permissions['libro-contable.view'] !== false || permissions['invoices.view'] !== false);
+       }
+
        // Para otros roles, verificar el objeto de permisos
        return permissions && permissions[key] === true;
     });

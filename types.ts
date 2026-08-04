@@ -1,5 +1,5 @@
 
-export type Page = 'dashboard' | 'shipping-guide' | 'invoices' | 'asociados' | 'reports' | 'configuracion' | 'categories' | 'edit-invoice' | 'report-detail' | 'clientes' | 'proveedores' | 'offices' | 'shipping-types' | 'payment-methods' | 'libro-contable' | 'inventario' | 'auditoria' | 'inventario-bienes' | 'inventario-envios' | 'bienes-categorias' | 'asociados-gestion' | 'asociados-estadisticas' | 'asociados-reportes' | 'asociados-pagos' | 'remesas' | 'flota' | 'flota-vehiculos' | 'cobranzas';
+export type Page = 'dashboard' | 'shipping-guide' | 'invoices' | 'asociados' | 'reports' | 'configuracion' | 'categories' | 'edit-invoice' | 'report-detail' | 'clientes' | 'proveedores' | 'offices' | 'shipping-types' | 'payment-methods' | 'libro-contable' | 'inventario' | 'auditoria' | 'inventario-bienes' | 'inventario-envios' | 'bienes-categorias' | 'asociados-gestion' | 'asociados-estadisticas' | 'asociados-reportes' | 'asociados-pagos' | 'remesas' | 'flota' | 'flota-vehiculos' | 'cobranzas' | 'gastos' | 'guias-porte';
 
 export type Permissions = Record<string, boolean>;
 
@@ -286,6 +286,10 @@ export interface Expense {
     amount: number; // This is the TOTAL amount
     officeId?: string;
     status: 'Pagado' | 'Pendiente';
+    categoryId?: string;
+    categoryName?: string;
+    supplierId?: string;
+    registeredBy?: string;
     
     // SENIAT fields for Libro de Compras
     supplierRif?: string;

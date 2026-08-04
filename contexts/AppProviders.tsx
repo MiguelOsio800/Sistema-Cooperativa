@@ -6,6 +6,7 @@ import { DataProvider } from './DataContext';
 import { ConfigProvider } from './ConfigContext';
 import { SystemProvider } from './SystemContext';
 import { ConfirmationProvider } from './ConfirmationContext';
+import { PdfDownloadProvider } from './PdfDownloadContext';
 
 const AppProviders: React.FC<{ children: ReactNode }> = ({ children }) => {
     return (
@@ -15,7 +16,9 @@ const AppProviders: React.FC<{ children: ReactNode }> = ({ children }) => {
                     <SystemProvider>
                         <ConfigProvider>
                             <DataProvider>
-                                {children}
+                                <PdfDownloadProvider>
+                                    {children}
+                                </PdfDownloadProvider>
                             </DataProvider>
                         </ConfigProvider>
                     </SystemProvider>

@@ -156,10 +156,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const method = isUpdating ? 'PUT' : 'POST';
         const url = isUpdating ? `${endpoint}/${item.id}` : endpoint;
         
-        const payload = { ...item };
+        const payload: Record<string, any> = { ...item };
         if (!isUpdating) {
             delete payload.id;
         }
+
+        // Clean empty string IDs and dummy ID strings for foreign key / relation properties to prevent backend DB constraint errors
+        Object.keys(payload).forEach(key => {
+            const val = payload[key];
+            if (val === '' || val === null || val === undefined) {
+                if (key.endsWith('Id') || ['officeId', 'supplierId', 'paymentMethodId', 'categoryId', 'asociadoId', 'vehicleId'].includes(key)) {
+                    delete payload[key];
+                }
+            } else if (key === 'officeId' && val === 'OFICINA-CENTRAL') {
+                delete payload[key];
+            } else if (key === 'categoryId' && val === 'cat-general') {
+                delete payload[key];
+            }
+        });
 
         try {
             const saved = await apiFetch<T>(url, { method, body: JSON.stringify(payload) });

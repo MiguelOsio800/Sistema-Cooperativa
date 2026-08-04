@@ -133,8 +133,8 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
                 if (isAdmin || perms['plan-contable.view']) {
                     promises.push(fetchSafe('/cuentas-contables', PLAN_DE_CUENTAS_INICIAL).then(setCuentasContables));
-                    promises.push(fetchSafe('/expense-categories', []).then(setExpenseCategories));
                 }
+                promises.push(fetchSafe('/expense-categories', []).then(setExpenseCategories));
 
                 await Promise.all(promises);
             } finally {

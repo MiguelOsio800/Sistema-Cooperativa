@@ -162,30 +162,27 @@ const LibroContableView: React.FC<LibroContableViewProps> = (props) => {
         isAccountantIdentity;
 
     if (!hasFullAccountingAccess) {
-        // OPERATOR VIEW: Simplified Expenses Only
+        // OPERATOR VIEW: Inform operator that Expenses module is now independent
         return (
             <div className="space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Registro de Gastos Operativos</CardTitle>
-                        <p className="text-sm text-gray-500">Gestione los gastos asociados a su oficina o caja chica.</p>
+                        <CardTitle>Módulo de Libro Contable - Acceso Restringido</CardTitle>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            El registro y consulta de gastos operativos de la oficina se realiza ahora directamente desde el menú principal en el <strong className="text-blue-600 dark:text-blue-400">Módulo de Gastos</strong>.
+                        </p>
                     </CardHeader>
-                    {/* Embedded Transactions Modal (View Only Mode mostly) */}
-                    <TransactionsModal
-                        isOpen={true} // Always "open" as embedded component
-                        onClose={() => {}}
-                        transactions={filteredTransactions.filter(t => t.type === 'Gasto')} // Force show only expenses
-                        permissions={permissions}
-                        onSaveExpense={onSaveExpense}
-                        onDeleteExpense={onDeleteExpense}
-                        expenseCategories={expenseCategories}
-                        offices={offices}
-                        paymentMethods={paymentMethods}
-                        currentUser={currentUser}
-                        companyInfo={companyInfo}
-                        suppliers={suppliers}
-                        embedded={true}
-                    />
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 flex items-center justify-between">
+                        <span className="text-sm text-blue-900 dark:text-blue-200 font-medium">
+                            ¿Desea registrar o consultar gastos de su oficina?
+                        </span>
+                        <a 
+                            href="#gastos" 
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm transition-colors"
+                        >
+                            Ir al Módulo de Gastos →
+                        </a>
+                    </div>
                 </Card>
             </div>
         );
