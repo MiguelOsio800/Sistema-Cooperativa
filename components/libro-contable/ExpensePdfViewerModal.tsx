@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { Expense, CompanyInfo } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';

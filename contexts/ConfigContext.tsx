@@ -50,6 +50,26 @@ const FALLBACK_COMPANY_INFO: CompanyInfo = {
     phone: '',
 };
 
+const DEFAULT_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+    { id: 'cat-exp-1', name: 'Alquiler de Local / Oficina' },
+    { id: 'cat-exp-2', name: 'Servicios Básicos (Luz/Agua/Aseo)' },
+    { id: 'cat-exp-3', name: 'Comunicaciones / Internet' },
+    { id: 'cat-exp-4', name: 'Sueldos, Salarios y Nómina' },
+    { id: 'cat-exp-5', name: 'Combustible y Lubricantes' },
+    { id: 'cat-exp-6', name: 'Mantenimiento y Reparaciones' },
+    { id: 'cat-exp-7', name: 'Suministros y Material de Empaque' },
+    { id: 'cat-exp-8', name: 'Impuestos, Tasas y Licencias' },
+    { id: 'cat-exp-9', name: 'Gastos Operativos Generales' },
+];
+
+const DEFAULT_MERCHANDISE_CATEGORIES: Category[] = [
+    { id: 'cat-mer-1', name: 'General' },
+    { id: 'cat-mer-2', name: 'Repuestos y Autopartes' },
+    { id: 'cat-mer-3', name: 'Víveres y Alimentos' },
+    { id: 'cat-mer-4', name: 'Documentos y Sobres' },
+    { id: 'cat-mer-5', name: 'Electrodomésticos y Enseres' },
+];
+
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { addToast } = useToast();
     const { logAction } = useSystem();
@@ -116,7 +136,18 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
                 const promises: Promise<any>[] = [];
 
-                if (isAdmin || perms['categories.view']) promises.push(fetchSafe('/categories', []).then(setCategories));
+                // Categorías de mercancía: Cargar para todos los usuarios autenticados
+                promises.push(
+                    fetchSafe<Category[]>('/categories', DEFAULT_MERCHANDISE_CATEGORIES)
+                        .then(data => {
+                            if (Array.isArray(data) && data.length > 0) {
+                                setCategories(data);
+                            } else {
+                                setCategories(DEFAULT_MERCHANDISE_CATEGORIES);
+                            }
+                        })
+                );
+
                 if (isAdmin || perms['shipping-types.view']) promises.push(fetchSafe('/shipping-types', []).then(setShippingTypes));
                 if (isAdmin || perms['payment-methods.view']) promises.push(fetchSafe('/payment-methods', []).then(setPaymentMethods));
                 if (isAdmin || perms['config.users.manage']) promises.push(fetchSafe('/users', []).then(setUsers));
@@ -134,7 +165,18 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 if (isAdmin || perms['plan-contable.view']) {
                     promises.push(fetchSafe('/cuentas-contables', PLAN_DE_CUENTAS_INICIAL).then(setCuentasContables));
                 }
-                promises.push(fetchSafe('/expense-categories', []).then(setExpenseCategories));
+
+                // Categorías de gastos: Dato maestro general para todas las oficinas
+                promises.push(
+                    fetchSafe<ExpenseCategory[]>('/expense-categories', DEFAULT_EXPENSE_CATEGORIES)
+                        .then(data => {
+                            if (Array.isArray(data) && data.length > 0) {
+                                setExpenseCategories(data);
+                            } else {
+                                setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
+                            }
+                        })
+                );
 
                 await Promise.all(promises);
             } finally {

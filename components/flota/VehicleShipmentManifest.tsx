@@ -1,7 +1,7 @@
 
 import React from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { Invoice, Vehicle, Office, Client, CompanyInfo } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';

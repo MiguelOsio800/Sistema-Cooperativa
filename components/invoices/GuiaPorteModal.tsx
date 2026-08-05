@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import { Invoice } from '../../types';
 import { useConfig } from '../../contexts/ConfigContext';
 import { DownloadIcon } from '../icons/Icons';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { SingleGuiaPorteCard } from '../shipping-guide/GuiasPorteView';
 

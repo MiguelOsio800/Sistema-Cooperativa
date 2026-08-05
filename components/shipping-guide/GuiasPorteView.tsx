@@ -585,7 +585,14 @@ export const GuiasPorteView: React.FC<GuiasPorteViewProps> = ({
                                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                                             />
                                         </td>
-                                        <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-400">
+                                        <td 
+                                            className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-400 cursor-pointer hover:underline"
+                                            onClick={() => {
+                                                setSelectedInvoiceIds([inv.id]);
+                                                setIsPreviewOpen(true);
+                                            }}
+                                            title="Hacer clic para ver la Guía de Porte"
+                                        >
                                             {inv.invoiceNumber.startsWith('F-') ? inv.invoiceNumber : `F-${inv.invoiceNumber}`}
                                         </td>
                                         <td className="px-4 py-3 text-gray-600 dark:text-gray-300">

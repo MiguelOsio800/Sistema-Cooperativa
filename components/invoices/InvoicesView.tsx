@@ -231,28 +231,31 @@ const InvoicesView: React.FC<InvoicesViewProps> = ({ invoices, clients, categori
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        {invoice.remesaId ? (
-                                            <button 
-                                                type="button"
-                                                onClick={() => {
-                                                    const r = remesas.find(rem => rem.id === invoice.remesaId) || invoice.Remesa;
-                                                    if (r) {
-                                                        setSelectedRemesaForModal(r);
-                                                    }
-                                                }}
-                                                className="relative group inline-block text-left cursor-pointer focus:outline-none"
-                                            >
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors shadow-sm">
-                                                    Remesada 📑
-                                                </span>
-                                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max bg-gray-900 text-white text-xs rounded py-1 px-2 z-20 shadow-lg">
-                                                    N°: {invoice.Remesa?.remesaNumber || 'Ver Remesa'}<br/>
-                                                    Haz clic para abrir y descargar la remesa
-                                                </div>
-                                            </button>
-                                        ) : (
-                                            <span className="text-gray-400 dark:text-gray-600">-</span>
-                                        )}
+                                        {(() => {
+                                            const foundRemesa = remesas.find(rem => rem.id === invoice.remesaId || (rem.invoiceIds && rem.invoiceIds.includes(invoice.id))) || invoice.Remesa;
+                                            if (!foundRemesa && !invoice.remesaId) return <span className="text-gray-400 dark:text-gray-600">-</span>;
+
+                                            return (
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (foundRemesa) {
+                                                            setSelectedRemesaForModal(foundRemesa);
+                                                        }
+                                                    }}
+                                                    className="relative group inline-block text-left cursor-pointer focus:outline-none"
+                                                    title="Hacer clic para abrir la remesa de esta factura"
+                                                >
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors shadow-sm">
+                                                        Remesada 📑
+                                                    </span>
+                                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max bg-gray-900 text-white text-xs rounded py-1 px-2 z-20 shadow-lg pointer-events-none">
+                                                        N°: {foundRemesa?.remesaNumber || 'Ver Remesa'}<br/>
+                                                        Haz clic para abrir y descargar la remesa
+                                                    </div>
+                                                </button>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                         {userPermissions['invoices.changeStatus'] && invoice.status === 'Activa' && (

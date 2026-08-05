@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { Invoice, CompanyInfo, Client, Category, Office, Permissions } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';

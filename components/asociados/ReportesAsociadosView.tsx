@@ -5,7 +5,7 @@ import Button from '../ui/Button';
 import { ArrowLeftIcon, PrinterIcon } from '../icons/Icons';
 import Select from '../ui/Select';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import Input from '../ui/Input';
 
 interface ReportesAsociadosViewProps {

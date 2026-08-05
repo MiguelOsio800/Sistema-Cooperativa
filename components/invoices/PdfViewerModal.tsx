@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { Invoice, CompanyInfo, Client, Category, Office } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
