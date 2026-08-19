@@ -14,51 +14,54 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
         return { freight: 0, insuranceCost: 0, handling: 0, discount: 0, subtotal: 0, ipostel: 0, iva: 0, igtf: 0, total: 0 };
     }
 
-    // NUEVO: Flete es el monto manual ingresado
+    // Flete es el monto manual ingresado
     const freight = parseFloat(String(guide.baseFreightAmount)) || 0;
 
     // Calculate discount from freight value
     const discountPercentage = parseFloat(String(guide.discountPercentage)) || 0;
     const discountAmount = guide.hasDiscount
-        ? freight * (discountPercentage / 100)
+        ? Number(((freight * (discountPercentage / 100))).toFixed(2))
         : 0;
 
-    const freightAfterDiscount = freight - discountAmount;
+    const freightAfterDiscount = Math.max(0, freight - discountAmount);
     
     // Insurance is calculated on the declared value
     const declaredValue = parseFloat(String(guide.declaredValue)) || 0;
     const insurancePercentage = parseFloat(String(guide.insurancePercentage)) || 0;
-    const insuranceCost = guide.hasInsurance ? declaredValue * (insurancePercentage / 100) : 0;
+    const insuranceCost = guide.hasInsurance ? Number(((declaredValue * (insurancePercentage / 100))).toFixed(2)) : 0;
     
-    // NUEVO: El campo costPerKg ahora se usa como cargo fijo por Manejo/Guía
+    // Cargo fijo por Manejo/Guía
     const handling = parseFloat(String(companyInfo.costPerKg)) || 0;
 
-    const subtotal = freightAfterDiscount + insuranceCost + handling;
+    const subtotal = Number((freightAfterDiscount + insuranceCost + handling).toFixed(2));
     
-    // Cálculo del Peso Total
+    // Cálculo del Peso Total Real (Cantidad x Peso unitario)
     const totalWeight = guide.merchandise.reduce((acc, item) => {
-        return acc + (parseFloat(String(item.weight)) || 0);
+        const unitWeight = parseFloat(String(item.weight)) || 0;
+        const qty = parseFloat(String(item.quantity)) || 1;
+        return acc + (unitWeight * qty);
     }, 0);
 
     /**
-     * REGLA REFINADA DE IPOSTEL:
-     * - Si el peso es 0: No se calcula (valor mínimo).
-     * - Si el peso está entre 0.1 y 30.99 kg: Se calcula el 6% del flete.
-     * - Si el peso es 31 kg o más: No se calcula (valor mínimo).
+     * REGLA CANÓNICA DE IPOSTEL:
+     * - Si el peso total está entre 0.01 y 30.00 kg: Aplica el 6% (0.06) sobre el flete neto.
+     * - Si el peso es 0 o mayor a 30.00 kg: 0 (exento).
      */
-    const ipostel = (totalWeight >= 0.1 && totalWeight <= 30.99) 
-        ? (freight * 0.06) 
-        : 0.000001;
+    const appliesIpostel = totalWeight > 0 && totalWeight <= 30.0;
+    const ipostel = appliesIpostel 
+        ? Number((freightAfterDiscount * 0.06).toFixed(2)) 
+        : 0;
     
-    // IVA is now 0 as per cooperative rules
+    // IVA es 0% por cooperativa/régimen de transporte
     const iva = 0;
 
-    const preIgtfTotal = subtotal + ipostel + iva;
+    const preIgtfTotal = Number((subtotal + ipostel + iva).toFixed(2));
 
-    // IGTF (3%) is applied if the payment currency is USD
-    const igtf = guide.paymentCurrency === 'USD' ? preIgtfTotal * 0.03 : 0;
+    // IGTF (3%) si el pago es en divisas / USD
+    const isUsd = guide.paymentCurrency === 'USD' || guide.paymentCurrency === 'DIVISA';
+    const igtf = isUsd ? Number((preIgtfTotal * 0.03).toFixed(2)) : 0;
     
-    const total = preIgtfTotal + igtf;
+    const total = Number((preIgtfTotal + igtf).toFixed(2));
 
     return { freight, insuranceCost, handling, discount: discountAmount, subtotal, ipostel, iva, igtf, total };
 };
@@ -75,11 +78,12 @@ export const calculateInvoiceChargeableWeight = (invoice: Invoice): number => {
     }
     return invoice.guide.merchandise.reduce((acc, item) => {
         const realWeight = parseFloat(String(item.weight)) || 0;
+        const qty = parseFloat(String(item.quantity)) || 1;
         const length = parseFloat(String(item.length)) || 0;
         const width = parseFloat(String(item.width)) || 0;
         const height = parseFloat(String(item.height)) || 0;
         const volumetricWeight = (length * width * height) / 5000;
-        return acc + Math.max(realWeight, volumetricWeight);
+        return acc + (Math.max(realWeight, volumetricWeight) * qty);
     }, 0);
 };
 
