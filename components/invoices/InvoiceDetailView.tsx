@@ -272,7 +272,26 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                     }} 
                 >
                     {/* HOJA 1: FACTURA - Altura optimizada a 1120px para margen de seguridad */}
-                    <div style={{ padding: '20px', minHeight: '1120px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '20px', minHeight: '1120px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+                        {/* Marca de Agua de ANULADA si la proforma está anulada */}
+                        {invoice.status === 'Anulada' && (
+                            <div 
+                                className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10"
+                                style={{ opacity: 0.15 }}
+                            >
+                                <div 
+                                    className="border-8 border-red-600 text-red-600 font-black tracking-widest uppercase rounded-2xl px-12 py-6 text-7xl"
+                                    style={{ 
+                                        transform: 'rotate(-25deg)', 
+                                        letterSpacing: '0.25em',
+                                        boxShadow: '0 0 0 4px rgba(220, 38, 38, 0.2)'
+                                    }}
+                                >
+                                    ANULADA
+                                </div>
+                            </div>
+                        )}
+
                         {/* Header Section */}
                         <div className="flex justify-between items-start border-b-2 border-green-600 pb-3 mb-4">
                             <div className="flex items-center gap-4 max-w-[60%]">
@@ -297,7 +316,14 @@ const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({
                                 </div>
                             </div>
                             <div className="text-right">
-                                <h2 className="text-3xl font-black uppercase tracking-wide text-green-600">PROFORMA</h2>
+                                <div className="flex items-center justify-end gap-2">
+                                    <h2 className="text-3xl font-black uppercase tracking-wide text-green-600">PROFORMA</h2>
+                                    {invoice.status === 'Anulada' && (
+                                        <span className="inline-block bg-red-600 text-white font-black text-xs px-2.5 py-1 rounded tracking-wider uppercase shadow-sm">
+                                            ANULADA
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="mt-1 flex flex-col items-end space-y-0.5">
                                     <p className="text-sm font-bold text-gray-800">Nº: <span className="text-red-600">{formatInvoiceNumber(invoice.invoiceNumber)}</span></p>
                                     <p className="text-[11px] text-gray-600"><strong>Código:</strong> {invoice.controlNumber}</p>

@@ -68,13 +68,28 @@ export const SingleGuiaPorteCard: React.FC<{
 
     return (
         <div 
-            className="guia-porte-card bg-white p-4 border border-gray-300 rounded text-black text-xs font-sans select-none"
+            className="guia-porte-card bg-white p-4 border border-gray-300 rounded text-black text-xs font-sans select-none relative overflow-hidden"
             style={{ 
                 width: '100%', 
                 boxSizing: 'border-box',
                 fontFamily: 'Arial, Helvetica, sans-serif'
             }}
         >
+            {/* Marca de Agua de ANULADA si la guía/proforma está anulada */}
+            {invoice.status === 'Anulada' && (
+                <div 
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10"
+                    style={{ opacity: 0.14 }}
+                >
+                    <div 
+                        className="border-4 border-red-600 text-red-600 font-black tracking-widest uppercase rounded-lg px-8 py-3 text-4xl"
+                        style={{ transform: 'rotate(-20deg)', letterSpacing: '0.2em' }}
+                    >
+                        ANULADA
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex justify-between items-center mb-2 pb-2 border-b border-blue-900">
                 <div className="flex items-center gap-3">
@@ -95,9 +110,16 @@ export const SingleGuiaPorteCard: React.FC<{
                     </div>
                 </div>
                 <div className="text-right pl-2">
-                    <span className="inline-block bg-blue-900 text-white font-bold px-2 py-0.5 text-xs rounded mb-0.5">
-                        GUÍA PORTE
-                    </span>
+                    <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                        <span className="inline-block bg-blue-900 text-white font-bold px-2 py-0.5 text-xs rounded">
+                            GUÍA PORTE
+                        </span>
+                        {invoice.status === 'Anulada' && (
+                            <span className="inline-block bg-red-600 text-white font-black px-2 py-0.5 text-xs rounded uppercase tracking-wider shadow-sm">
+                                ANULADA
+                            </span>
+                        )}
+                    </div>
                     <p className="font-bold text-[11px] text-gray-800">FECHA: {formatShortDate(invoice.date)}</p>
                 </div>
             </div>
