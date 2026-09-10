@@ -515,26 +515,50 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 totalsRow = { [headers[2]]: "TOTALES", [headers[3]]: clientesTotalsExp.env, [headers[4]]: clientesTotalsExp.tot };
                 break;
             case 'ipostel':
-                headers = ["Fecha", "Factura", "Oficina Origen", "Cliente", "Paquetes", "Kg", "Monto Total", "Base Aporte", "Aporte IPOSTEL"];
+                headers = ["Fecha", "Factura", "Oficina Origen", "Cliente", "Paquetes", "Kg/Und", "Kg Facturado", "Monto Total", "Base Aporte", "Aporte IPOSTEL"];
                 dataToExport = (sourceData as unknown as Invoice[]).map(inv => {
                     const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                     const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
-                    const kg = inv.guide.merchandise.reduce((acc, m) => acc + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0);
                     const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
+                    const kgFacturado = inv.guide.merchandise.reduce((acc, m) => acc + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0);
+                    const kgUnit = inv.guide.merchandise.length === 1 
+                        ? (parseFloat(String(inv.guide.merchandise[0]?.weight)) || 0)
+                        : (paquetes > 0 ? kgFacturado / paquetes : 0);
                     const origen = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                     return {
-                        [headers[0]]: inv.date, [headers[1]]: inv.invoiceNumber, [headers[2]]: origen, [headers[3]]: inv.clientName, [headers[4]]: paquetes, [headers[5]]: kg, [headers[6]]: inv.totalAmount, [headers[7]]: ipostelBase, [headers[8]]: ipostelAmount
-                    }
+                        [headers[0]]: inv.date,
+                        [headers[1]]: inv.invoiceNumber,
+                        [headers[2]]: origen,
+                        [headers[3]]: inv.clientName,
+                        [headers[4]]: paquetes,
+                        [headers[5]]: Number(kgUnit.toFixed(2)),
+                        [headers[6]]: Number(kgFacturado.toFixed(2)),
+                        [headers[7]]: inv.totalAmount,
+                        [headers[8]]: ipostelBase,
+                        [headers[9]]: ipostelAmount
+                    };
                 });
                 const ipostelExportTotals = (sourceData as unknown as Invoice[]).reduce((acc, inv) => {
                     const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                     const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
-                    const kg = inv.guide.merchandise.reduce((acc, m) => acc + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0);
                     const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0);
-                    acc.paq += paquetes; acc.kg += kg; acc.base += ipostelBase; acc.ip += ipostelAmount; acc.monto += inv.totalAmount;
+                    const kgFacturado = inv.guide.merchandise.reduce((acc, m) => acc + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0);
+                    acc.paq += paquetes;
+                    acc.kgFacturado += kgFacturado;
+                    acc.base += ipostelBase;
+                    acc.ip += ipostelAmount;
+                    acc.monto += inv.totalAmount;
                     return acc;
-                }, { paq: 0, kg: 0, base: 0, ip: 0, monto: 0 });
-                totalsRow = { [headers[3]]: "TOTALES", [headers[4]]: ipostelExportTotals.paq, [headers[5]]: ipostelExportTotals.kg, [headers[6]]: ipostelExportTotals.monto, [headers[7]]: ipostelExportTotals.base, [headers[8]]: ipostelExportTotals.ip };
+                }, { paq: 0, kgFacturado: 0, base: 0, ip: 0, monto: 0 });
+                totalsRow = {
+                    [headers[3]]: "TOTALES",
+                    [headers[4]]: ipostelExportTotals.paq,
+                    [headers[5]]: "-",
+                    [headers[6]]: Number(ipostelExportTotals.kgFacturado.toFixed(2)),
+                    [headers[7]]: ipostelExportTotals.monto,
+                    [headers[8]]: ipostelExportTotals.base,
+                    [headers[9]]: ipostelExportTotals.ip
+                };
                 break;
             case 'seguro':
                  headers = ["Fecha", "Factura", "Cliente", "Valor Declarado", "Costo Seguro"];
@@ -591,7 +615,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
         const exportData = getExportDataForReport();
         if (!exportData) return;
 
-        const { dataToExport, sheetName, totalsRow, isAoa } = exportData;
+        const { dataToExport, sheetName, totalsRow, headers, isAoa } = exportData;
 
         if (isAoa) {
             // Sanitize data for Excel (remove jspdf-autotable object structure and extract raw values)
@@ -622,6 +646,19 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
         }
 
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        if (headers && headers.length > 0) {
+            worksheet['!cols'] = headers.map(h => {
+                let maxLen = h.length;
+                dataToExport.forEach(row => {
+                    const val = row[h];
+                    if (val !== undefined && val !== null) {
+                        const str = String(val);
+                        if (str.length > maxLen) maxLen = str.length;
+                    }
+                });
+                return { wch: Math.min(Math.max(maxLen + 4, 12), 45) };
+            });
+        }
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
         XLSX.writeFile(workbook, `${sheetName}_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -795,15 +832,19 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
                     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [200, 200, 200], lineWidth: 0.1 },
                     didParseCell: function(data) {
-                        // Align numeric columns to right
                         const h = headers[data.column.index];
-                        if (h && (h.toLowerCase().includes('monto') || h.toLowerCase().includes('total') || h.toLowerCase() === 'kg' || h.toLowerCase().includes('aporte') || h.toLowerCase().includes('iva') || h.toLowerCase().includes('base') || h.toLowerCase().includes('costo') || h.toLowerCase().includes('flete') || h.toLowerCase().includes('días'))) {
-                            data.cell.styles.halign = 'right';
+                        if (h) {
+                            const l = h.toLowerCase().trim();
+                            const isLeft = l === 'oficina' || l === 'cliente' || l === 'proveedor' || l === 'origen' || l === 'destino' || l === 'descripción';
+                            data.cell.styles.halign = isLeft ? 'left' : 'center';
                         }
                         // Bold the last row if it's totals
                         if (Object.keys(totalsRow).length > 0 && data.row.index === bodyData.length - 1) {
                             data.cell.styles.fontStyle = 'bold';
                             data.cell.styles.fillColor = [240, 240, 240];
+                            if (data.column.index === 0) {
+                                data.cell.styles.halign = 'left';
+                            }
                         }
                     }
                 });
@@ -1062,41 +1103,41 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                 <table className="min-w-full text-sm text-left text-gray-500 dark:text-gray-400">
                                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                                         <tr>
-                                            <th className="px-4 py-3">Factura N°</th>
-                                            <th className="px-4 py-3">Fecha</th>
-                                            <th className="px-4 py-3">Cliente</th>
-                                            <th className="px-4 py-3">Estado</th>
-                                            <th className="px-4 py-3 text-right">Flete</th>
-                                            <th className="px-4 py-3 text-right">Ipostel</th>
-                                            <th className="px-4 py-3 text-right">Seguro</th>
-                                            <th className="px-4 py-3 text-right">Manejo</th>
-                                            <th className="px-4 py-3 text-right">Monto Total</th>
+                                            <th className="px-4 py-3 text-center">Factura N°</th>
+                                            <th className="px-4 py-3 text-center">Fecha</th>
+                                            <th className="px-4 py-3 text-left">Cliente</th>
+                                            <th className="px-4 py-3 text-center">Estado</th>
+                                            <th className="px-4 py-3 text-center">Flete</th>
+                                            <th className="px-4 py-3 text-center">Ipostel</th>
+                                            <th className="px-4 py-3 text-center">Seguro</th>
+                                            <th className="px-4 py-3 text-center">Manejo</th>
+                                            <th className="px-4 py-3 text-center">Monto Total</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         {invoiceRows.map((row: any) => (
                                             <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{row.invoiceNumber}</td>
-                                                <td className="px-4 py-3 text-gray-900 dark:text-white">{row.date}</td>
-                                                <td className="px-4 py-3 text-gray-900 dark:text-white">{row.client}</td>
-                                                <td className="px-4 py-3 text-gray-900 dark:text-white">{row.status}</td>
-                                                <td className="px-4 py-3 text-right">
+                                                <td className="px-4 py-3 text-center font-mono font-medium text-gray-900 dark:text-white">{row.invoiceNumber}</td>
+                                                <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{row.date}</td>
+                                                <td className="px-4 py-3 text-left text-gray-900 dark:text-white">{row.client}</td>
+                                                <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{row.status}</td>
+                                                <td className="px-4 py-3 text-center">
                                                     <div className="text-gray-900 dark:text-white">{formatCurrency(row.freight)}</div>
                                                     <div className="text-xs text-gray-400">${row.freightUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
+                                                <td className="px-4 py-3 text-center">
                                                     <div className="text-gray-900 dark:text-white">{formatCurrency(row.ipostel)}</div>
                                                     <div className="text-xs text-gray-400">${row.ipostelUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
+                                                <td className="px-4 py-3 text-center">
                                                     <div className="text-gray-900 dark:text-white">{formatCurrency(row.insuranceCost)}</div>
                                                     <div className="text-xs text-gray-400">${row.insuranceCostUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
+                                                <td className="px-4 py-3 text-center">
                                                     <div className="text-gray-900 dark:text-white">{formatCurrency(row.handling)}</div>
                                                     <div className="text-xs text-gray-400">${row.handlingUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
+                                                <td className="px-4 py-3 text-center font-medium text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(row.totalAmount)}</div>
                                                     <div className="text-xs text-gray-400">${row.totalAmountUSD.toFixed(2)}</div>
                                                 </td>
@@ -1109,24 +1150,24 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                         )}
                                         {invoiceRows.length > 0 && (
                                             <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
-                                                <td colSpan={4} className="px-4 py-3 text-right text-gray-900 dark:text-white">TOTAL GENERAL</td>
-                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                <td colSpan={4} className="px-4 py-3 text-left text-gray-900 dark:text-white">TOTAL GENERAL</td>
+                                                <td className="px-4 py-3 text-center text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(sumFlete)}</div>
                                                     <div className="text-xs text-gray-500">${sumFleteUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                <td className="px-4 py-3 text-center text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(sumIpostel)}</div>
                                                     <div className="text-xs text-gray-500">${sumIpostelUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                <td className="px-4 py-3 text-center text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(sumSeguro)}</div>
                                                     <div className="text-xs text-gray-500">${sumSeguroUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                <td className="px-4 py-3 text-center text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(sumManejo)}</div>
                                                     <div className="text-xs text-gray-500">${sumManejoUSD.toFixed(2)}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                                                <td className="px-4 py-3 text-center text-gray-900 dark:text-white">
                                                     <div>{formatCurrency(sumTotalAmount)}</div>
                                                     <div className="text-xs text-gray-500">${sumTotalAmountUSD.toFixed(2)}</div>
                                                 </td>
@@ -1197,19 +1238,19 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                  <tr>
                                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-black">Oficina</th>
                                      <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-black">N° Envíos</th>
-                                     <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-black">Total Kg</th>
-                                     <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-black">Total Facturado</th>
-                                     <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-black">Promedio / Envío</th>
+                                     <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-black">Total Kg</th>
+                                     <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-black">Total Facturado</th>
+                                     <th className="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-black">Promedio / Envío</th>
                                  </tr>
                              </thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-black">
                                  {data.map(d => (
                                      <tr key={d.id}>
-                                         <td className="px-4 py-3 font-semibold">{d.name}</td>
+                                         <td className="px-4 py-3 font-semibold text-left">{d.name}</td>
                                          <td className="px-4 py-3 text-center">{d.envios}</td>
-                                         <td className="px-4 py-3 text-right">{d.totalKg.toFixed(2)}</td>
-                                         <td className="px-4 py-3 text-right font-bold">{formatCurrency(d.totalFacturado)}</td>
-                                         <td className="px-4 py-3 text-right">{formatCurrency(d.envios > 0 ? d.totalFacturado / d.envios : 0)}</td>
+                                         <td className="px-4 py-3 text-center">{d.totalKg.toFixed(2)}</td>
+                                         <td className="px-4 py-3 text-center font-bold">{formatCurrency(d.totalFacturado)}</td>
+                                         <td className="px-4 py-3 text-center">{formatCurrency(d.envios > 0 ? d.totalFacturado / d.envios : 0)}</td>
                                      </tr>
                                  ))}
                              </tbody>
@@ -1238,19 +1279,19 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                                 <table className="min-w-full text-sm">
                                                     <thead>
                                                         <tr className="text-black">
-                                                            <th className="text-left py-1 text-black">Fecha</th>
+                                                            <th className="text-center py-1 text-black">Fecha</th>
                                                             <th className="text-left py-1 text-black">Descripción</th>
                                                             <th className="text-left py-1 text-black">Categoría</th>
-                                                            <th className="text-right py-1 text-black">Monto</th>
+                                                            <th className="text-center py-1 text-black">Monto</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="text-black">
                                                         {d.expenses.map((exp: Expense) => (
                                                             <tr key={exp.id} className="border-t dark:border-gray-700">
-                                                                <td className="py-1.5">{exp.date}</td>
-                                                                <td className="py-1.5">{exp.description}</td>
-                                                                <td className="py-1.5">{exp.category}</td>
-                                                                <td className="text-right py-1.5">{formatCurrency(exp.amount)}</td>
+                                                                <td className="py-1.5 text-center">{exp.date}</td>
+                                                                <td className="py-1.5 text-left">{exp.description}</td>
+                                                                <td className="py-1.5 text-left">{exp.category}</td>
+                                                                <td className="text-center py-1.5">{formatCurrency(exp.amount)}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -1284,9 +1325,9 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                         <div className="overflow-hidden">
                                             <div className="p-4 max-h-60 overflow-y-auto border-t dark:border-gray-700">
                                                 <table className="min-w-full text-sm">
-                                                    <thead><tr className="text-black"><th className="text-left py-1 text-black">Factura #</th><th className="text-left py-1 text-black">Cliente</th><th className="text-right py-1 text-black">Monto</th><th className="text-right py-1 text-black">Kg</th></tr></thead>
+                                                    <thead><tr className="text-black"><th className="text-center py-1 text-black">Factura #</th><th className="text-left py-1 text-black">Cliente</th><th className="text-center py-1 text-black">Monto</th><th className="text-center py-1 text-black">Kg</th></tr></thead>
                                                     <tbody className="text-black">
-                                                    {d.invoices.map((inv: Invoice) => <tr key={inv.id} className="border-t dark:border-gray-700"><td className="py-1.5">{inv.invoiceNumber}</td><td className="py-1.5">{inv.clientName}</td><td className="text-right py-1.5">{formatCurrency(inv.totalAmount)}</td><td className="text-right py-1.5">{calculateInvoiceChargeableWeight(inv).toFixed(2)}</td></tr>)}
+                                                    {d.invoices.map((inv: Invoice) => <tr key={inv.id} className="border-t dark:border-gray-700"><td className="py-1.5 text-center font-mono">{inv.invoiceNumber}</td><td className="py-1.5 text-left">{inv.clientName}</td><td className="text-center py-1.5">{formatCurrency(inv.totalAmount)}</td><td className="text-center py-1.5">{calculateInvoiceChargeableWeight(inv).toFixed(2)}</td></tr>)}
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -1316,17 +1357,17 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         const tipoEnvio = inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado';
                         return (
                             <tr key={inv.id}>
-                                <td className="px-2 py-2">{inv.date.split('T')[0].split('-').reverse().join('/')}</td>
-                                <td className="px-2 py-2">{inv.invoiceNumber}</td>
-                                <td className="px-2 py-2 max-w-[150px] truncate" title={inv.clientName}>{inv.clientName}</td>
+                                <td className="px-2 py-2 text-center">{inv.date.split('T')[0].split('-').reverse().join('/')}</td>
+                                <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-left max-w-[150px] truncate" title={inv.clientName}>{inv.clientName}</td>
                                 <td className="px-2 py-2 text-center text-xs font-semibold">{tipoEnvio}</td>
-                                <td className="px-2 py-2 text-right">{formatCurrency(fin.freight)}</td>
-                                <td className="px-2 py-2 text-right">{formatCurrency(fin.insuranceCost)}</td>
-                                <td className="px-2 py-2 text-right">{formatCurrency(fin.handling)}</td>
-                                <td className="px-2 py-2 text-right">{formatCurrency(fin.ipostel)}</td>
-                                <td className="px-2 py-2 text-right">{kg.toFixed(2)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(fin.freight)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(fin.insuranceCost)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(fin.handling)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(fin.ipostel)}</td>
+                                <td className="px-2 py-2 text-center">{kg.toFixed(2)}</td>
                                 <td className="px-2 py-2 text-center">{paquetes}</td>
-                                <td className="px-2 py-2 text-right font-medium">{formatCurrency(inv.totalAmount)}</td>
+                                <td className="px-2 py-2 text-center font-medium">{formatCurrency(inv.totalAmount)}</td>
                             </tr>
                         );
                     });
@@ -1336,7 +1377,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         acc.total += inv.totalAmount; 
                         return acc; 
                     }, { flete: 0, total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left uppercase">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(generalTotalsUI.flete)}</td><td colSpan={5}></td><td className="px-2 py-3 text-right">{formatCurrency(generalTotalsUI.total)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left uppercase">TOTALES</td><td className="px-2 py-3 text-center">{formatCurrency(generalTotalsUI.flete)}</td><td colSpan={5}></td><td className="px-2 py-3 text-center">{formatCurrency(generalTotalsUI.total)}</td></tr></tfoot>);
                     
                     let fletePagado = 0;
                     let fleteDestino = 0;
@@ -1458,10 +1499,22 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                      body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
-                        return (<tr key={inv.id} className={inv.status === 'Anulada' ? 'text-red-500 line-through' : ''}><td className="px-2 py-2">{inv.date.split('T')[0].split('-').reverse().join('/')}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{inv.clientIdNumber}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? 'ANULADA' : formatCurrency(fin.total)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.freight)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.iva)}</td><td className="px-2 py-2 text-right">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.ipostel)}</td></tr>);
+                        return (
+                            <tr key={inv.id} className={inv.status === 'Anulada' ? 'text-red-500 line-through' : ''}>
+                                <td className="px-2 py-2 text-center">{inv.date.split('T')[0].split('-').reverse().join('/')}</td>
+                                <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-left">{originOffice}</td>
+                                <td className="px-2 py-2 text-left">{inv.clientName}</td>
+                                <td className="px-2 py-2 text-center">{inv.clientIdNumber}</td>
+                                <td className="px-2 py-2 text-center">{inv.status === 'Anulada' ? 'ANULADA' : formatCurrency(fin.total)}</td>
+                                <td className="px-2 py-2 text-center">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.freight)}</td>
+                                <td className="px-2 py-2 text-center">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.iva)}</td>
+                                <td className="px-2 py-2 text-center">{inv.status === 'Anulada' ? '0.00' : formatCurrency(fin.ipostel)}</td>
+                            </tr>
+                        );
                      });
                      const libroVentaTotals = (reportData as Invoice[]).reduce((acc, inv) => { if (inv.status !== 'Anulada') { const fin = calculateFinancialDetails(inv.guide, companyInfo); acc.total += fin.total; acc.flete += fin.freight; acc.iva += fin.iva; acc.ipostel += fin.ipostel; } return acc; }, { total: 0, flete: 0, iva: 0, ipostel: 0 });
-                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.total)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.flete)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.iva)}</td><td className="px-2 py-3 text-right">{formatCurrency(libroVentaTotals.ipostel)}</td></tr></tfoot>);
+                     footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{formatCurrency(libroVentaTotals.total)}</td><td className="px-2 py-3 text-center">{formatCurrency(libroVentaTotals.flete)}</td><td className="px-2 py-3 text-center">{formatCurrency(libroVentaTotals.iva)}</td><td className="px-2 py-3 text-center">{formatCurrency(libroVentaTotals.ipostel)}</td></tr></tfoot>);
                      break;
                 case 'cuentas_cobrar':
                     headers = ["Fecha Emisión", "Factura", "Oficina", "Cliente", "Teléfono", "Días Vencidos", "Monto Pendiente"];
@@ -1469,69 +1522,170 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                          const days = Math.floor((new Date().getTime() - new Date(inv.date).getTime()) / (1000 * 3600 * 24));
                          const client = clients.find(c => c.idNumber === inv.clientIdNumber);
                          const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2">{client?.phone}</td><td className="px-2 py-2 text-center">{days}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(inv.totalAmount)}</td></tr>)
+                        return (
+                            <tr key={inv.id}>
+                                <td className="px-2 py-2 text-center">{inv.date}</td>
+                                <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-left">{originOffice}</td>
+                                <td className="px-2 py-2 text-left">{inv.clientName}</td>
+                                <td className="px-2 py-2 text-center">{client?.phone}</td>
+                                <td className="px-2 py-2 text-center">{days}</td>
+                                <td className="px-2 py-2 text-center font-semibold">{formatCurrency(inv.totalAmount)}</td>
+                            </tr>
+                        );
                     });
                     const cxcTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={6} className="px-2 py-3 text-left">TOTAL PENDIENTE</td><td className="px-2 py-3 text-right">{formatCurrency(cxcTotals.total)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={6} className="px-2 py-3 text-left">TOTAL PENDIENTE</td><td className="px-2 py-3 text-center">{formatCurrency(cxcTotals.total)}</td></tr></tfoot>);
                     break;
                 case 'cuentas_pagar':
                     headers = ["Fecha", "Proveedor", "RIF", "Factura Prov.", "Días Vencidos", "Monto Pendiente"];
                     body = (paginatedData as unknown as Expense[]).map(exp => {
                          const days = Math.floor((new Date().getTime() - new Date(exp.date).getTime()) / (1000 * 3600 * 24));
-                        return (<tr key={exp.id}><td className="px-2 py-2">{exp.date}</td><td className="px-2 py-2">{exp.supplierName}</td><td className="px-2 py-2">{exp.supplierRif}</td><td className="px-2 py-2">{exp.invoiceNumber}</td><td className="px-2 py-2 text-center">{days}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(exp.amount)}</td></tr>)
+                        return (
+                            <tr key={exp.id}>
+                                <td className="px-2 py-2 text-center">{exp.date}</td>
+                                <td className="px-2 py-2 text-left">{exp.supplierName}</td>
+                                <td className="px-2 py-2 text-center">{exp.supplierRif}</td>
+                                <td className="px-2 py-2 text-center font-mono">{exp.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-center">{days}</td>
+                                <td className="px-2 py-2 text-center font-semibold">{formatCurrency(exp.amount)}</td>
+                            </tr>
+                        );
                     });
                     const cxpTotals = (reportData as Expense[]).reduce((acc, exp) => { acc.total += exp.amount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTAL PENDIENTE</td><td className="px-2 py-3 text-right">{formatCurrency(cxpTotals.total)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTAL PENDIENTE</td><td className="px-2 py-3 text-center">{formatCurrency(cxpTotals.total)}</td></tr></tfoot>);
                     break;
                 case 'facturas_anuladas':
                     headers = ["Fecha", "Factura", "Control", "Oficina", "Cliente", "Monto Original"];
-                    body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{inv.controlNumber}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td></tr>));
+                    body = (paginatedData as unknown as Invoice[]).map(inv => (
+                        <tr key={inv.id}>
+                            <td className="px-2 py-2 text-center">{inv.date}</td>
+                            <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                            <td className="px-2 py-2 text-center font-mono">{inv.controlNumber}</td>
+                            <td className="px-2 py-2 text-left">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td>
+                            <td className="px-2 py-2 text-left">{inv.clientName}</td>
+                            <td className="px-2 py-2 text-center">{formatCurrency(inv.totalAmount)}</td>
+                        </tr>
+                    ));
                     const anuladasTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.total += inv.totalAmount; return acc; }, { total: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTAL ANULADO</td><td className="px-2 py-3 text-right">{formatCurrency(anuladasTotals.total)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={5} className="px-2 py-3 text-left">TOTAL ANULADO</td><td className="px-2 py-3 text-center">{formatCurrency(anuladasTotals.total)}</td></tr></tfoot>);
                     break;
                 case 'ipostel':
-                    headers = ["Fecha", "Factura", "Oficina", "Cliente", "Paquetes", "Kg", "Base Aporte", "Aporte IPOSTEL"];
+                    headers = ["Fecha", "Factura", "Oficina", "Cliente", "Paquetes", "Kg/Und", "Kg Facturado", "Monto Total", "Base Aporte", "Aporte IPOSTEL"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                         const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
                         const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
-                        const kg = inv.guide.merchandise.reduce((acc, m) => acc + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0);
                         const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-center">{paquetes}</td><td className="px-2 py-2 text-right">{kg.toFixed(2)}</td><td className="px-2 py-2 text-right">{formatCurrency(ipostelBase)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(ipostelAmount)}</td></tr>)
+                        const kgFacturado = inv.guide.merchandise.reduce((acc, m) => acc + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0);
+                        const kgUnit = inv.guide.merchandise.length === 1 
+                            ? (parseFloat(String(inv.guide.merchandise[0]?.weight)) || 0)
+                            : (paquetes > 0 ? kgFacturado / paquetes : 0);
+                        return (
+                            <tr key={inv.id}>
+                                <td className="px-2 py-2 text-center">{inv.date}</td>
+                                <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-left">{originOffice}</td>
+                                <td className="px-2 py-2 text-left">{inv.clientName}</td>
+                                <td className="px-2 py-2 text-center">{paquetes}</td>
+                                <td className="px-2 py-2 text-center">{kgUnit.toFixed(2)}</td>
+                                <td className="px-2 py-2 text-center font-medium">{kgFacturado.toFixed(2)}</td>
+                                <td className="px-2 py-2 text-center font-medium">{formatCurrency(inv.totalAmount)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(ipostelBase)}</td>
+                                <td className="px-2 py-2 text-center font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(ipostelAmount)}</td>
+                            </tr>
+                        );
                     });
-                    const ipostelTotals = (reportData as Invoice[]).reduce((acc, inv) => { const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel; const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0; const kg = inv.guide.merchandise.reduce((sum, m) => sum + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0); const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0); acc.kg += kg; acc.base += ipostelBase; acc.ipostel += ipostelAmount; acc.paquetes += paquetes; return acc; }, { kg: 0, base: 0, ipostel: 0, paquetes: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{ipostelTotals.paquetes}</td><td className="px-2 py-3 text-right">{ipostelTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.base)}</td><td className="px-2 py-3 text-right">{formatCurrency(ipostelTotals.ipostel)}</td></tr></tfoot>);
+                    const ipostelTotals = (reportData as Invoice[]).reduce((acc, inv) => {
+                        const ipostelAmount = calculateFinancialDetails(inv.guide, companyInfo).ipostel;
+                        const ipostelBase = ipostelAmount > 0 ? ipostelAmount / 0.06 : 0;
+                        const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0);
+                        const kgFacturado = inv.guide.merchandise.reduce((sum, m) => sum + ((parseFloat(String(m.weight)) || 0) * (parseFloat(String(m.quantity)) || 1)), 0);
+                        acc.paquetes += paquetes;
+                        acc.kgFacturado += kgFacturado;
+                        acc.montoTotal += inv.totalAmount;
+                        acc.base += ipostelBase;
+                        acc.ipostel += ipostelAmount;
+                        return acc;
+                    }, { paquetes: 0, kgFacturado: 0, montoTotal: 0, base: 0, ipostel: 0 });
+                    footer = (
+                        <tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black dark:text-white">
+                            <tr>
+                                <td colSpan={4} className="px-2 py-3 text-left">TOTALES</td>
+                                <td className="px-2 py-3 text-center">{ipostelTotals.paquetes}</td>
+                                <td className="px-2 py-3 text-center">-</td>
+                                <td className="px-2 py-3 text-center">{ipostelTotals.kgFacturado.toFixed(2)}</td>
+                                <td className="px-2 py-3 text-center">{formatCurrency(ipostelTotals.montoTotal)}</td>
+                                <td className="px-2 py-3 text-center">{formatCurrency(ipostelTotals.base)}</td>
+                                <td className="px-2 py-3 text-center text-emerald-700 dark:text-emerald-400">{formatCurrency(ipostelTotals.ipostel)}</td>
+                            </tr>
+                        </tfoot>
+                    );
                     break;
                 case 'seguro':
                     headers = ["Fecha", "Factura", "Oficina", "Cliente", "Valor Declarado", "Costo Seguro"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.guide.declaredValue)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(calculateFinancialDetails(inv.guide, companyInfo).insuranceCost)}</td></tr>)
+                        return (
+                            <tr key={inv.id}>
+                                <td className="px-2 py-2 text-center">{inv.date}</td>
+                                <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-left">{originOffice}</td>
+                                <td className="px-2 py-2 text-left">{inv.clientName}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(inv.guide.declaredValue)}</td>
+                                <td className="px-2 py-2 text-center font-semibold">{formatCurrency(calculateFinancialDetails(inv.guide, companyInfo).insuranceCost)}</td>
+                            </tr>
+                        );
                     });
                     const seguroTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.declared += inv.guide.declaredValue; acc.cost += calculateFinancialDetails(inv.guide, companyInfo).insuranceCost; return acc; }, { declared: 0, cost: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(seguroTotals.declared)}</td><td className="px-2 py-3 text-right">{formatCurrency(seguroTotals.cost)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{formatCurrency(seguroTotals.declared)}</td><td className="px-2 py-3 text-center">{formatCurrency(seguroTotals.cost)}</td></tr></tfoot>);
                     break;
                 case 'clientes':
                     headers = ["RIF/CI", "Cliente", "Teléfono", "N° Envíos", "Monto Facturado"];
-                    body = (paginatedData as any[]).map(data => (<tr key={data.id}><td className="px-2 py-2">{data.id}</td><td className="px-2 py-2">{data.name}</td><td className="px-2 py-2">{data.phone}</td><td className="px-2 py-2 text-center">{data.count}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(data.total)}</td></tr>));
+                    body = (paginatedData as any[]).map(data => (
+                        <tr key={data.id}>
+                            <td className="px-2 py-2 text-center">{data.id}</td>
+                            <td className="px-2 py-2 text-left">{data.name}</td>
+                            <td className="px-2 py-2 text-center">{data.phone}</td>
+                            <td className="px-2 py-2 text-center">{data.count}</td>
+                            <td className="px-2 py-2 text-center font-semibold">{formatCurrency(data.total)}</td>
+                        </tr>
+                    ));
                     const clientesTotals = (reportData as any[]).reduce((acc, data) => { acc.envios += data.count; acc.monto += data.total; return acc; }, { envios: 0, monto: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={3} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{clientesTotals.envios}</td><td className="px-2 py-3 text-right">{formatCurrency(clientesTotals.monto)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={3} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{clientesTotals.envios}</td><td className="px-2 py-3 text-center">{formatCurrency(clientesTotals.monto)}</td></tr></tfoot>);
                     break;
                 case 'reporte_kilogramos':
                     headers = ["Fecha", "Nº Factura", "Oficina", "Cliente", "Total Kilogramos"];
-                     body = (paginatedData as unknown as Invoice[]).map(inv => (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right font-semibold">{calculateInvoiceChargeableWeight(inv).toFixed(2)} Kg</td></tr>));
+                     body = (paginatedData as unknown as Invoice[]).map(inv => (
+                        <tr key={inv.id}>
+                            <td className="px-2 py-2 text-center">{inv.date}</td>
+                            <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                            <td className="px-2 py-2 text-left">{offices.find(o => o.id === inv.guide.originOfficeId)?.name}</td>
+                            <td className="px-2 py-2 text-left">{inv.clientName}</td>
+                            <td className="px-2 py-2 text-center font-semibold">{calculateInvoiceChargeableWeight(inv).toFixed(2)} Kg</td>
+                        </tr>
+                    ));
                     const kgTotals = (reportData as Invoice[]).reduce((acc, inv) => { acc.kg += calculateInvoiceChargeableWeight(inv); return acc; }, { kg: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTAL KG MOVILIZADOS</td><td className="px-2 py-3 text-right">{kgTotals.kg.toFixed(2)} Kg</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTAL KG MOVILIZADOS</td><td className="px-2 py-3 text-center">{kgTotals.kg.toFixed(2)} Kg</td></tr></tfoot>);
                     break;
                 case 'iva':
                     headers = ["Fecha", "N° Factura", "Oficina", "Cliente", "Monto Total", "IVA (16%)"];
                     body = (paginatedData as unknown as Invoice[]).map(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.date}</td><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2">{inv.clientName}</td><td className="px-2 py-2 text-right">{formatCurrency(inv.totalAmount)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(fin.iva)}</td></tr>);
+                        return (
+                            <tr key={inv.id}>
+                                <td className="px-2 py-2 text-center">{inv.date}</td>
+                                <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-left">{originOffice}</td>
+                                <td className="px-2 py-2 text-left">{inv.clientName}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(inv.totalAmount)}</td>
+                                <td className="px-2 py-2 text-center font-semibold">{formatCurrency(fin.iva)}</td>
+                            </tr>
+                        );
                     });
                     const ivaTotals = (reportData as Invoice[]).reduce((acc, inv) => { const fin = calculateFinancialDetails(inv.guide, companyInfo); acc.total += inv.totalAmount; acc.iva += fin.iva; return acc; }, { total: 0, iva: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{formatCurrency(ivaTotals.total)}</td><td className="px-2 py-3 text-right">{formatCurrency(ivaTotals.iva)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={4} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{formatCurrency(ivaTotals.total)}</td><td className="px-2 py-3 text-center">{formatCurrency(ivaTotals.iva)}</td></tr></tfoot>);
                     break;
                 case 'reporte_comisiones':
                     headers = ["Nro de Factura", "Oficina", "Kg", "Monto Flete"];
@@ -1539,14 +1693,21 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         const originOffice = offices.find(o => o.id === inv.guide.originOfficeId)?.name || 'N/A';
                         const kg = calculateInvoiceChargeableWeight(inv);
                         const freight = calculateFinancialDetails(inv.guide, companyInfo).freight;
-                        return (<tr key={inv.id}><td className="px-2 py-2">{inv.invoiceNumber}</td><td className="px-2 py-2">{originOffice}</td><td className="px-2 py-2 text-right">{kg.toFixed(2)}</td><td className="px-2 py-2 text-right font-semibold">{formatCurrency(freight)}</td></tr>);
+                        return (
+                            <tr key={inv.id}>
+                                <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
+                                <td className="px-2 py-2 text-left">{originOffice}</td>
+                                <td className="px-2 py-2 text-center">{kg.toFixed(2)}</td>
+                                <td className="px-2 py-2 text-center font-semibold">{formatCurrency(freight)}</td>
+                            </tr>
+                        );
                     });
                     const comisionesTotals = (reportData as Invoice[]).reduce((acc, inv) => {
                         acc.kg += calculateInvoiceChargeableWeight(inv);
                         acc.freight += calculateFinancialDetails(inv.guide, companyInfo).freight;
                         return acc;
                     }, { kg: 0, freight: 0 });
-                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={2} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-right">{comisionesTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-right">{formatCurrency(comisionesTotals.freight)}</td></tr></tfoot>);
+                    footer = (<tfoot className="bg-gray-100 dark:bg-gray-800/80 font-bold text-black"><tr><td colSpan={2} className="px-2 py-3 text-left">TOTALES</td><td className="px-2 py-3 text-center">{comisionesTotals.kg.toFixed(2)}</td><td className="px-2 py-3 text-center">{formatCurrency(comisionesTotals.freight)}</td></tr></tfoot>);
                     break;
             }
 
@@ -1579,10 +1740,16 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             return (
                 <>
                     <table className="min-w-full text-sm text-black">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50"><tr>{headers.map(h => {
-                            const isNumeric = h.toLowerCase().includes('monto') || h.toLowerCase().includes('total') || h.toLowerCase() === 'kg' || h.toLowerCase().includes('aporte') || h.toLowerCase().includes('iva') || h.toLowerCase().includes('base') || h.toLowerCase().includes('costo') || h.toLowerCase().includes('flete') || h.toLowerCase().includes('días');
-                            return <th key={h} className={`px-2 py-2 text-xs font-semibold uppercase tracking-wider text-black ${isNumeric ? 'text-right' : 'text-left'}`}>{h}</th>
-                        })}</tr></thead>
+                        <thead className="bg-gray-50 dark:bg-gray-700/50">
+                            <tr>
+                                {headers.map(h => {
+                                    const l = h.toLowerCase().trim();
+                                    const isLeft = l === 'oficina' || l === 'cliente' || l === 'proveedor' || l === 'origen' || l === 'destino' || l === 'descripción';
+                                    const alignment = isLeft ? 'text-left' : 'text-center';
+                                    return <th key={h} className={`px-2 py-2 text-xs font-semibold uppercase tracking-wider text-black ${alignment}`}>{h}</th>;
+                                })}
+                            </tr>
+                        </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-black">{body}</tbody>
                         {footer}
                     </table>

@@ -58,7 +58,7 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
     const preIgtfTotal = Number((subtotal + ipostel + iva).toFixed(2));
 
     // IGTF (3%) si el pago es en divisas / USD
-    const isUsd = guide.paymentCurrency === 'USD' || guide.paymentCurrency === 'DIVISA';
+    const isUsd = guide.paymentCurrency === 'USD' || (guide.paymentCurrency as string) === 'DIVISA';
     const igtf = isUsd ? Number((preIgtfTotal * 0.03).toFixed(2)) : 0;
     
     const total = Number((preIgtfTotal + igtf).toFixed(2));
