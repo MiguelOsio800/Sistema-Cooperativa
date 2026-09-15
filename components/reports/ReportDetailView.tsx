@@ -244,7 +244,12 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
                     const kg = calculateInvoiceChargeableWeight(inv);
                     const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
-                    const tipoEnvio = inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado';
+                    const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
+                    const typeName = (st?.name || inv.guide.shippingTypeId || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const isImportacion = typeName.includes('importaci') || inv.guide.shippingTypeId === 'st-importacion';
+                    const tipoEnvio = isImportacion
+                        ? (inv.guide.paymentType === 'flete-destino' ? 'Importación (Dest.)' : 'Importación (Pag.)')
+                        : (inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado');
                     return {
                         [headers[0]]: inv.date.split('T')[0].split('-').reverse().join('/'),
                         [headers[1]]: inv.invoiceNumber,
@@ -852,6 +857,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                 if (report.id === 'general_envios') {
                     let fletePagado = 0;
                     let fleteDestino = 0;
+                    let importacionFlete = 0;
                     let credito = 0;
                     let ipostelTotal = 0;
                     let seguroTotal = 0;
@@ -861,9 +867,13 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     (sourceData as Invoice[]).forEach(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
-                        const isMudanza = st?.name.toLowerCase().includes('mudanza');
+                        const typeName = (st?.name || inv.guide.shippingTypeId || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        const isImportacion = typeName.includes('importaci') || inv.guide.shippingTypeId === 'st-importacion';
+                        const isMudanza = typeName.includes('mudanza');
 
-                        if (isMudanza) {
+                        if (isImportacion) {
+                            importacionFlete += fin.freight;
+                        } else if (isMudanza) {
                             mudanza += fin.freight;
                         } else {
                             if (inv.guide.paymentType === 'flete-pagado') {
@@ -880,10 +890,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
+                    const empresaImportacion = importacionFlete * 0.10; // 10% del flete neto
 
                     const totalFacturas = (sourceData as Invoice[]).reduce((sum, inv) => sum + inv.totalAmount, 0);
                     const totalGeneral = totalFacturas;
-                    const totalEmpresa = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const totalEmpresa = empresaPagado + empresaDestino + empresaImportacion + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -894,6 +905,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         [{ content: "PARAMETROS", styles: { fontStyle: 'bold', lineWidth: { bottom: 0.1 } } }, { content: "PRODUCCIÓN", styles: { fontStyle: 'bold', lineWidth: { bottom: 0.1 } } }, { content: "EMPRESA", styles: { fontStyle: 'bold', lineWidth: { bottom: 0.1 } } }],
                         ["FLETE PAGADO", `Bs. ${fletePagado.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `Bs. ${empresaPagado.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
                         ["FLETE DESTINO", `Bs. ${fleteDestino.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `Bs. ${empresaDestino.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                        ["IMPORTACIÓN", `Bs. ${importacionFlete.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `Bs. ${empresaImportacion.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
                         ["CREDITO", `Bs. ${credito.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
                         ["IPOSTEL", `Bs. ${ipostelTotal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
                         ["SEGURO", `Bs. ${seguroTotal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, ""],
@@ -920,7 +932,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                             2: { cellWidth: 60 }
                         },
                         didDrawCell: function(data) {
-                            if (data.row.index === 12 && data.column.index === 2) {
+                            if (data.row.index === 13 && data.column.index === 2) {
                                 // Draw signature line
                                 pdf.setDrawColor(0, 0, 0);
                                 pdf.setLineWidth(0.5);
@@ -931,7 +943,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                 pdf.setLineWidth(0.5);
                                 pdf.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
                             }
-                            if (data.row.index === 9 || data.row.index === 14) {
+                            if (data.row.index === 10 || data.row.index === 15) {
                                 pdf.setDrawColor(0, 0, 0);
                                 pdf.setLineWidth(0.5);
                                 pdf.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
@@ -1354,7 +1366,12 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const kg = calculateInvoiceChargeableWeight(inv);
                         const paquetes = inv.guide.merchandise.reduce((acc, m) => acc + (parseFloat(String(m.quantity)) || 1), 0);
-                        const tipoEnvio = inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado';
+                        const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
+                        const typeName = (st?.name || inv.guide.shippingTypeId || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        const isImportacion = typeName.includes('importaci') || inv.guide.shippingTypeId === 'st-importacion';
+                        const tipoEnvio = isImportacion
+                            ? (inv.guide.paymentType === 'flete-destino' ? 'Importación (Dest.)' : 'Importación (Pag.)')
+                            : (inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado');
                         return (
                             <tr key={inv.id}>
                                 <td className="px-2 py-2 text-center">{inv.date.split('T')[0].split('-').reverse().join('/')}</td>
@@ -1381,6 +1398,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     
                     let fletePagado = 0;
                     let fleteDestino = 0;
+                    let importacionFlete = 0;
                     let credito = 0;
                     let ipostelTotal = 0;
                     let seguroTotal = 0;
@@ -1390,9 +1408,13 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     (reportData as Invoice[]).forEach(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
                         const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
-                        const isMudanza = st?.name.toLowerCase().includes('mudanza');
+                        const typeName = (st?.name || inv.guide.shippingTypeId || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        const isImportacion = typeName.includes('importaci') || inv.guide.shippingTypeId === 'st-importacion';
+                        const isMudanza = typeName.includes('mudanza');
 
-                        if (isMudanza) {
+                        if (isImportacion) {
+                            importacionFlete += fin.freight;
+                        } else if (isMudanza) {
                             mudanza += fin.freight;
                         } else {
                             if (inv.guide.paymentType === 'flete-pagado') {
@@ -1409,9 +1431,10 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
                     const empresaPagado = fletePagado * 0.30;
                     const empresaDestino = fleteDestino * 0.30;
+                    const empresaImportacion = importacionFlete * 0.10; // 10% del flete neto
 
                     const totalGeneral = generalTotalsUI.total;
-                    const totalEmpresa = empresaPagado + empresaDestino + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
+                    const totalEmpresa = empresaPagado + empresaDestino + empresaImportacion + credito + ipostelTotal + seguroTotal + manejoTotal + mudanza;
                     const refDolares = companyInfo.bcvRate > 0 ? totalGeneral / companyInfo.bcvRate : 0;
                     const totalGastosOficina = dateFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -1432,6 +1455,11 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                                     <div>FLETE DESTINO</div>
                                     <div>{formatCurrency(fleteDestino)}</div>
                                     <div>{formatCurrency(empresaDestino)}</div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>IMPORTACIÓN</div>
+                                    <div>{formatCurrency(importacionFlete)}</div>
+                                    <div>{formatCurrency(empresaImportacion)}</div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div>CREDITO</div>

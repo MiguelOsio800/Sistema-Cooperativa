@@ -156,27 +156,39 @@ export const calculateDetailedRemesaFinancials = (
         const iva = fin.iva;
         const totalAmount = inv.totalAmount; 
 
-        // Identifica la comisión base de la cooperativa (favorCoop): 15% o 30% del totalAmount según el shippingType
+        // Flete neto es el restante del monto total menos seguro, ipostel, manejo e iva
+        const fleteNeto = Math.max(0, totalAmount - (insuranceCost + ipostel + handling + iva));
+
+        // Identifica el tipo de envío y si corresponde a Importación
+        const shippingType = shippingTypes.find(st => st.id === inv.guide.shippingTypeId);
+        const typeName = (shippingType?.name || inv.guide.shippingTypeId || '')
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+        const isImportacion = typeName.includes('importaci') || inv.guide.shippingTypeId === 'st-importacion';
+
+        // Identifica la comisión base de la cooperativa (favorCoop):
+        // 10% del FLETE NETO para Importación (el 90% del flete neto queda a la oficina/socio),
+        // o 15% / 30% del totalAmount según el tipo de envío y asociado para los demás envíos
         let coopPercentage = 0.30; 
-        if (!isNoAsociado) {
-            const shippingType = shippingTypes.find(st => st.id === inv.guide.shippingTypeId);
-            const typeName = shippingType?.name.toLowerCase() || '';
+        if (isImportacion) {
+            coopPercentage = 0.10;
+        } else if (!isNoAsociado) {
             if (typeName.includes('franquicia') || typeName.includes('expreso') || typeName.includes('mudanza')) {
                 coopPercentage = 0.15;
             }
         }
         
-        // La comisión base de la cooperativa se extrae expresamente del totalAmount
-        const favorCoop = totalAmount * coopPercentage;
+        // En importación la comisión de la cooperativa es el 10% del FLETE NETO
+        const favorCoop = isImportacion ? (fleteNeto * coopPercentage) : (totalAmount * coopPercentage);
         
         // Cargos extras son la comisión + todos los demás conceptos (que también son retenidos)
         const cargosExtrasFactura = favorCoop + insuranceCost + ipostel + handling + iva;
         
-        // Lo que realmente le queda a favor al socio de esta factura, asumiendo que recaudó o recaudará el totalAmount
+        // Lo que realmente le queda a favor al socio/oficina de esta factura (el 90% del flete neto en importación)
         const socioShare = totalAmount - cargosExtrasFactura;
         
-        // Flete es el restante del monto total menos seguro, ipostel, manejo e iva
-        const flete = totalAmount - (insuranceCost + ipostel + handling + iva);
+        const flete = fleteNeto;
 
         if (inv.guide.paymentType === 'flete-pagado') {
             result.totalPagado += totalAmount;

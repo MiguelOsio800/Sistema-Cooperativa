@@ -70,6 +70,14 @@ const DEFAULT_MERCHANDISE_CATEGORIES: Category[] = [
     { id: 'cat-mer-5', name: 'Electrodomésticos y Enseres' },
 ];
 
+const DEFAULT_SHIPPING_TYPES: ShippingType[] = [
+    { id: 'st-general', name: 'Carga General' },
+    { id: 'st-expreso', name: 'Expreso' },
+    { id: 'st-mudanza', name: 'Mudanza' },
+    { id: 'st-franquicia', name: 'Franquicia' },
+    { id: 'st-importacion', name: 'Importación' },
+];
+
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { addToast } = useToast();
     const { logAction } = useSystem();
@@ -82,7 +90,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [offices, setOffices] = useState<Office[]>([]);
-    const [shippingTypes, setShippingTypes] = useState<ShippingType[]>([]);
+    const [shippingTypes, setShippingTypes] = useState<ShippingType[]>(DEFAULT_SHIPPING_TYPES);
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
     const [cuentasContables, setCuentasContables] = useState<CuentaContable[]>([]);
@@ -148,7 +156,21 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                         })
                 );
 
-                if (isAdmin || perms['shipping-types.view']) promises.push(fetchSafe('/shipping-types', []).then(setShippingTypes));
+                // Tipos de envío: Cargar para todos los usuarios autenticados (necesario para facturación y remesas)
+                promises.push(
+                    fetchSafe<ShippingType[]>('/shipping-types', DEFAULT_SHIPPING_TYPES)
+                        .then(data => {
+                            let list = Array.isArray(data) && data.length > 0 ? [...data] : [...DEFAULT_SHIPPING_TYPES];
+                            const hasImportacion = list.some(st => 
+                                (st.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('importacion')
+                            );
+                            if (!hasImportacion) {
+                                list.push({ id: 'st-importacion', name: 'Importación' });
+                            }
+                            setShippingTypes(list);
+                        })
+                );
+
                 if (isAdmin || perms['payment-methods.view']) promises.push(fetchSafe('/payment-methods', []).then(setPaymentMethods));
                 if (isAdmin || perms['config.users.manage']) promises.push(fetchSafe('/users', []).then(setUsers));
 
