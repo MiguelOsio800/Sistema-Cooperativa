@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ShippingGuide, Client, Merchandise, Financials, Category, Invoice, Office, ShippingType, PaymentMethod, CompanyInfo, User, Permissions } from '../../types';
 import Card, { CardHeader, CardTitle } from '../ui/Card';
 import Input from '../ui/Input';
@@ -123,6 +123,56 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
             setGuide(g => ({...g, declaredValue: g.baseFreightAmount}));
         }
     }, [guide.baseFreightAmount, guide.hasInsurance]);
+
+    // Verificar si la oficina de origen es de Valencia
+    const selectedOriginOffice = offices.find(o => o.id === guide.originOfficeId);
+    const isValenciaOffice = Boolean(
+        selectedOriginOffice?.name &&
+        selectedOriginOffice.name
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .includes('valencia')
+    );
+
+    // Filtrar los tipos de envío: "Importación" solo disponible si la oficina de origen tiene "Valencia" en su nombre
+    const availableShippingTypes = useMemo(() => {
+        return shippingTypes.filter(st => {
+            const typeName = (st.name || st.id || '')
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+            const isImportacion = typeName.includes('importaci') || st.id === 'st-importacion';
+            if (isImportacion) {
+                return isValenciaOffice;
+            }
+            return true;
+        });
+    }, [shippingTypes, isValenciaOffice]);
+
+    // Si se cambia a una oficina que no sea de Valencia y estaba seleccionado Importación, reajustar al tipo por defecto
+    useEffect(() => {
+        if (!isValenciaOffice && guide.shippingTypeId) {
+            const currentST = shippingTypes.find(st => st.id === guide.shippingTypeId);
+            const typeName = (currentST?.name || currentST?.id || '')
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+            const isImportacion = typeName.includes('importaci') || guide.shippingTypeId === 'st-importacion';
+            if (isImportacion) {
+                const fallbackST = shippingTypes.find(st => {
+                    const name = (st.name || st.id || '')
+                        .toLowerCase()
+                        .normalize("NFD")
+                        .replace(/[\u0300-\u036f]/g, "");
+                    return !name.includes('importaci') && st.id !== 'st-importacion';
+                });
+                if (fallbackST) {
+                    setGuide(g => ({ ...g, shippingTypeId: fallbackST.id }));
+                }
+            }
+        }
+    }, [isValenciaOffice, guide.shippingTypeId, shippingTypes]);
 
 
     const handleClientChange = (party: 'sender' | 'receiver', field: keyof Client, value: string) => {
@@ -490,7 +540,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                     />
                                 </div>
                                 <Select label="Tipo de Envío" value={guide.shippingTypeId} onChange={e => setGuide(g => ({...g, shippingTypeId: e.target.value as any}))}>
-                                    {shippingTypes.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+                                    {availableShippingTypes.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
                                 </Select>
                                 <Select label="Forma de Pago" value={guide.paymentMethodId} onChange={e => setGuide(g => ({...g, paymentMethodId: e.target.value as any}))}>
                                     {paymentMethods.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
