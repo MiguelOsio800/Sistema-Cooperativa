@@ -338,7 +338,11 @@ const AppContent: React.FC = () => {
                                 ? filteredInvoices.filter(inv => inv.guide.originOfficeId === reportOfficeId)
                                 : filteredInvoices;
 
-                            return viewingReport ? <ReportDetailView report={viewingReport} invoices={reportInvoices} clients={clients} expenses={filteredExpenses} offices={viewableOffices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} shippingTypes={shippingTypes} reportOfficeId={reportOfficeId} /> : <div>Reporte no encontrado</div>;
+                            const reportExpenses = reportOfficeId && reportOfficeId !== 'all'
+                                ? filteredExpenses.filter(exp => exp.officeId === reportOfficeId)
+                                : filteredExpenses;
+
+                            return viewingReport ? <ReportDetailView report={viewingReport} invoices={reportInvoices} clients={clients} expenses={reportExpenses} offices={viewableOffices} companyInfo={companyInfo} paymentMethods={paymentMethods} vehicles={vehicles} categories={categories} asociados={asociados} shippingTypes={shippingTypes} reportOfficeId={reportOfficeId} /> : <div>Reporte no encontrado</div>;
                         case 'categories': return <CategoryView categories={categories} onSave={handleSaveCategory} onDelete={onDeleteCategory} permissions={userPermissions} />;
                         case 'clientes': return <ClientsView clients={clients} onSave={handleSaveClient} onDelete={handleDeleteClient} permissions={userPermissions} />;
                         case 'proveedores': return <SuppliersView suppliers={suppliers} onSave={handleSaveSupplier} onDelete={handleDeleteSupplier} permissions={userPermissions} />;

@@ -80,8 +80,62 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
     const { roles } = useConfig();
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [filterMonth, setFilterMonth] = useState('');
+    const [filterQuincena, setFilterQuincena] = useState('');
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const reportRef = useRef<HTMLDivElement>(null);
+
+    const effectiveOfficeId = useMemo(() => {
+        if (reportOfficeId && reportOfficeId !== 'all') return reportOfficeId;
+        if (!hasGlobalAccess && currentUser?.officeId) return currentUser.officeId;
+        return null;
+    }, [reportOfficeId, hasGlobalAccess, currentUser]);
+
+    const activeYear = useMemo(() => {
+        if (startDate && startDate.includes('-')) {
+            return startDate.split('-')[0];
+        }
+        if (invoices.length > 0 && invoices[0].date) {
+            return invoices[0].date.split('-')[0];
+        }
+        return String(new Date().getFullYear());
+    }, [startDate, invoices]);
+
+    const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const m = e.target.value;
+        setFilterMonth(m);
+        if (!m) return;
+        const daysInMonth = new Date(Number(activeYear), Number(m), 0).getDate();
+        if (filterQuincena === '1') {
+            setStartDate(`${activeYear}-${m}-01`);
+            setEndDate(`${activeYear}-${m}-15`);
+        } else if (filterQuincena === '2') {
+            setStartDate(`${activeYear}-${m}-16`);
+            setEndDate(`${activeYear}-${m}-${String(daysInMonth).padStart(2, '0')}`);
+        } else {
+            setStartDate(`${activeYear}-${m}-01`);
+            setEndDate(`${activeYear}-${m}-${String(daysInMonth).padStart(2, '0')}`);
+        }
+    };
+
+    const handleQuincenaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const q = e.target.value;
+        setFilterQuincena(q);
+        const m = filterMonth || (startDate && startDate.includes('-') ? startDate.split('-')[1] : String(new Date().getMonth() + 1).padStart(2, '0'));
+        if (!filterMonth && m) setFilterMonth(m);
+        
+        const daysInMonth = new Date(Number(activeYear), Number(m), 0).getDate();
+        if (q === '1') {
+            setStartDate(`${activeYear}-${m}-01`);
+            setEndDate(`${activeYear}-${m}-15`);
+        } else if (q === '2') {
+            setStartDate(`${activeYear}-${m}-16`);
+            setEndDate(`${activeYear}-${m}-${String(daysInMonth).padStart(2, '0')}`);
+        } else if (m) {
+            setStartDate(`${activeYear}-${m}-01`);
+            setEndDate(`${activeYear}-${m}-${String(daysInMonth).padStart(2, '0')}`);
+        }
+    };
 
     const officeName = useMemo(() => {
         if (!reportOfficeId || reportOfficeId === 'all') return 'Todas las Sucursales';
@@ -102,6 +156,9 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
     
     const dateFilteredExpenses = useMemo(() => {
         return expenses.filter(expense => {
+            if (effectiveOfficeId) {
+                if (expense.officeId && expense.officeId !== effectiveOfficeId) return false;
+            }
             if (!startDate && !endDate) return true;
             const expenseDateStr = expense.date.split('T')[0];
             const startStr = startDate ? startDate.split('T')[0] : null;
@@ -110,7 +167,7 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             if (endStr && expenseDateStr > endStr) return false;
             return true;
         });
-    }, [expenses, startDate, endDate]);
+    }, [expenses, startDate, endDate, effectiveOfficeId]);
 
     const reportData = useMemo(() => {
         switch(report.id) {
@@ -250,16 +307,20 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const tipoEnvio = isImportacion
                         ? (inv.guide.paymentType === 'flete-destino' ? 'Importación (Dest.)' : 'Importación (Pag.)')
                         : (inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado');
+                    const handling = (inv.Montomanejo !== undefined && inv.Montomanejo !== null) ? Number(inv.Montomanejo) : fin.handling;
+                    const ipostel = (inv.ipostelFee !== undefined && inv.ipostelFee !== null) ? Number(inv.ipostelFee) : fin.ipostel;
+                    const insurance = fin.insuranceCost;
+                    const freight = (inv.montoFlete !== undefined && inv.montoFlete !== null && Number(inv.montoFlete) > 0) ? Number(inv.montoFlete) : fin.freight;
                     return {
                         [headers[0]]: inv.date.split('T')[0].split('-').reverse().join('/'),
                         [headers[1]]: inv.invoiceNumber,
                         [headers[2]]: inv.controlNumber,
                         [headers[3]]: inv.clientName,
                         [headers[4]]: tipoEnvio,
-                        [headers[5]]: fin.freight,
-                        [headers[6]]: fin.insuranceCost,
-                        [headers[7]]: fin.handling,
-                        [headers[8]]: fin.ipostel,
+                        [headers[5]]: freight,
+                        [headers[6]]: insurance,
+                        [headers[7]]: handling,
+                        [headers[8]]: ipostel,
                         [headers[9]]: kg,
                         [headers[10]]: paquetes,
                         [headers[11]]: inv.totalAmount,
@@ -269,10 +330,14 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     const fin = calculateFinancialDetails(inv.guide, companyInfo);
                     const kg = calculateInvoiceChargeableWeight(inv);
                     const paquetes = inv.guide.merchandise.reduce((sum, m) => sum + (parseFloat(String(m.quantity)) || 1), 0);
-                    acc.flete += fin.freight;
-                    acc.seguro += fin.insuranceCost;
-                    acc.manejo += fin.handling;
-                    acc.ipostel += fin.ipostel;
+                    const handling = (inv.Montomanejo !== undefined && inv.Montomanejo !== null) ? Number(inv.Montomanejo) : fin.handling;
+                    const ipostel = (inv.ipostelFee !== undefined && inv.ipostelFee !== null) ? Number(inv.ipostelFee) : fin.ipostel;
+                    const insurance = fin.insuranceCost;
+                    const freight = (inv.montoFlete !== undefined && inv.montoFlete !== null && Number(inv.montoFlete) > 0) ? Number(inv.montoFlete) : fin.freight;
+                    acc.flete += freight;
+                    acc.seguro += insurance;
+                    acc.manejo += handling;
+                    acc.ipostel += ipostel;
                     acc.kg += kg;
                     acc.paquetes += paquetes;
                     acc.total += inv.totalAmount;
@@ -866,26 +931,30 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
                     (sourceData as Invoice[]).forEach(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                        const handling = (inv.Montomanejo !== undefined && inv.Montomanejo !== null) ? Number(inv.Montomanejo) : fin.handling;
+                        const ipostel = (inv.ipostelFee !== undefined && inv.ipostelFee !== null) ? Number(inv.ipostelFee) : fin.ipostel;
+                        const insurance = fin.insuranceCost;
+                        const freight = (inv.montoFlete !== undefined && inv.montoFlete !== null && Number(inv.montoFlete) > 0) ? Number(inv.montoFlete) : fin.freight;
                         const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
                         const typeName = (st?.name || inv.guide.shippingTypeId || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                         const isImportacion = typeName.includes('importaci') || inv.guide.shippingTypeId === 'st-importacion';
                         const isMudanza = typeName.includes('mudanza');
 
                         if (isImportacion) {
-                            importacionFlete += fin.freight;
+                            importacionFlete += freight;
                         } else if (isMudanza) {
-                            mudanza += fin.freight;
+                            mudanza += freight;
                         } else {
                             if (inv.guide.paymentType === 'flete-pagado') {
-                                fletePagado += fin.freight;
+                                fletePagado += freight;
                             } else if (inv.guide.paymentType === 'flete-destino') {
-                                fleteDestino += fin.freight;
+                                fleteDestino += freight;
                             }
                         }
                         
-                        ipostelTotal += fin.ipostel;
-                        seguroTotal += fin.insuranceCost;
-                        manejoTotal += fin.handling;
+                        ipostelTotal += ipostel;
+                        seguroTotal += insurance;
+                        manejoTotal += handling;
                     });
 
                     const empresaPagado = fletePagado * 0.30;
@@ -1372,16 +1441,20 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                         const tipoEnvio = isImportacion
                             ? (inv.guide.paymentType === 'flete-destino' ? 'Importación (Dest.)' : 'Importación (Pag.)')
                             : (inv.guide.paymentType === 'flete-destino' ? 'Destino' : 'Pagado');
+                        const handling = (inv.Montomanejo !== undefined && inv.Montomanejo !== null) ? Number(inv.Montomanejo) : fin.handling;
+                        const ipostel = (inv.ipostelFee !== undefined && inv.ipostelFee !== null) ? Number(inv.ipostelFee) : fin.ipostel;
+                        const insurance = fin.insuranceCost;
+                        const freight = (inv.montoFlete !== undefined && inv.montoFlete !== null && Number(inv.montoFlete) > 0) ? Number(inv.montoFlete) : fin.freight;
                         return (
                             <tr key={inv.id}>
                                 <td className="px-2 py-2 text-center">{inv.date.split('T')[0].split('-').reverse().join('/')}</td>
                                 <td className="px-2 py-2 text-center font-mono">{inv.invoiceNumber}</td>
                                 <td className="px-2 py-2 text-left max-w-[150px] truncate" title={inv.clientName}>{inv.clientName}</td>
                                 <td className="px-2 py-2 text-center text-xs font-semibold">{tipoEnvio}</td>
-                                <td className="px-2 py-2 text-center">{formatCurrency(fin.freight)}</td>
-                                <td className="px-2 py-2 text-center">{formatCurrency(fin.insuranceCost)}</td>
-                                <td className="px-2 py-2 text-center">{formatCurrency(fin.handling)}</td>
-                                <td className="px-2 py-2 text-center">{formatCurrency(fin.ipostel)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(freight)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(insurance)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(handling)}</td>
+                                <td className="px-2 py-2 text-center">{formatCurrency(ipostel)}</td>
                                 <td className="px-2 py-2 text-center">{kg.toFixed(2)}</td>
                                 <td className="px-2 py-2 text-center">{paquetes}</td>
                                 <td className="px-2 py-2 text-center font-medium">{formatCurrency(inv.totalAmount)}</td>
@@ -1390,7 +1463,8 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
                     });
                     const generalTotalsUI = (reportData as Invoice[]).reduce((acc, inv) => { 
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
-                        acc.flete += fin.freight;
+                        const freight = (inv.montoFlete !== undefined && inv.montoFlete !== null && Number(inv.montoFlete) > 0) ? Number(inv.montoFlete) : fin.freight;
+                        acc.flete += freight;
                         acc.total += inv.totalAmount; 
                         return acc; 
                     }, { flete: 0, total: 0 });
@@ -1407,26 +1481,30 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
 
                     (reportData as Invoice[]).forEach(inv => {
                         const fin = calculateFinancialDetails(inv.guide, companyInfo);
+                        const handling = (inv.Montomanejo !== undefined && inv.Montomanejo !== null) ? Number(inv.Montomanejo) : fin.handling;
+                        const ipostel = (inv.ipostelFee !== undefined && inv.ipostelFee !== null) ? Number(inv.ipostelFee) : fin.ipostel;
+                        const insurance = fin.insuranceCost;
+                        const freight = (inv.montoFlete !== undefined && inv.montoFlete !== null && Number(inv.montoFlete) > 0) ? Number(inv.montoFlete) : fin.freight;
                         const st = shippingTypes.find(s => s.id === inv.guide.shippingTypeId);
                         const typeName = (st?.name || inv.guide.shippingTypeId || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                         const isImportacion = typeName.includes('importaci') || inv.guide.shippingTypeId === 'st-importacion';
                         const isMudanza = typeName.includes('mudanza');
 
                         if (isImportacion) {
-                            importacionFlete += fin.freight;
+                            importacionFlete += freight;
                         } else if (isMudanza) {
-                            mudanza += fin.freight;
+                            mudanza += freight;
                         } else {
                             if (inv.guide.paymentType === 'flete-pagado') {
-                                fletePagado += fin.freight;
+                                fletePagado += freight;
                             } else if (inv.guide.paymentType === 'flete-destino') {
-                                fleteDestino += fin.freight;
+                                fleteDestino += freight;
                             }
                         }
                         
-                        ipostelTotal += fin.ipostel;
-                        seguroTotal += fin.insuranceCost;
-                        manejoTotal += fin.handling;
+                        ipostelTotal += ipostel;
+                        seguroTotal += insurance;
+                        manejoTotal += handling;
                     });
 
                     const empresaPagado = fletePagado * 0.30;
@@ -1802,21 +1880,63 @@ const ReportDetailView: React.FC<ReportDetailViewProps> = ({ report, invoices, c
             </div>
             <Card>
                 <CardHeader>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
+                    <div className="flex flex-col 2xl:flex-row justify-between items-start 2xl:items-center gap-4">
+                        <div className="shrink-0">
                              <CardTitle>{report.title}</CardTitle>
-                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Filtre por fecha y exporte los datos.</p>
+                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Filtre por mes, quincena o rango de fechas y exporte los datos.</p>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                           <Input label="" type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                           <Input label="" type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                           <Button onClick={handleExport} className="w-full sm:w-auto">
-                                <FileSpreadsheetIcon className="w-4 h-4 mr-2" />
-                                Excel
-                           </Button>
-                           <Button onClick={handleExportPDF} variant="secondary" className="w-full sm:w-auto">
-                                PDF
-                           </Button>
+                        <div className="flex flex-wrap items-center gap-2 w-full 2xl:w-auto">
+                           <div className="w-full sm:w-28">
+                               <Select 
+                                   label="" 
+                                   id="filter-month" 
+                                   value={filterMonth} 
+                                   onChange={handleMonthChange}
+                                   title="Filtrar por Mes"
+                               >
+                                   <option value="">Mes</option>
+                                   <option value="01">Enero</option>
+                                   <option value="02">Febrero</option>
+                                   <option value="03">Marzo</option>
+                                   <option value="04">Abril</option>
+                                   <option value="05">Mayo</option>
+                                   <option value="06">Junio</option>
+                                   <option value="07">Julio</option>
+                                   <option value="08">Agosto</option>
+                                   <option value="09">Septiembre</option>
+                                   <option value="10">Octubre</option>
+                                   <option value="11">Noviembre</option>
+                                   <option value="12">Diciembre</option>
+                               </Select>
+                           </div>
+                           <div className="w-full sm:w-36">
+                               <Select 
+                                   label="" 
+                                   id="filter-quincena" 
+                                   value={filterQuincena} 
+                                   onChange={handleQuincenaChange}
+                                   title="Filtrar por Quincena"
+                               >
+                                   <option value="">Quincena</option>
+                                   <option value="1">1ra Q (1-15)</option>
+                                   <option value="2">2da Q (16-fin)</option>
+                               </Select>
+                           </div>
+                           <div className="w-full sm:w-32">
+                               <Input label="" type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} title="Fecha Inicio" />
+                           </div>
+                           <div className="w-full sm:w-32">
+                               <Input label="" type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} title="Fecha Fin" />
+                           </div>
+                           <div className="flex items-center gap-2 shrink-0">
+                               <Button onClick={handleExport} className="whitespace-nowrap">
+                                    <FileSpreadsheetIcon className="w-4 h-4 mr-2" />
+                                    Excel
+                               </Button>
+                               <Button onClick={handleExportPDF} variant="secondary" className="whitespace-nowrap">
+                                    PDF
+                               </Button>
+                           </div>
                         </div>
                     </div>
                 </CardHeader>
