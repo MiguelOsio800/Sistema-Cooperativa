@@ -51,11 +51,12 @@ const Header: React.FC<HeaderProps> = ({
     return (
         <header className="flex items-center justify-between h-20 px-4 sm:px-6 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0">
             <div className="flex items-center">
-                {/* Hamburger Menu Button */}
+                {/* Hamburger Menu Button (Slider bar de módulos) */}
                 <button 
                     onClick={onToggleSidebar} 
-                    className="lg:hidden mr-3 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                    aria-label="Open sidebar"
+                    className="lg:hidden mr-2.5 p-2 -ml-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all"
+                    aria-label="Abrir módulos del sistema"
+                    title="Módulos"
                 >
                     <MenuIcon className="h-6 w-6" />
                 </button>

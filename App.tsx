@@ -43,6 +43,7 @@ import GuiasPorteView from './components/shipping-guide/GuiasPorteView';
 import GastosView from './components/expenses/GastosView';
 import { PackageIcon } from './components/icons/Icons';
 import SessionWarningModal from './components/auth/SessionWarningModal';
+import MobileBottomNav from './components/layout/MobileBottomNav';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
 const AppContent: React.FC = () => {
@@ -445,12 +446,20 @@ const AppContent: React.FC = () => {
                         onSaveUser={handleSaveUser}
                     />
                     <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-800">
-                        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+                        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pb-28 lg:pb-8">
                             {renderPage()}
                         </div>
                     </main>
                 </div>
             </div>
+            {currentUser && (
+                <MobileBottomNav 
+                    currentPage={currentPage}
+                    permissions={userPermissions}
+                    currentUser={currentUser}
+                    onLogout={handleLogout}
+                />
+            )}
             <SessionWarningModal
                 isOpen={isWarningModalOpen}
                 countdown={countdown}
