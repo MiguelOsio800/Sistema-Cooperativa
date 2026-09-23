@@ -35,7 +35,7 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
 
     const subtotal = Number((freightAfterDiscount + insuranceCost + handling).toFixed(2));
     
-    // Cálculo del Peso Total Real (Cantidad x Peso unitario)
+    // Cálculo del Peso Total Real (Cantidad x Peso unitario) para transporte y visualización
     const totalWeight = guide.merchandise.reduce((acc, item) => {
         const unitWeight = parseFloat(String(item.weight)) || 0;
         const qty = parseFloat(String(item.quantity)) || 1;
@@ -44,10 +44,15 @@ export const calculateFinancialDetails = (guide: ShippingGuide, companyInfo: Com
 
     /**
      * REGLA CANÓNICA DE IPOSTEL:
-     * - Si el peso total está entre 0.01 y 30.00 kg: Aplica el 6% (0.06) sobre el flete neto.
-     * - Si el peso es 0 o mayor a 30.00 kg: 0 (exento).
+     * La normativa postal evalúa cada pieza o bulto individual:
+     * - Si al menos una mercancía registrada tiene un peso unitario mayor a 0 y menor o igual a 30.99 kg,
+     *   la factura aplica el 6% (0.06) sobre el flete neto (freightAfterDiscount).
+     * - Si todos los bultos superan 30.99 kg o no hay mercancías válidas, el IPOSTEL es 0 (exento).
      */
-    const appliesIpostel = totalWeight > 0 && totalWeight <= 30.0;
+    const appliesIpostel = guide.merchandise.some(item => {
+        const unitWeight = parseFloat(String(item.weight)) || 0;
+        return unitWeight > 0 && unitWeight <= 30.99;
+    });
     const ipostel = appliesIpostel 
         ? Number((freightAfterDiscount * 0.06).toFixed(2)) 
         : 0;

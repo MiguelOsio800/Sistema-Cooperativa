@@ -485,6 +485,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                         <CardHeader><CardTitle>Detalles de Mercancía</CardTitle></CardHeader>
                         {guide.merchandise.map((item, index) => {
                             const volWeight = (Number(item.length) * Number(item.width) * Number(item.height)) / 5000;
+                            const itemTotalWeight = (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.weight)) || 0);
                             const itemErrors = errors.merchandise?.[index] || {};
                             return (
                                 <div key={index} className="space-y-4 p-4 mb-4 border dark:border-gray-700 rounded-lg relative">
@@ -495,8 +496,11 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onSave, invoice = null, compa
                                     )}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <Input label="Cantidad" type="number" value={item.quantity} onChange={e => handleMerchandiseChange(index, 'quantity', e.target.value)} error={itemErrors.quantity} />
-                                        <Input label="Peso (Kg)" type="number" value={item.weight} onChange={e => handleMerchandiseChange(index, 'weight', e.target.value)} error={itemErrors.weight} />
+                                        <Input label="Peso (Kg/u)" type="number" value={item.weight} onChange={e => handleMerchandiseChange(index, 'weight', e.target.value)} error={itemErrors.weight} />
                                     </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 text-right -mt-2">
+                                        Total peso facturado: {itemTotalWeight.toFixed(2)} kg
+                                    </p>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Dimensiones (cm)</p>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <Input label="Largo" type="number" value={item.length} onChange={e => handleMerchandiseChange(index, 'length', e.target.value)} />
